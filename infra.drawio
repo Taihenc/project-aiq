@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36" version="28.1.2">
   <diagram id="Ht1M8jgEwFfnCIfOTk4-" name="Page-1">
-    <mxGraphModel dx="2508" dy="1565" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+    <mxGraphModel dx="1505" dy="939" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="QOa2ZHaLhBSHIO6nb5c6-42" value="Untitled Layer" parent="0" />
@@ -185,8 +185,8 @@
         <mxCell id="_mdZkhhdyM_qIWIxespC-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Bai Jamjuree;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DBai%2BJamjuree;fontSize=12;fontColor=default;dashed=1;endArrow=none;endFill=0;" edge="1" parent="1" source="_mdZkhhdyM_qIWIxespC-24" target="_mdZkhhdyM_qIWIxespC-25">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="_mdZkhhdyM_qIWIxespC-24" value="Dashboard" style="rounded=0;whiteSpace=wrap;html=1;fontFamily=Bai Jamjuree;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DBai%2BJamjuree;fontSize=19;" vertex="1" parent="1">
-          <mxGeometry x="590" y="45" width="120" height="60" as="geometry" />
+        <mxCell id="_mdZkhhdyM_qIWIxespC-24" value="Chat interface" style="rounded=0;whiteSpace=wrap;html=1;fontFamily=Bai Jamjuree;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DBai%2BJamjuree;fontSize=19;" vertex="1" parent="1">
+          <mxGeometry x="560" y="45" width="150" height="60" as="geometry" />
         </mxCell>
         <mxCell id="_mdZkhhdyM_qIWIxespC-28" value="REST / SSE(Websocket)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Bai Jamjuree;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DBai%2BJamjuree;fontSize=12;fontColor=default;startArrow=classic;startFill=1;" edge="1" parent="1" source="_mdZkhhdyM_qIWIxespC-25" target="_mdZkhhdyM_qIWIxespC-27">
           <mxGeometry relative="1" as="geometry" />
