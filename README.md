@@ -23,6 +23,7 @@ project-aiq-mvp/
 To start all services (backend, frontend, and AI service) in parallel, run the following command from the root of the monorepo:
 
 ```bash
+pnpm i -r
 pnpm dev
 ```
 
