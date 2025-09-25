@@ -1,0 +1,42 @@
+msg_file="$1"
+commit_message="$(cat "$msg_file")"
+
+# Get current branch (handle detached HEAD safely)
+branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+
+# Extract JIRA like AIQ-123 from branch name
+ticket="$(echo "$branch" | grep -Eio '[A-Z][A-Z0-9]+-[0-9]+' | head -n1)"
+
+# Uppercase the ticket if lowercase in branch
+[ -n "$ticket" ] && ticket="$(printf '%s' "$ticket" | tr '[:lower:]' '[:upper:]')"
+
+# Conventional commit head regex (support optional !)
+type_head_regex='^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([^)]+\))?(!)?:'
+
+# Does message already include a ticket anywhere? If so, keep as-is.
+has_ticket_in_msg="$(printf '%s' "$commit_message" | grep -Eo '[A-Z][A-Z0-9]+-[0-9]+' || true)"
+
+if [ -n "$ticket" ] && [ -z "$has_ticket_in_msg" ]; then
+  if printf '%s' "$commit_message" | grep -Eq "$type_head_regex"; then
+    # Inject " [TICKET] " right after the colon+space
+    commit_message="$(printf '%s' "$commit_message" | sed -E "1s/^($type_head_regex)[ ]*/\1 [$ticket] /")"
+    printf '%s' "$commit_message" > "$msg_file"
+  fi
+fi
+
+# Validation regex: <type>(<scope>)?: [JIRA-ID] description
+regex='^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([^)]+\))?(!)?: \[[A-Z][A-Z0-9]+-[0-9]+\] .+'
+
+if ! printf '%s' "$commit_message" | grep -Eq "$regex"; then
+  echo "Aborting commit. Your commit message must follow:"
+  echo "  <type>(<scope>)?: [JIRA-CARD-ID] <description>"
+  echo ""
+  echo "Examples:"
+  echo "  feat(auth): [AIQ-123] Add user authentication"
+  echo "  fix!: [AIQ-456] Remove deprecated endpoint"
+  echo ""
+  echo "Valid types: feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert"
+  echo ""
+  echo "Tip: This hook auto-injects [JIRA-ID] from your branch name if it looks like 'feature/AIQ-123-...'"
+  exit 1
+fi
