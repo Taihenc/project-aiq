@@ -1,0 +1,17 @@
+{
+  "name": "project-aiq-mvp",
+  "version": "1.0.0",
+  "description": "",
+  "packageManager": "pnpm@8.15.6",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "turbo run dev --parallel"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "turbo": "^2.5.8"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "ai",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "uv venv --clear && uv pip install -r requirements.txt",
+    "dev": ".venv\\Scripts\\activate && uvicorn main:app --reload"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
