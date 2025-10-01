@@ -39,6 +39,27 @@
             "dependsOn": [
                 "install"
             ]
+        },
+        "start:backend": {
+            "cache": false,
+            "persistent": true,
+            "dependsOn": [
+                "build"
+            ]
+        },
+        "start:web": {
+            "cache": false,
+            "persistent": true,
+            "dependsOn": [
+                "build"
+            ]
+        },
+        "start:ai": {
+            "cache": false,
+            "persistent": true,
+            "dependsOn": [
+                "build"
+            ]
         }
     }
 }
