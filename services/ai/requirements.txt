@@ -1,2 +1,7 @@
 fastapi
 uvicorn
+transformers
+accelerate
+sentence-transformers
+torch
+openai
