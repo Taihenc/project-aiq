@@ -23,6 +23,16 @@
             "cache": false,
             "persistent": true,
             "dependsOn": [
+                "install",
+                "dev:backend",
+                "dev:web",
+                "dev:ai"
+            ]
+        },
+        "dev:backend": {
+            "cache": false,
+            "persistent": true,
+            "dependsOn": [
                 "install"
             ]
         },

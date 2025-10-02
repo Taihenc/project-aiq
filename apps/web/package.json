@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "streamlit run app.py"
+    "install": "uv venv --clear && uv pip install -r requirements.txt",
+    "dev": "source .venv/bin/activate && streamlit run app.py --server.port=8501 --server.address=0.0.0.0"
   },
   "keywords": [],
   "author": "",
