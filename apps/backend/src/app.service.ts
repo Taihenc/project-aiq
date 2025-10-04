@@ -14,10 +14,7 @@ export class AppService {
 
   chatWithAi(message: string): Observable<string> {
     const aiServiceUrl =
-      process.env.AI_SERVICE_URL ??
-      (process.env.NODE_ENV === 'production'
-        ? 'http://ai:8000/chat'
-        : 'http://127.0.0.1:8000/chat');
+      process.env.AI_SERVICE_URL ?? 'http://127.0.0.1:8000/chat';
     return this.httpService
       .post(aiServiceUrl, { text: message })
       .pipe(

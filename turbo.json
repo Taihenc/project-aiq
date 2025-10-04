@@ -23,48 +23,10 @@
             "cache": false,
             "persistent": true,
             "dependsOn": [
-                "install",
-                "dev:backend",
-                "dev:web",
-                "dev:ai"
-            ]
-        },
-        "dev:backend": {
-            "cache": false,
-            "persistent": true,
-            "dependsOn": [
                 "install"
             ]
         },
-        "dev:web": {
-            "cache": false,
-            "persistent": true,
-            "dependsOn": [
-                "install"
-            ]
-        },
-        "dev:ai": {
-            "cache": false,
-            "persistent": true,
-            "dependsOn": [
-                "install"
-            ]
-        },
-        "start:backend": {
-            "cache": false,
-            "persistent": true,
-            "dependsOn": [
-                "build"
-            ]
-        },
-        "start:web": {
-            "cache": false,
-            "persistent": true,
-            "dependsOn": [
-                "build"
-            ]
-        },
-        "start:ai": {
+        "start": {
             "cache": false,
             "persistent": true,
             "dependsOn": [

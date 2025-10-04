@@ -10,6 +10,12 @@
     "dev:ai": "turbo run dev --filter=ai",
     "dev:web": "turbo run dev --filter=web",
     "dev:backend": "turbo run dev --filter=backend",
+    "start": "turbo run start --parallel",
+    "start:ai": "turbo run start --filter=ai",
+    "start:web": "turbo run start --filter=web",
+    "start:backend": "turbo run start --filter=backend",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
     "prepare": "husky"
   },
   "keywords": [],
