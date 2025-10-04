@@ -1,5 +1,7 @@
-import streamlit as st
+import os
+
 import requests
+import streamlit as st
 
 st.title("AI Chat Interface")
 
@@ -16,7 +18,7 @@ if prompt := st.chat_input("What is up?"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        backend_url = "http://localhost:3000/chat"  # Assuming backend runs on port 3000
+        backend_url = os.getenv("BACKEND_URL") or "http://localhost:3000/chat"
         try:
             response_from_backend = requests.post(
                 backend_url, json={"message": prompt})

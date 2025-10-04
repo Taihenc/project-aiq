@@ -26,18 +26,11 @@
                 "install"
             ]
         },
-        "dev:web": {
+        "start": {
             "cache": false,
             "persistent": true,
             "dependsOn": [
-                "install"
-            ]
-        },
-        "dev:ai": {
-            "cache": false,
-            "persistent": true,
-            "dependsOn": [
-                "install"
+                "build"
             ]
         }
     }

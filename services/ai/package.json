@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "install": "uv venv --clear && uv pip install -r requirements.txt",
-    "dev": ".venv\\Scripts\\activate && uvicorn main:app --reload"
+    "dev": "source .venv/bin/activate && uvicorn main:app --reload",
+    "start": "source .venv/bin/activate && uvicorn main:app --reload"
   },
   "keywords": [],
   "author": "",
