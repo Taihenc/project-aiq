@@ -1,2 +1,7 @@
 fastapi
 uvicorn
+pydantic
+python-multipart
+crewai[tools]
+pytest
+python-dotenv
