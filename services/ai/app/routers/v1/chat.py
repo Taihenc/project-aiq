@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Query
 from app.config import settings
 from app.models.chat import ChatRequest, ChatResponse, ChatSession
 from app.services.chat_service import ChatService
@@ -46,7 +46,9 @@ async def chat(
 
 
 @router.get("/get-history", response_model=ChatSession)
-async def get_chat_history(session_id: str = Body(example="session_67890")):
+async def get_chat_history(
+    session_id: str = Query(example="session_67890"),
+):
     """
     Get chat history - Receive session_id and return chat history
     """
@@ -70,7 +72,9 @@ async def create_chat_session():
 
 
 @router.get("/check-session", response_model=bool)
-async def check_chat_session(session_id: str = Body(example="session_67890")):
+async def check_chat_session(
+    session_id: str = Query(example="session_67890"),
+):
     """
     Check if chat session exists
     """
