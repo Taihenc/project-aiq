@@ -2,12 +2,12 @@
   "name": "ai",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app/main.py",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "install": "uv venv --clear && uv pip install -r requirements.txt",
-    "dev": "source .venv/bin/activate && uvicorn main:app --reload",
-    "start": "source .venv/bin/activate && uvicorn main:app --reload"
+    "dev": "source .venv/bin/activate && uvicorn app.main:app --reload",
+    "start": "source .venv/bin/activate && uvicorn app.main:app --reload"
   },
   "keywords": [],
   "author": "",
