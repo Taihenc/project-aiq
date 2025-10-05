@@ -1,10 +1,6 @@
-import uuid
-from fastapi import APIRouter, HTTPException, Body, Query
-from typing import List, Optional
-from app.config import settings
+from fastapi import APIRouter, HTTPException, Body
 from app.services.embedding_service import EmbeddingService
 from app.models.embedding import (
-    DocumentEditRequest,
     SearchRequest,
     DocumentResponse,
     SearchResponse,
@@ -73,7 +69,7 @@ async def delete_document(document_id: str):
 
 
 @router.put("/edit/{document_id}")
-async def edit_document(document_id: str, request: DocumentEditRequest):
+async def edit_document(document_id: str):
     """
     Edit an existing document in the knowledge base
     """
