@@ -59,7 +59,7 @@ class EmbeddingService:
             },
             {
                 "id": "550e8400-e29b-41d4-a716-446655440004",
-                "content": "AI SERIVCE is nothing.you need to write it.",
+                "content": "AI SERIVCE by Team AIQ is Very Good and I like it.",
                 "path": "project/project-aiq/services/ai/README.md",
             },
             {

@@ -1,6 +1,8 @@
-from typing import Dict
+from typing import Dict, Optional
 from app.models.chat import ChatRequest, ChatResponse, ChatBox, ChatSession, ChatTurn
 from app.config import settings, get_model_config
+from app.services.embedding_service import EmbeddingService
+from app.services.crewai_service import CrewAIService
 from datetime import datetime
 import uuid
 import logging
@@ -15,6 +17,8 @@ class ChatService:
 
     def __init__(self):
         self.chat_session: Dict[str, ChatSession] = {}
+        self.embedding_service = EmbeddingService()
+        self.crewai_service = CrewAIService()
 
     async def check_session(self, session_id: str) -> bool:
         """
@@ -35,51 +39,104 @@ class ChatService:
 
     async def process_chat(self, request: ChatRequest) -> ChatResponse:
         """
-        Process chat request - mock implementation
+        Process chat request using RAG and CrewAI agents
         """
-        # Simulate processing time
         start_time = time.time()
-        await asyncio.sleep(0.25)  # Simulate AI processing delay
-        processing_time = int((time.time() - start_time) * 1000)
 
-        # Generate mock response message
-        mock_responses = "ขออภัยครับ ผมยังไม่สามารถตอบคำถามนี้ได้ในขณะนี้"
+        try:
+            # Extract path filter from context if available
+            path_filter = None
+            if request.chat_box.context and "path" in request.chat_box.context:
+                path_filter = request.chat_box.context["path"]
 
-        response_message = mock_responses
-
-        # Create response chat box
-        response_chat_box = ChatBox(
-            message=response_message,
-            context={"mock": True},
-        )
-        self.chat_session[request.session_id].history.append(
-            ChatTurn(
-                chat_id=str(uuid.uuid4()),
-                request=request.chat_box,
-                response=response_chat_box,
-                timestamp=datetime.now().isoformat(),
+            # Perform semantic search
+            search_results = await self.embedding_service.search(
+                query=request.chat_box.message,
+                file_path_filter=path_filter,
+                limit=settings.SEARCH_RESULTS_LIMIT,
             )
-        )
 
-        # Generate response
-        response = ChatResponse(
-            chat_box=response_chat_box,
-            model_used=request.model,
-            timestamp=datetime.now().isoformat(),
-            processing_time_ms=processing_time,
-            prompt_tokens=len(request.chat_box.message.split()),
-            completion_tokens=len(response_message.split()),
-            total_tokens=len(request.chat_box.message.split())
-            + len(response_message.split()),
-            session_id=request.session_id,
-            chat_id=str(uuid.uuid4()),
-        )
+            # Process with CrewAI agents
+            response_message = await self.crewai_service.process_chat_with_agents(
+                user_query=request.chat_box.message,
+                search_results=search_results,
+            )
 
-        logger.info(
-            f"Processed chat request for session {request.session_id} - Mock response generated"
-        )
+            processing_time = int((time.time() - start_time) * 1000)
 
-        return response
+            # Create response chat box
+            response_chat_box = ChatBox(
+                message=response_message,
+                context={
+                    "search_results_count": len(search_results),
+                    "path_filter": path_filter,
+                    "agent_processed": True,
+                },
+            )
+
+            # Add to chat history
+            self.chat_session[request.session_id].history.append(
+                ChatTurn(
+                    chat_id=str(uuid.uuid4()),
+                    request=request.chat_box,
+                    response=response_chat_box,
+                    timestamp=datetime.now().isoformat(),
+                )
+            )
+
+            # Generate response
+            response = ChatResponse(
+                chat_box=response_chat_box,
+                model_used=request.model,
+                timestamp=datetime.now().isoformat(),
+                processing_time_ms=processing_time,
+                prompt_tokens=len(request.chat_box.message.split()),
+                completion_tokens=len(response_message.split()),
+                total_tokens=len(request.chat_box.message.split())
+                + len(response_message.split()),
+                session_id=request.session_id,
+                chat_id=str(uuid.uuid4()),
+            )
+
+            logger.info(
+                f"Processed chat request for session {request.session_id} - Agent response generated with {len(search_results)} search results"
+            )
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error processing chat request: {str(e)}")
+
+            # Fallback to error response
+            processing_time = int((time.time() - start_time) * 1000)
+            error_message = "ขออภัยครับ เกิดข้อผิดพลาดในการประมวลผลคำถาม กรุณาลองใหม่อีกครั้ง"
+
+            response_chat_box = ChatBox(
+                message=error_message,
+                context={"error": True, "error_message": str(e)},
+            )
+
+            self.chat_session[request.session_id].history.append(
+                ChatTurn(
+                    chat_id=str(uuid.uuid4()),
+                    request=request.chat_box,
+                    response=response_chat_box,
+                    timestamp=datetime.now().isoformat(),
+                )
+            )
+
+            return ChatResponse(
+                chat_box=response_chat_box,
+                model_used=request.model,
+                timestamp=datetime.now().isoformat(),
+                processing_time_ms=processing_time,
+                prompt_tokens=len(request.chat_box.message.split()),
+                completion_tokens=len(error_message.split()),
+                total_tokens=len(request.chat_box.message.split())
+                + len(error_message.split()),
+                session_id=request.session_id,
+                chat_id=str(uuid.uuid4()),
+            )
 
     async def get_chat_history(self, session_id: str) -> ChatSession:
         """
