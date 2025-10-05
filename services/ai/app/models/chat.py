@@ -5,14 +5,14 @@ from app.config import settings
 
 
 class ChatBox(BaseModel):
-    """Chat box model for chat endpoint"""
+    """Model for storing chat box data for each side (request/response)"""
 
     message: str
     context: Optional[dict] = None
 
 
 class ChatTurn(BaseModel):
-    """Chat turn model for chat endpoint"""
+    """Model for storing a complete chat turn with both request and response sides"""
 
     chat_id: str
     request: ChatBox
@@ -21,21 +21,21 @@ class ChatTurn(BaseModel):
 
 
 class ChatSession(BaseModel):
-    """Chat history model for chat endpoint"""
+    """Model for storing the entire chat session with complete conversation history"""
 
     session_id: str
     history: List[ChatTurn]
 
 
 class ChatRequest(BaseModel):
-    """Request model for chat endpoint"""
+    """Model for incoming chat requests with user message and AI parameters"""
 
     chat_box: ChatBox
     session_id: Optional[str] = None
 
     # Provider and Model
-    provider: str
-    model: str
+    provider: Optional[str] = settings.DEFAULT_PROVIDER
+    model: Optional[str] = settings.DEFAULT_MODEL
 
     # AI Model Parameters
     temperature: Optional[float] = settings.DEFAULT_TEMPERATURE
@@ -52,7 +52,7 @@ class ChatRequest(BaseModel):
 
 
 class ChatResponse(BaseModel):
-    """Response model for chat endpoint"""
+    """Model for outgoing chat responses with AI-generated message and metadata"""
 
     chat_box: ChatBox
 

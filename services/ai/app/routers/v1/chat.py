@@ -12,7 +12,7 @@ async def chat(
     request: ChatRequest = Body(
         example={
             "chat_box": {
-                "message": "ช่วยหาไฟล์README ของai service ให้หน่อย",
+                "message": "ช่วยหาไฟล์README ของai service ให้หน่อย พร้อมสรุปเนื้อหาสั้นๆ",
                 "context": {
                     "path": "project/project-aiq",
                 },
@@ -46,7 +46,7 @@ async def chat(
 
 
 @router.get("/get-history", response_model=ChatSession)
-async def get_chat_history(session_id: str):
+async def get_chat_history(session_id: str = Body(example="session_67890")):
     """
     Get chat history - Receive session_id and return chat history
     """
@@ -70,7 +70,7 @@ async def create_chat_session():
 
 
 @router.get("/check-session", response_model=bool)
-async def check_chat_session(session_id: str):
+async def check_chat_session(session_id: str = Body(example="session_67890")):
     """
     Check if chat session exists
     """
