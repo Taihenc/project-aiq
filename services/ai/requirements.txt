@@ -3,5 +3,7 @@ uvicorn
 pydantic
 python-multipart
 crewai[tools]
+qdrant-client[fastembed]
+sentence-transformers
 pytest
 python-dotenv

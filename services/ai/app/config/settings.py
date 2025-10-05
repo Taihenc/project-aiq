@@ -55,6 +55,10 @@ class BaseConfig:
     MAX_CHAT_HISTORY = 50
     CHAT_SESSION_TIMEOUT = 3600
 
+    # Search
+    DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+    SEARCH_RESULTS_LIMIT = 5
+
 
 class DevelopmentConfig(BaseConfig):
     """Development configuration"""

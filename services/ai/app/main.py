@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers.v1 import chat
+from app.routers.v1 import chat, embedding
 from app.config import settings
 import logging
 
@@ -12,6 +12,7 @@ app = FastAPI(
 
 # Include routers
 app.include_router(chat.router, prefix="/v1/chat", tags=["chat-v1"])
+app.include_router(embedding.router, prefix="/v1/embedding", tags=["embedding-v1"])
 
 
 # Configure logging with colors
@@ -52,6 +53,6 @@ async def root():
         "version": settings.APP_VERSION,
         "status": "✅ Active",
         "api_versions": ["v1"],
-        "endpoints": {"v1": {"chat": "/v1/chat"}},
+        "endpoints": {"v1": {"chat": "/v1/chat", "embedding": "/v1/embedding"}},
         "description": "🤖 AI and RAG service for project-aiq",
     }
