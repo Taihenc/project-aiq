@@ -4,6 +4,8 @@ import { AxiosResponse } from 'axios';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConfigService } from '@nestjs/config';
+import { ChatRequestDto } from './dto/chat-request.dto';
+import { ChatResponseDto } from './dto/chat-response.dto';
 
 @Injectable()
 export class AppService {
@@ -16,16 +18,15 @@ export class AppService {
     return 'Hello World!';
   }
 
-  chatWithAi(message: string): Observable<string> {
+  chatWithAi(chatRequest: ChatRequestDto): Observable<ChatResponseDto> {
     const aiServiceBaseUrl =
       this.configService.get<string>('aiService.baseUrl');
     const aiServiceUrl = `${aiServiceBaseUrl}/chat`;
     return this.httpService
-      .post(aiServiceUrl, { text: message })
+      .post<ChatResponseDto>(aiServiceUrl, chatRequest)
       .pipe(
         map(
-          (axiosResponse: AxiosResponse) =>
-            axiosResponse.data.response || 'No response from AI service.',
+          (axiosResponse: AxiosResponse<ChatResponseDto>) => axiosResponse.data,
         ),
       );
   }
