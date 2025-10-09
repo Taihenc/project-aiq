@@ -13,7 +13,11 @@ services:
       - ./turbo.json:/app/turbo.json
     environment:
       - NODE_ENV=production
-    command: pnpm turbo run start:backend
+      - PORT=3000
+      - AI_SERVICE_URL=http://ai:8000/chat
+    command: pnpm start
+    networks:
+      - aingo-net
 
   web:
     build:
@@ -26,10 +30,13 @@ services:
       - ./turbo.json:/app/turbo.json
     environment:
       - PYTHONUNBUFFERED=1
+      - BACKEND_URL=http://backend:3000/chat
     command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
     depends_on:
       - backend
       - ai
+    networks:
+      - aingo-net
 
   ai:
     build:
@@ -43,3 +50,9 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
     command: uvicorn main:app --host 0.0.0.0 --port 8000
+    networks:
+      - aingo-net
+
+networks:
+  aingo-net:
+    driver: bridge

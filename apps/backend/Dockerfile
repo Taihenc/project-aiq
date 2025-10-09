@@ -27,4 +27,4 @@ RUN pnpm --filter backend build
 EXPOSE 3000
 
 # Command to run the application
-CMD ["pnpm", "turbo", "run", "start:backend"]
+CMD ["pnpm", "start"]
