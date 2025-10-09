@@ -3,18 +3,23 @@ import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AppService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {}
 
   getHello(): string {
     return 'Hello World!';
   }
 
   chatWithAi(message: string): Observable<string> {
-    const aiServiceUrl =
-      process.env.AI_SERVICE_URL ?? 'http://127.0.0.1:8000/chat';
+    const aiServiceBaseUrl =
+      this.configService.get<string>('aiService.baseUrl');
+    const aiServiceUrl = `${aiServiceBaseUrl}/chat`;
     return this.httpService
       .post(aiServiceUrl, { text: message })
       .pipe(
