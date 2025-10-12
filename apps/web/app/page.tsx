@@ -9,6 +9,7 @@ import { CitationsPanel } from '@/components/features/chat/citations-panel';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { BookOpen } from 'lucide-react';
 
 interface Message {
@@ -126,25 +127,40 @@ export default function Home() {
         </div>
 
         {/* Messages Area */}
-        <div className="relative z-0 flex-1 min-h-0 px-12 pt-4">
-          <ScrollArea className="h-full">
-            {showWelcomeScreen ? (
-              <div className="flex h-full flex-col items-center justify-center gap-12">
-                <div className="text-center">
-                  <p className="text-muted-purple text-xs font-semibold uppercase tracking-[0.45em]">
-                    New Chat
-                  </p>
-                  <h2 className="text-primary-dark font-kiona mb-3 text-4xl font-semibold">
-                    What can I help with?
-                  </h2>
+        <div className="relative z-0 flex flex-1 min-h-0 flex-col px-12 pt-4">
+          {showWelcomeScreen ? (
+            <div className="flex flex-1 flex-col items-center justify-center">
+              <div className="flex flex-col items-center gap-8">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex items-baseline gap-3">
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage
+                        src="/images/backgrounds/ai-profile.png"
+                        alt="AI Assistant"
+                      />
+                      <AvatarFallback className="bg-gradient-to-br from-[#a18fff] to-[#6f5deb] text-base font-semibold uppercase text-white">
+                        AI
+                      </AvatarFallback>
+                    </Avatar>
+                    <h2 className="text-primary-dark font-kiona text-4xl font-semibold">
+                      WHAT CAN I HELP WITH?
+                    </h2>
+                  </div>
                   <p className="text-secondary text-base">
-                    Ask anything with your personal knowledge manager
+                    Ask Anything with your personal knowledge Manager
                   </p>
                 </div>
 
                 <FeatureCards />
+
+                {/* Input Area - Moved here for welcome screen */}
+                <div className="w-full max-w-3xl">
+                  <ChatInput onSendMessage={handleSendMessage} />
+                </div>
               </div>
-            ) : (
+            </div>
+          ) : (
+            <ScrollArea className="h-full">
               <div className="mx-auto max-w-3xl space-y-6 pb-28">
                 {messages.map((message) => (
                   <ChatMessage
@@ -156,19 +172,23 @@ export default function Home() {
                 ))}
                 <div ref={messagesEndRef} />
               </div>
-            )}
-          </ScrollArea>
-          {/* Fade overlay above input */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-fade-to-input" />
+            </ScrollArea>
+          )}
+          {/* Fade overlay above input - only show when not on welcome screen */}
+          {!showWelcomeScreen && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-fade-to-input" />
+          )}
         </div>
 
-        {/* Input Area */}
-        <div className="relative z-10 bg-surface-light px-12 pb-10">
-          <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-fade-from-input" />
-          <div className="relative z-10 mx-auto max-w-3xl">
-            <ChatInput onSendMessage={handleSendMessage} />
+        {/* Input Area - only show when not on welcome screen */}
+        {!showWelcomeScreen && (
+          <div className="relative z-10 bg-surface-light px-12 pb-10">
+            <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-fade-from-input" />
+            <div className="relative z-10 mx-auto max-w-3xl">
+              <ChatInput onSendMessage={handleSendMessage} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Citations Panel */}
