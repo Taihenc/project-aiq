@@ -33,21 +33,24 @@ export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
   const [isSingleLine, setIsSingleLine] = useState(false);
   const [isUserMessageExpanded, setIsUserMessageExpanded] = useState(false);
   const userMsgRef = useRef<HTMLDivElement>(null);
-  // Check if user message is long (more than 300 characters)
-  const isLongUserMessage = isUser && content.length > 300;
-  const [userMsgHeight, setUserMsgHeight] = useState<string>('auto');
+  const [isLongUserMessage, setIsLongUserMessage] = useState(false);
+  const [userMsgHeight, setUserMsgHeight] = useState<number>(0);
+  const [contentHeight, setContentHeight] = useState<number>(0);
 
   useEffect(() => {
-    if (isUser && isLongUserMessage && userMsgRef.current) {
-      if (isUserMessageExpanded) {
-        setUserMsgHeight(userMsgRef.current.scrollHeight + 'px');
+    if (isUser && userMsgRef.current) {
+      const scrollHeight = userMsgRef.current.scrollHeight;
+      setContentHeight(scrollHeight);
+      // If content height exceeds 350px, it's long
+      if (scrollHeight > 350) {
+        setIsLongUserMessage(true);
+        setUserMsgHeight(isUserMessageExpanded ? scrollHeight : 350);
       } else {
-        setUserMsgHeight('350px'); // 112px ~ 7 lines (same as max-h-28)
+        setIsLongUserMessage(false);
+        setUserMsgHeight(scrollHeight);
       }
-    } else {
-      setUserMsgHeight('auto');
     }
-  }, [isUserMessageExpanded, isLongUserMessage, content, isUser]);
+  }, [content, isUser, isUserMessageExpanded]);
 
   useEffect(() => {
     if (!isUser && cardRef.current && sources.length === 0) {
@@ -95,11 +98,10 @@ export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
           <div className="relative flex max-w-sm flex-col items-end gap-2">
             <div
               ref={userMsgRef}
-              className={cn(
-                'relative overflow-hidden bg-gradient-purple-message shadow-message rounded-bubble rounded-tr-sm px-5 py-3 text-sm font-medium text-white transition-[height] duration-300 ease-in-out',
-                isLongUserMessage ? '' : '',
-              )}
-              style={isLongUserMessage ? { height: userMsgHeight } : {}}
+              className="relative overflow-hidden bg-gradient-purple-message shadow-message rounded-bubble rounded-tr-sm px-5 py-3 text-sm font-medium text-white transition-all duration-300 ease-in-out"
+              style={{
+                height: isLongUserMessage ? `${userMsgHeight}px` : 'auto',
+              }}
             >
               <p className="break-words whitespace-normal">{content}</p>
               {isLongUserMessage && !isUserMessageExpanded && (
