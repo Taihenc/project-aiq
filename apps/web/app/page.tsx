@@ -79,7 +79,7 @@ export default function Home() {
   const showWelcomeScreen = messages.length === 0;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f2ff]">
+    <div className="flex h-screen overflow-hidden bg-surface-purple">
       {/* Sidebar */}
       <Sidebar
         currentChatId={currentChatId}
@@ -88,22 +88,22 @@ export default function Home() {
       />
 
       {/* Main Chat Area */}
-      <div className="relative flex flex-1 flex-col bg-gradient-to-br from-white via-[#f9f7ff] to-[#f0ecff]">
+      <div className="bg-gradient-main relative flex flex-1 flex-col">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-12 pb-6 pt-6">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold text-[#2d2754]">
+              <h1 className="text-primary-dark text-2xl font-semibold">
                 AI Assistant
               </h1>
-              <Badge className="gap-2 rounded-full border border-[#e0dbff] bg-[#f3f1ff] px-4 py-1 text-xs font-medium text-[#5c4ad3]">
+              <Badge className="border-purple-light bg-card-purple text-primary-light rounded-pill gap-2 border px-4 py-1 text-xs font-medium">
                 <span className="h-2 w-2 rounded-full bg-[#4ade80]" /> 2 Sources
                 Active
               </Badge>
             </div>
-            <p className="text-sm text-[#8f86c8]">
+            <p className="text-secondary text-sm">
               Ask anything with your personal knowledge manager
             </p>
           </div>
@@ -111,7 +111,7 @@ export default function Home() {
           <Button
             variant="outline"
             size="sm"
-            className="relative gap-2 rounded-full border-[#ded9ff] bg-white px-5 py-2 text-[#5c4ad3] shadow-[0_18px_50px_-34px_rgba(102,88,204,1)] hover:bg-[#f6f3ff]"
+            className="border-purple-light text-primary-light shadow-button hover:bg-surface-light rounded-pill relative gap-2 bg-white px-5 py-2"
             onClick={() => setCitationsPanelOpen(true)}
           >
             <BookOpen className="h-4 w-4" />
@@ -124,13 +124,13 @@ export default function Home() {
           {showWelcomeScreen ? (
             <div className="flex h-full flex-col items-center justify-center gap-12">
               <div className="text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.45em] text-[#b3abeb]">
+                <p className="text-muted-purple text-xs font-semibold uppercase tracking-[0.45em]">
                   New Chat
                 </p>
-                <h2 className="font-kiona mb-3 text-4xl font-semibold text-[#2d2754]">
+                <h2 className="text-primary-dark font-kiona mb-3 text-4xl font-semibold">
                   What can I help with?
                 </h2>
-                <p className="text-base text-[#8f86c8]">
+                <p className="text-secondary text-base">
                   Ask anything with your personal knowledge manager
                 </p>
               </div>

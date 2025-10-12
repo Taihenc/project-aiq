@@ -39,14 +39,14 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <InputGroup className="h-auto rounded-full border-[#e2dcff] bg-white/95 px-2 py-1 shadow-[0_24px_70px_-38px_rgba(102,88,204,1)]">
+      <InputGroup className="border-purple-light rounded-pill h-auto bg-white/95 px-2 py-1 shadow-[0_24px_70px_-38px_rgba(102,88,204,1)]">
         <InputGroupInput
           placeholder="Ask anything..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          className="min-h-[56px] rounded-full px-4 text-sm text-[#322b63] placeholder:text-[#b4aceb]"
+          className="text-primary-dark placeholder:text-muted-purple rounded-pill min-h-[56px] px-4 text-sm"
         />
 
         <InputGroupAddon align="inline-start" className="gap-3 pl-4">
@@ -56,7 +56,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="h-9 w-9 rounded-full text-[#8175d4] hover:bg-[#f1eeff]"
+                  className="rounded-pill h-9 w-9 text-[#8175d4] hover:bg-[#f1eeff]"
                 >
                   <Paperclip className="h-4 w-4" />
                 </Button>
@@ -73,7 +73,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="h-9 w-9 rounded-full text-[#8175d4] hover:bg-[#f1eeff]"
+                  className="rounded-pill h-9 w-9 text-[#8175d4] hover:bg-[#f1eeff]"
                 >
                   <Globe className="h-4 w-4" />
                 </Button>
@@ -88,7 +88,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
         <InputGroupAddon align="inline-end" className="pr-4">
           <Button
             size="icon-sm"
-            className="h-10 w-10 rounded-full bg-gradient-to-br from-[#9b88ff] to-[#6f5deb] text-white shadow-[0_20px_50px_-28px_rgba(111,93,235,1)] hover:from-[#8b77ff] hover:to-[#5f4fde]"
+            className="bg-gradient-purple rounded-pill h-10 w-10 text-white shadow-[0_20px_50px_-28px_rgba(111,93,235,1)] hover:from-[#8b77ff] hover:to-[#5f4fde]"
             onClick={handleSubmit}
             disabled={!message.trim() || disabled}
           >
@@ -97,7 +97,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
         </InputGroupAddon>
       </InputGroup>
 
-      <p className="text-center text-xs text-[#b3abeb]">
+      <p className="text-muted-purple text-center text-xs">
         Press Enter to send, Shift + Enter for newline
       </p>
     </div>

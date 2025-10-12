@@ -48,29 +48,29 @@ export function Sidebar({
         ];
 
   return (
-    <div className="flex h-screen w-[260px] flex-col border-r border-[#e3defc] bg-gradient-to-b from-[#ede7ff] via-[#f6f3ff] to-white">
+    <div className="border-purple-lighter bg-gradient-sidebar flex h-screen w-[260px] flex-col border-r">
       {/* Logo/Brand */}
       <div className="flex items-center gap-3 px-6 pb-4 pt-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#a586ff] to-[#7c68ff] shadow-sm">
+        <div className="bg-gradient-purple rounded-card flex h-10 w-10 items-center justify-center shadow-sm">
           <Sparkles className="h-5 w-5 text-white" />
         </div>
         <div className="flex flex-col">
           <span className="text-xs uppercase tracking-[0.2em] text-[#8c7ee1]">
             AIQ
           </span>
-          <span className="font-kiona text-lg font-semibold text-[#342e5c]">
+          <span className="text-primary-dark font-kiona text-lg font-semibold">
             XHIVE
           </span>
         </div>
       </div>
 
-      <Separator className="border-[#e5e1fb]" />
+      <Separator className="border-purple-lighter" />
 
       {/* Navigation */}
       <div className="flex flex-col gap-2 px-6 py-5 text-sm">
         <Button
           variant="outline"
-          className="justify-start gap-2 rounded-2xl border-transparent bg-[#efe9ff] text-[#5d4bd1] shadow-none transition-colors hover:bg-[#e5dfff]"
+          className="text-primary-light rounded-card justify-start gap-2 border-transparent bg-[#efe9ff] shadow-none transition-colors hover:bg-[#e5dfff]"
           onClick={onNewChat}
         >
           <MessageSquare className="h-4 w-4" />
@@ -79,7 +79,7 @@ export function Sidebar({
 
         <Button
           variant="ghost"
-          className="justify-start gap-2 rounded-2xl text-[#6658cc] hover:bg-white/60"
+          className="text-accent-purple rounded-card justify-start gap-2 hover:bg-white/60"
         >
           <FileText className="h-4 w-4" />
           Source
@@ -87,14 +87,14 @@ export function Sidebar({
 
         <Button
           variant="ghost"
-          className="justify-start gap-2 rounded-2xl text-[#6658cc] hover:bg-white/60"
+          className="text-accent-purple rounded-card justify-start gap-2 hover:bg-white/60"
         >
           <Sparkles className="h-4 w-4" />
           Prompt Library
         </Button>
       </div>
 
-      <Separator className="border-[#e5e1fb]" />
+      <Separator className="border-purple-lighter" />
 
       {/* Chat History */}
       <div className="flex-1 px-6 py-4">
@@ -108,13 +108,13 @@ export function Sidebar({
                 key={chat.id}
                 onClick={() => onChatSelect?.(chat.id)}
                 className={cn(
-                  'group relative flex flex-col items-start gap-1 rounded-2xl border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[#dcd3ff] hover:bg-white/70',
+                  'rounded-card group relative flex flex-col items-start gap-1 border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[#dcd3ff] hover:bg-white/70',
                   currentChatId === chat.id &&
-                    'border-[#d4c9ff] bg-white shadow-[0_12px_30px_-22px_rgba(102,88,204,0.65)]',
+                    'shadow-elevated border-[#d4c9ff] bg-white',
                 )}
               >
                 <div className="flex w-full items-center justify-between">
-                  <span className="max-w-[140px] truncate font-medium text-[#3b3568]">
+                  <span className="text-primary-medium max-w-[140px] truncate font-medium">
                     {chat.title}
                   </span>
                   <MoreVertical className="h-4 w-4 text-[#b1a8e9] opacity-0 transition-opacity group-hover:opacity-100" />
@@ -127,8 +127,8 @@ export function Sidebar({
       </div>
 
       {/* User Profile */}
-      <div className="border-t border-[#e5e1fb] px-6 py-5">
-        <div className="flex items-center gap-3 rounded-2xl bg-white/70 p-3 shadow-[0_14px_40px_-28px_rgba(102,88,204,0.9)]">
+      <div className="border-purple-lighter border-t px-6 py-5">
+        <div className="shadow-profile rounded-card flex items-center gap-3 bg-white/70 p-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src="https://github.com/shadcn.png" />
             <AvatarFallback className="bg-gradient-to-br from-[#9b88ff] to-[#6f5deb] text-white">

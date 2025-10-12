@@ -57,11 +57,11 @@ export function CitationsPanel({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[420px] border-l border-[#e4dfff] bg-white/96 sm:w-[560px]">
         <SheetHeader>
-          <SheetTitle className="font-kiona text-[#2f2858]">
+          <SheetTitle className="text-primary-dark font-kiona">
             Sources & Citations
           </SheetTitle>
           <SheetDescription>
-            <Badge className="mt-2 rounded-full border border-[#ded7ff] bg-[#f3f1ff] px-3 py-1 text-xs font-medium text-[#5c4ad3]">
+            <Badge className="bg-card-purple text-primary-light rounded-pill border-purple-light mt-2 border px-3 py-1 text-xs font-medium">
               {defaultCitations.length} references found
             </Badge>
           </SheetDescription>
@@ -73,7 +73,7 @@ export function CitationsPanel({
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#b0a7e7]" />
             <Input
               placeholder="Search citation..."
-              className="rounded-2xl border-[#e5e0ff] bg-[#f9f8ff] pl-11 text-sm text-[#3d366b] placeholder:text-[#b7afea]"
+              className="rounded-card border-[#e5e0ff] bg-[#f9f8ff] pl-11 text-sm text-[#3d366b] placeholder:text-[#b7afea]"
             />
           </div>
 
@@ -82,7 +82,7 @@ export function CitationsPanel({
             <Button
               variant="outline"
               size="sm"
-              className="gap-2 rounded-full border-[#e0dbff] bg-white text-[#5d4bd1] hover:bg-[#f4f2ff]"
+              className="border-purple-light text-primary-light rounded-pill gap-2 bg-white hover:bg-[#f4f2ff]"
             >
               <FileText className="h-4 w-4" />
               All Sources
@@ -90,13 +90,13 @@ export function CitationsPanel({
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-full text-[#7c72c9] hover:bg-[#f4f2ff]"
+              className="rounded-pill text-[#7c72c9] hover:bg-[#f4f2ff]"
             >
               Sort
             </Button>
           </div>
 
-          <Separator className="border-[#ece6ff]" />
+          <Separator className="border-purple-soft" />
 
           {/* Citations List */}
           <ScrollArea className="h-[calc(100vh-320px)] pr-3">
@@ -104,23 +104,23 @@ export function CitationsPanel({
               {defaultCitations.map((citation) => (
                 <Card
                   key={citation.id}
-                  className="rounded-2xl border-[#e5dffb] bg-white/95 p-5 shadow-[0_24px_60px_-46px_rgba(102,88,204,0.7)]"
+                  className="shadow-card-lg rounded-card border-[#e5dffb] bg-white/95 p-5"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-[#7e74d4]" />
-                        <h4 className="text-sm font-semibold text-[#373167]">
+                        <h4 className="text-primary-medium text-sm font-semibold">
                           {citation.title}
                         </h4>
                       </div>
-                      <p className="mt-1 text-xs font-medium uppercase tracking-widest text-[#b3abeb]">
+                      <p className="text-muted-purple mt-1 text-xs font-medium uppercase tracking-widest">
                         {citation.platform}
                       </p>
                     </div>
                   </div>
 
-                  <Separator className="my-4 border-[#ece6ff]" />
+                  <Separator className="border-purple-soft my-4" />
 
                   <p className="text-sm leading-relaxed text-[#7c73b7]">
                     {citation.content}
@@ -130,7 +130,7 @@ export function CitationsPanel({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-9 gap-2 rounded-full text-[#5d4bd1] hover:bg-[#f4f2ff]"
+                      className="text-primary-light rounded-pill h-9 gap-2 hover:bg-[#f4f2ff]"
                     >
                       <Copy className="h-3 w-3" />
                       Copy
@@ -138,7 +138,7 @@ export function CitationsPanel({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-9 gap-2 rounded-full text-[#5d4bd1] hover:bg-[#f4f2ff]"
+                      className="text-primary-light rounded-pill h-9 gap-2 hover:bg-[#f4f2ff]"
                     >
                       <ExternalLink className="h-3 w-3" />
                       Open
