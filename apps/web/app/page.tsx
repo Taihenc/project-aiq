@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/custom/sidebar';
 import { ChatMessage } from '@/components/features/chat/chat-message';
 import { ChatInput } from '@/components/features/chat/chat-input';
@@ -56,6 +56,12 @@ export default function Home() {
 
   const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
   const [currentChatId, setCurrentChatId] = useState('1');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const handleSendMessage = (content: string) => {
     const newMessage: Message = {
@@ -88,7 +94,7 @@ export default function Home() {
       />
 
       {/* Main Chat Area */}
-      <div className="bg-gradient-main relative flex flex-1 flex-col">
+      <div className="bg-gradient-main relative flex flex-1 min-h-0 flex-col">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
         {/* Header */}
@@ -120,40 +126,46 @@ export default function Home() {
         </div>
 
         {/* Messages Area */}
-        <ScrollArea className="relative z-10 flex-1 px-12 pb-32 pt-4">
-          {showWelcomeScreen ? (
-            <div className="flex h-full flex-col items-center justify-center gap-12">
-              <div className="text-center">
-                <p className="text-muted-purple text-xs font-semibold uppercase tracking-[0.45em]">
-                  New Chat
-                </p>
-                <h2 className="text-primary-dark font-kiona mb-3 text-4xl font-semibold">
-                  What can I help with?
-                </h2>
-                <p className="text-secondary text-base">
-                  Ask anything with your personal knowledge manager
-                </p>
-              </div>
+        <div className="relative z-0 flex-1 min-h-0 px-12 pt-4">
+          <ScrollArea className="h-full">
+            {showWelcomeScreen ? (
+              <div className="flex h-full flex-col items-center justify-center gap-12">
+                <div className="text-center">
+                  <p className="text-muted-purple text-xs font-semibold uppercase tracking-[0.45em]">
+                    New Chat
+                  </p>
+                  <h2 className="text-primary-dark font-kiona mb-3 text-4xl font-semibold">
+                    What can I help with?
+                  </h2>
+                  <p className="text-secondary text-base">
+                    Ask anything with your personal knowledge manager
+                  </p>
+                </div>
 
-              <FeatureCards />
-            </div>
-          ) : (
-            <div className="mx-auto max-w-3xl space-y-6">
-              {messages.map((message) => (
-                <ChatMessage
-                  key={message.id}
-                  role={message.role}
-                  content={message.content}
-                  sources={message.sources}
-                />
-              ))}
-            </div>
-          )}
-        </ScrollArea>
+                <FeatureCards />
+              </div>
+            ) : (
+              <div className="mx-auto max-w-3xl space-y-6 pb-28">
+                {messages.map((message) => (
+                  <ChatMessage
+                    key={message.id}
+                    role={message.role}
+                    content={message.content}
+                    sources={message.sources}
+                  />
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </ScrollArea>
+          {/* Fade overlay above input */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-fade-to-input" />
+        </div>
 
         {/* Input Area */}
-        <div className="relative z-10 border-t border-transparent px-12 pb-10">
-          <div className="mx-auto max-w-3xl">
+        <div className="relative z-10 bg-surface-light px-12 pb-10">
+          <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-fade-from-input" />
+          <div className="relative z-10 mx-auto max-w-3xl">
             <ChatInput onSendMessage={handleSendMessage} />
           </div>
         </div>

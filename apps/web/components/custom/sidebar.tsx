@@ -97,11 +97,11 @@ export function Sidebar({
       <Separator className="border-purple-lighter" />
 
       {/* Chat History */}
-      <div className="flex-1 px-6 py-4">
+      <div className="flex min-h-0 flex-1 flex-col px-6 py-4">
         <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[#9a92d8]">
           Chat History
         </p>
-        <ScrollArea className="h-[calc(100vh-360px)]">
+        <ScrollArea className="flex-1">
           <div className="flex flex-col gap-2">
             {defaultHistory.map((chat) => (
               <button
@@ -127,7 +127,7 @@ export function Sidebar({
       </div>
 
       {/* User Profile */}
-      <div className="border-purple-lighter border-t px-6 py-5">
+      <div className="border-purple-lighter flex-shrink-0 border-t px-6 py-5">
         <div className="shadow-profile rounded-card flex items-center gap-3 bg-white/70 p-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src="https://github.com/shadcn.png" />
