@@ -14,16 +14,16 @@ interface FeatureCardProps {
 function FeatureCard({ icon, title, description, onClick }: FeatureCardProps) {
   return (
     <Card
-      className="flex cursor-pointer flex-col gap-3 rounded-2xl border-[#ece6ff] bg-white/90 p-6 shadow-[0_24px_60px_-42px_rgba(102,88,204,1)] transition-transform hover:-translate-y-1 hover:shadow-[0_28px_65px_-36px_rgba(102,88,204,0.45)]"
+      className="border-purple-soft shadow-card-sm rounded-card flex cursor-pointer flex-col gap-3 bg-white/90 p-6 transition-transform hover:-translate-y-1 hover:shadow-[0_28px_65px_-36px_rgba(102,88,204,0.45)]"
       onClick={onClick}
     >
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#f4f1ff] to-white text-[#6f5deb]">
           {icon}
         </div>
-        <h3 className="text-sm font-semibold text-[#373167]">{title}</h3>
+        <h3 className="text-primary-medium text-sm font-semibold">{title}</h3>
       </div>
-      <p className="text-sm leading-relaxed text-[#8f86c8]">{description}</p>
+      <p className="text-secondary text-sm leading-relaxed">{description}</p>
     </Card>
   );
 }

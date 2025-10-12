@@ -125,4 +125,94 @@
   .font-kiona {
     font-family: var(--font-kiona), var(--font-geist-sans), sans-serif;
   }
+
+  /* Color Utilities */
+  .text-primary-dark {
+    color: #2d2754;
+  }
+  .text-primary-medium {
+    color: #3b3568;
+  }
+  .text-primary-light {
+    color: #5c4ad3;
+  }
+  .text-secondary {
+    color: #8f86c8;
+  }
+  .text-muted-purple {
+    color: #b3abeb;
+  }
+  .text-accent-purple {
+    color: #6658cc;
+  }
+
+  /* Background Utilities */
+  .bg-surface-purple {
+    background-color: #f5f2ff;
+  }
+  .bg-surface-light {
+    background-color: #f9f7ff;
+  }
+  .bg-card-purple {
+    background-color: #f3f1ff;
+  }
+
+  /* Border Utilities */
+  .border-purple-light {
+    border-color: #e0dbff;
+  }
+  .border-purple-lighter {
+    border-color: #e5e1fb;
+  }
+  .border-purple-soft {
+    border-color: #ece6ff;
+  }
+
+  /* Gradient Utilities */
+  .bg-gradient-purple {
+    background: linear-gradient(to bottom right, #a586ff, #7c68ff);
+  }
+  .bg-gradient-purple-message {
+    background: linear-gradient(to bottom right, #8d78ff, #5f4fde);
+  }
+  .bg-gradient-sidebar {
+    background: linear-gradient(to bottom, #ede7ff, #f6f3ff, white);
+  }
+  .bg-gradient-main {
+    background: linear-gradient(to bottom right, white, #f9f7ff, #f0ecff);
+  }
+
+  /* Shadow Utilities */
+  .shadow-card-sm {
+    box-shadow: 0 8px 24px -12px rgba(102, 88, 204, 0.3);
+  }
+  .shadow-card-md {
+    box-shadow: 0 12px 32px -16px rgba(102, 88, 204, 0.35);
+  }
+  .shadow-card-lg {
+    box-shadow: 0 16px 40px -18px rgba(102, 88, 204, 0.25);
+  }
+  .shadow-elevated {
+    box-shadow: 0 8px 20px -8px rgba(102, 88, 204, 0.4);
+  }
+  .shadow-button {
+    box-shadow: 0 8px 20px -10px rgba(102, 88, 204, 0.5);
+  }
+  .shadow-profile {
+    box-shadow: 0 8px 24px -10px rgba(102, 88, 204, 0.35);
+  }
+  .shadow-message {
+    box-shadow: 0 12px 28px -12px rgba(109, 90, 229, 0.4);
+  }
+
+  /* Rounded Utilities */
+  .rounded-card {
+    border-radius: 1rem; /* 16px */
+  }
+  .rounded-bubble {
+    border-radius: 1.5rem; /* 24px */
+  }
+  .rounded-pill {
+    border-radius: 9999px;
+  }
 }
