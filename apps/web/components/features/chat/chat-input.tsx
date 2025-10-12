@@ -88,7 +88,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
         <InputGroupAddon align="inline-end" className="pr-4">
           <Button
             size="icon-sm"
-            className="bg-gradient-purple rounded-pill h-10 w-10 text-white shadow-[0_20px_50px_-28px_rgba(111,93,235,1)] hover:from-[#8b77ff] hover:to-[#5f4fde]"
+            className="animate-mesh-gradient rounded-pill h-10 w-10 text-white shadow-[0_20px_50px_-28px_rgba(111,93,235,1)] transition-transform hover:scale-105"
             onClick={handleSubmit}
             disabled={!message.trim() || disabled}
           >
