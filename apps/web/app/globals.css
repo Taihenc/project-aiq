@@ -120,3 +120,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .font-kiona {
+    font-family: var(--font-kiona), var(--font-geist-sans), sans-serif;
+  }
+}
