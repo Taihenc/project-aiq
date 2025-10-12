@@ -1,0 +1,15 @@
+{
+  "name": "ai-engine",
+  "version": "1.0.0",
+  "description": "AI Engine service with CrewAI reasoning and autonomous RAG retrieval",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "uv sync",
+    "dev": "source .venv/bin/activate && uvicorn main:app --reload --port 8001",
+    "start": "source .venv/bin/activate && uvicorn main:app --port 8001"
+  },
+  "keywords": ["ai", "crewai", "rag", "fastapi"],
+  "author": "",
+  "license": "ISC"
+}

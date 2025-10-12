@@ -113,6 +113,12 @@ importers:
 
   services/ai: {}
 
+  services/ai-engine: {}
+
+  services/chat-service: {}
+
+  services/embedding-service: {}
+
 packages:
 
   /@angular-devkit/core@19.2.15(chokidar@4.0.3):
