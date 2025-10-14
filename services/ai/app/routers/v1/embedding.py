@@ -4,6 +4,8 @@ from app.models.embedding import (
     SearchRequest,
     DocumentResponse,
     SearchResponse,
+    UploadRequest,
+    UploadResponse,
 )
 
 router = APIRouter()
@@ -37,11 +39,39 @@ async def search_documents(
 
 
 @router.post("/upload")
-async def upload_document():
+async def upload_document(
+    request: UploadRequest = Body(
+        example={
+            "documents": [
+                {
+                    "document_id": "550e8400-e29b-41d4-a716-446655440012",
+                    "content": "Financial Report 2024",
+                    "file_path": "/financial/mock/report_2024.xlsx",
+                },
+                {
+                    "document_id": "550e8400-e29b-41d4-a716-446655440013",
+                    "content": "Financial Report 2025",
+                    "file_path": "/financial/mock/report_2025.xlsx",
+                },
+            ],
+            "limit": 5
+        }
+    )
+):
     """
     Upload a new document to the knowledge base
     """
-    pass
+    try:
+
+        results = await embedding_service.upload_document(
+            documents=request.documents,
+            limit=request.limit,
+        )
+        return UploadResponse(
+            results=[str(result) for result in results]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
 
 @router.get("/documents")

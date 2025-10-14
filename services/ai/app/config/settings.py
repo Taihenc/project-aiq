@@ -59,6 +59,9 @@ class BaseConfig:
     DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
     SEARCH_RESULTS_LIMIT = 5
 
+    # Upload
+    UPLOAD_RESULTS_LIMIT = 5
+
 
 class DevelopmentConfig(BaseConfig):
     """Development configuration"""
