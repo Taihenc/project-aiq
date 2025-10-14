@@ -1,5 +1,14 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { AppService } from './app.service';
+import { ChatRequestDto } from './dto/chat-request.dto';
+import { ChatResponseDto } from './dto/chat-response.dto';
 
 @Controller()
 export class AppController {
@@ -11,10 +20,17 @@ export class AppController {
   }
 
   @Post('chat')
-  async chat(@Body() body: { message: string }): Promise<{ response: string }> {
+  async chat(@Body() chatRequest: ChatRequestDto): Promise<ChatResponseDto> {
     const aiResponse = await this.appService
-      .chatWithAi(body.message)
+      .chatWithAi(chatRequest)
       .toPromise();
-    return { response: aiResponse || '' };
+
+    if (!aiResponse) {
+      throw new HttpException(
+        'No response from AI service',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+    return aiResponse;
   }
 }

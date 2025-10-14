@@ -1,0 +1,15 @@
+{
+  "name": "embedding-service",
+  "version": "1.0.0",
+  "description": "Embedding Service for document processing, vectorization and Qdrant management",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "uv sync",
+    "dev": "source .venv/bin/activate && uvicorn main:app --reload --port 8003",
+    "start": "source .venv/bin/activate && uvicorn main:app --port 8003"
+  },
+  "keywords": ["embedding", "vector", "qdrant", "fastapi"],
+  "author": "",
+  "license": "ISC"
+}
