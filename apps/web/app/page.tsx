@@ -99,7 +99,7 @@ export default function Home() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
         {/* Header */}
-        <div className="relative z-10 flex items-center justify-between px-12 pb-6 pt-6">
+        <div className="relative z-10 flex items-center justify-between px-12 pb-3 pt-3">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <h1 className="text-primary-dark text-2xl font-semibold">
@@ -127,7 +127,7 @@ export default function Home() {
         </div>
 
         {/* Messages Area */}
-        <div className="relative z-0 flex flex-1 min-h-0 flex-col px-12 pt-4">
+        <div className="relative z-0 flex flex-1 min-h-0 flex-col px-12 pt-2">
           {showWelcomeScreen ? (
             <div className="flex flex-1 flex-col items-center justify-center">
               <div className="flex flex-col items-center gap-8">
@@ -176,14 +176,14 @@ export default function Home() {
           )}
           {/* Fade overlay above input - only show when not on welcome screen */}
           {!showWelcomeScreen && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white/70 via-white/40 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-white/70 via-white/40 to-transparent" />
           )}
         </div>
 
         {/* Input Area - only show when not on welcome screen */}
         {!showWelcomeScreen && (
-          <div className="relative z-10 bg-white px-12 pb-10">
-            <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-b from-transparent via-white/20 to-white/65" />
+          <div className="relative z-10 bg-white px-12 pb-2">
+            <div className="pointer-events-none absolute inset-x-0 -top-3 h-3 bg-gradient-to-b from-transparent via-white/20 to-white/65" />
             <div className="relative z-10 mx-auto max-w-3xl">
               <ChatInput onSendMessage={handleSendMessage} />
             </div>
