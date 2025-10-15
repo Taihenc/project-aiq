@@ -103,7 +103,9 @@ export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
                 height: isLongUserMessage ? `${userMsgHeight}px` : 'auto',
               }}
             >
-              <p className="break-words whitespace-normal">{content}</p>
+              <p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                {content}
+              </p>
               {isLongUserMessage && !isUserMessageExpanded && (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#7566d9] via-[#8a77eb]/60 to-transparent" />
               )}
@@ -133,7 +135,9 @@ export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
               ref={cardRef}
               className="shadow-card-md rounded-bubble border-[#e6e0ff] bg-white/95 p-5 text-sm leading-relaxed text-[#3d366b]"
             >
-              {content}
+              <p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                {content}
+              </p>
             </Card>
 
             {sources.length > 0 && (
