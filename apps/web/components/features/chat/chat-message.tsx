@@ -162,12 +162,17 @@ function SourceCard({ source }: { source: Source }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <Card className="rounded-card overflow-hidden border-[#e8e2ff] bg-white/95 shadow-[0_20px_60px_-48px_rgba(102,88,204,1)]">
+    <Card
+      className={cn(
+        'rounded-card overflow-hidden border-[#e8e2ff] bg-white/95 shadow-[0_20px_60px_-48px_rgba(102,88,204,1)] transition-colors duration-200',
+        !isOpen && 'hover:bg-[#f4f2ff]',
+      )}
+    >
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
           <Button
             variant="ghost"
-            className="group rounded-card flex w-full items-center justify-between bg-transparent px-4 py-3 text-[#3f386e] transition-colors duration-200 hover:bg-[#f4f2ff]"
+            className="group rounded-card flex w-full items-center justify-between bg-transparent hover:bg-transparent px-4 py-3 text-[#3f386e] transition-colors duration-200 "
           >
             <div className="flex items-center gap-2">
               <ExternalLink className="h-4 w-4 text-[#8175d4]" />
@@ -186,7 +191,7 @@ function SourceCard({ source }: { source: Source }) {
 
         {source.content && (
           <CollapsibleContent className="data-[state=closed]:animate-[collapse-up_0.2s_ease-in-out] data-[state=open]:animate-[collapse-down_0.2s_ease-in-out]">
-            <div className="border-t border-[#eee9ff] px-4 py-3">
+            <div className=" px-4 py-3">
               <p className="text-sm leading-relaxed text-[#7c73b7]">
                 {source.content}
               </p>

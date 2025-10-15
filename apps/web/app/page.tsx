@@ -95,7 +95,7 @@ export default function Home() {
       />
 
       {/* Main Chat Area */}
-      <div className="bg-gradient-main relative flex flex-1 min-h-0 flex-col">
+      <div className="bg-white relative flex flex-1 min-h-0 flex-col">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
         {/* Header */}
@@ -176,14 +176,14 @@ export default function Home() {
           )}
           {/* Fade overlay above input - only show when not on welcome screen */}
           {!showWelcomeScreen && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-fade-to-input" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white/70 via-white/40 to-transparent" />
           )}
         </div>
 
         {/* Input Area - only show when not on welcome screen */}
         {!showWelcomeScreen && (
-          <div className="relative z-10 bg-surface-light px-12 pb-10">
-            <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-fade-from-input" />
+          <div className="relative z-10 bg-white px-12 pb-10">
+            <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-b from-transparent via-white/20 to-white/65" />
             <div className="relative z-10 mx-auto max-w-3xl">
               <ChatInput onSendMessage={handleSendMessage} />
             </div>
