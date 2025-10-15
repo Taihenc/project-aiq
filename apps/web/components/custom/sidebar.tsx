@@ -48,7 +48,7 @@ export function Sidebar({
         ];
 
   return (
-    <div className="border-purple-lighter bg-gradient-sidebar flex h-screen w-[260px] flex-col border-r">
+    <div className="border-purple-lighter bg-[#fcfcfc] flex h-screen w-[260px] flex-col border-r">
       {/* Logo/Brand */}
       <div className="flex items-center gap-3 px-6 pb-4 pt-6">
         <div className="bg-gradient-purple rounded-card flex h-10 w-10 items-center justify-center shadow-sm">
@@ -63,8 +63,6 @@ export function Sidebar({
           </span>
         </div>
       </div>
-
-      <Separator className="border-purple-lighter" />
 
       {/* Navigation */}
       <div className="flex flex-col gap-2 px-6 py-5 text-sm">
@@ -93,8 +91,6 @@ export function Sidebar({
           Prompt Library
         </Button>
       </div>
-
-      <Separator className="border-purple-lighter" />
 
       {/* Chat History */}
       <div className="flex min-h-0 flex-1 flex-col px-6 py-4">
@@ -127,7 +123,7 @@ export function Sidebar({
       </div>
 
       {/* User Profile */}
-      <div className="border-purple-lighter flex-shrink-0 border-t px-6 py-5">
+      <div className="flex-shrink-0 px-6 py-5">
         <div className="shadow-profile rounded-card flex items-center gap-3 bg-white/70 p-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src="https://github.com/shadcn.png" />
