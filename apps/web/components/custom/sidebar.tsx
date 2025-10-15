@@ -1,9 +1,19 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+import {
+  Sidebar as SidebarPrimitive,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuAction,
+} from '@/components/ui/sidebar';
 import { MessageSquare, FileText, Sparkles, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -48,82 +58,109 @@ export function Sidebar({
         ];
 
   return (
-    <div className="border-purple-lighter bg-[#fcfcfc] flex h-screen w-[260px] flex-col border-r">
-      {/* Logo/Brand */}
-      <div className="flex items-center gap-3 px-6 pb-4 pt-6">
-        <div className="bg-gradient-purple rounded-card flex h-10 w-10 items-center justify-center shadow-sm">
-          <Sparkles className="h-5 w-5 text-white" />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-xs uppercase tracking-[0.2em] text-[#8c7ee1]">
-            AIQ
-          </span>
-          <span className="text-primary-dark font-kiona text-lg font-semibold">
-            XHIVE
-          </span>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <div className="flex flex-col gap-2 px-6 py-5 text-sm">
-        <Button
-          variant="outline"
-          className="text-primary-light rounded-card justify-start gap-2 border-transparent bg-[#efe9ff] shadow-none transition-colors hover:bg-[#e5dfff]"
-          onClick={onNewChat}
-        >
-          <MessageSquare className="h-4 w-4" />
-          New Chat
-        </Button>
-
-        <Button
-          variant="ghost"
-          className="text-accent-purple rounded-card justify-start gap-2 hover:bg-white/60"
-        >
-          <FileText className="h-4 w-4" />
-          Source
-        </Button>
-
-        <Button
-          variant="ghost"
-          className="text-accent-purple rounded-card justify-start gap-2 hover:bg-white/60"
-        >
-          <Sparkles className="h-4 w-4" />
-          Prompt Library
-        </Button>
-      </div>
-
-      {/* Chat History */}
-      <div className="flex min-h-0 flex-1 flex-col px-6 py-4">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[#9a92d8]">
-          Chat History
-        </p>
-        <ScrollArea className="flex-1">
-          <div className="flex flex-col gap-2">
-            {defaultHistory.map((chat) => (
-              <button
-                key={chat.id}
-                onClick={() => onChatSelect?.(chat.id)}
-                className={cn(
-                  'rounded-card group relative flex flex-col items-start gap-1 border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[#dcd3ff] hover:bg-white/70',
-                  currentChatId === chat.id &&
-                    'shadow-elevated border-[#d4c9ff] bg-white',
-                )}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <span className="text-primary-medium max-w-[140px] truncate font-medium">
-                    {chat.title}
-                  </span>
-                  <MoreVertical className="h-4 w-4 text-[#b1a8e9] opacity-0 transition-opacity group-hover:opacity-100" />
-                </div>
-                <span className="text-xs text-[#a19ad9]">{chat.timestamp}</span>
-              </button>
-            ))}
+    <SidebarPrimitive
+      collapsible="offcanvas"
+      className="border-purple-lighter bg-[#fcfcfc] border-r"
+    >
+      <SidebarHeader className="gap-0 px-6 pb-4 pt-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-gradient-purple rounded-card flex h-10 w-10 items-center justify-center shadow-sm">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
-        </ScrollArea>
-      </div>
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-[0.2em] text-[#8c7ee1]">
+              AIQ
+            </span>
+            <span className="text-primary-dark font-kiona text-lg font-semibold">
+              XHIVE
+            </span>
+          </div>
+        </div>
+      </SidebarHeader>
 
-      {/* User Profile */}
-      <div className="flex-shrink-0 px-6 py-5">
+      <SidebarContent className="gap-6 px-4 py-6 text-sm">
+        <SidebarGroup className="gap-3">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Start a new chat"
+                  onClick={onNewChat}
+                  className="text-primary-light rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-[#efe9ff] px-4 py-3 shadow-none transition-colors hover:bg-[#e5dfff]"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">New Chat</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Browse sources"
+                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-white/60"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>Source</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Open prompt library"
+                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-white/60"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>Prompt Library</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup className="gap-3">
+          <SidebarGroupLabel className="text-[#9a92d8]">
+            Chat History
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-2">
+              {defaultHistory.map((chat) => {
+                const isActive = currentChatId === chat.id;
+                return (
+                  <SidebarMenuItem key={chat.id}>
+                    <SidebarMenuButton
+                      tooltip={chat.title}
+                      isActive={isActive}
+                      onClick={() => onChatSelect?.(chat.id)}
+                      className={cn(
+                        'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[#dcd3ff] hover:bg-white/70',
+                        isActive &&
+                          'shadow-elevated border-[#d4c9ff] bg-white text-primary-medium',
+                      )}
+                    >
+                      <MessageSquare className="h-4 w-4 text-[#8175d4]" />
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-primary-medium truncate font-medium">
+                          {chat.title}
+                        </span>
+                        <span className="text-xs text-[#a19ad9]">
+                          {chat.timestamp}
+                        </span>
+                      </div>
+                    </SidebarMenuButton>
+                    <SidebarMenuAction
+                      showOnHover
+                      className="text-[#b1a8e9] hover:text-[#8a77eb]"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </SidebarMenuAction>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="px-6 pb-6">
         <div className="shadow-profile rounded-card flex items-center gap-3 bg-white/70 p-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src="https://github.com/shadcn.png" />
@@ -138,7 +175,7 @@ export function Sidebar({
             <span className="text-xs text-[#a19ad9]">Tanit.Yad@gmail.com</span>
           </div>
         </div>
-      </div>
-    </div>
+      </SidebarFooter>
+    </SidebarPrimitive>
   );
 }

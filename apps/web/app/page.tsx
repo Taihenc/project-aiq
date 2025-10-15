@@ -10,6 +10,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 import { BookOpen } from 'lucide-react';
 
 interface Message {
@@ -86,7 +91,7 @@ export default function Home() {
   const showWelcomeScreen = messages.length === 0;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-purple">
+    <SidebarProvider className="bg-surface-purple">
       {/* Sidebar */}
       <Sidebar
         currentChatId={currentChatId}
@@ -95,13 +100,14 @@ export default function Home() {
       />
 
       {/* Main Chat Area */}
-      <div className="bg-white relative flex flex-1 min-h-0 flex-col">
+      <SidebarInset className="relative flex h-screen flex-1 flex-col overflow-hidden bg-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
         {/* Header */}
-        <div className="relative z-10 flex items-center justify-between px-12 pb-3 pt-3">
+        <div className="relative z-10 flex items-center justify-between px-6 pb-3 pt-4 sm:px-10 lg:px-12">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
+              <SidebarTrigger className="border-purple-light text-primary-light shadow-button hover:bg-surface-light rounded-pill border bg-white h-9 w-9 sm:h-10 sm:w-10" />
               <h1 className="text-primary-dark text-2xl font-semibold">
                 AI Assistant
               </h1>
@@ -127,7 +133,7 @@ export default function Home() {
         </div>
 
         {/* Messages Area */}
-        <div className="relative z-0 flex flex-1 min-h-0 flex-col px-12 pt-2">
+        <div className="relative z-0 flex flex-1 min-h-0 flex-col px-6 pt-2 sm:px-10 lg:px-12">
           {showWelcomeScreen ? (
             <div className="flex flex-1 flex-col items-center justify-center">
               <div className="flex flex-col items-center gap-8">
@@ -182,29 +188,29 @@ export default function Home() {
 
         {/* Input Area - only show when not on welcome screen */}
         {!showWelcomeScreen && (
-          <div className="relative z-10 bg-white px-12 pb-2">
+          <div className="relative z-10 bg-white px-6 pb-2 sm:px-10 lg:px-12">
             <div className="pointer-events-none absolute inset-x-0 -top-3 h-3 bg-gradient-to-b from-transparent via-white/20 to-white/65" />
             <div className="relative z-10 mx-auto max-w-3xl">
               <ChatInput onSendMessage={handleSendMessage} />
             </div>
           </div>
         )}
-      </div>
 
-      {/* Citations Panel */}
-      <CitationsPanel
-        open={citationsPanelOpen}
-        onOpenChange={setCitationsPanelOpen}
-        citations={messages
-          .filter((m) => m.sources)
-          .flatMap((m) => m.sources || [])
-          .map((s) => ({
-            id: s.id,
-            title: s.title,
-            platform: s.platform,
-            content: s.content || '',
-          }))}
-      />
-    </div>
+        {/* Citations Panel */}
+        <CitationsPanel
+          open={citationsPanelOpen}
+          onOpenChange={setCitationsPanelOpen}
+          citations={messages
+            .filter((m) => m.sources)
+            .flatMap((m) => m.sources || [])
+            .map((s) => ({
+              id: s.id,
+              title: s.title,
+              platform: s.platform,
+              content: s.content || '',
+            }))}
+        />
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
