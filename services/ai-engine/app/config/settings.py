@@ -132,8 +132,12 @@ class BaseSettings:
     _default_model_config = _default_provider_config.get_model_config(DEFAULT_MODEL)
 
     # Allow environment variables to override model defaults
-    TEMPERATURE = get_env("TEMPERATURE", _default_model_config.temperature, float)
-    MAX_TOKENS = get_env("MAX_TOKENS", _default_model_config.max_tokens, int)
+    DEFAULT_TEMPERATURE = get_env(
+        "DEFAULT_TEMPERATURE", _default_model_config.temperature, float
+    )
+    DEFAULT_MAX_TOKENS = get_env(
+        "DEFAULT_MAX_TOKENS", _default_model_config.max_tokens, int
+    )
 
     @classmethod
     def get_provider_config(cls, provider: str = None) -> ProviderConfig:
