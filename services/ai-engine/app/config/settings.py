@@ -194,6 +194,9 @@ class BaseSettings:
     RAG_SEARCH_LIMIT = get_env("RAG_SEARCH_LIMIT", 10, int)
     RERANK_TOP_N = get_env("RERANK_TOP_N", 5, int)
 
+    # --- Chat Completion Defaults ---
+    DEFAULT_STREAM = get_bool_env("DEFAULT_STREAM", False)
+
 
 class DevelopmentSettings(BaseSettings):
     """Development environment settings"""
@@ -201,6 +204,7 @@ class DevelopmentSettings(BaseSettings):
     DEBUG = True
     LOG_LEVEL = "DEBUG"
     TIMEOUT = 60
+    DEFAULT_STREAM = False
 
 
 class StagingSettings(BaseSettings):
@@ -209,6 +213,7 @@ class StagingSettings(BaseSettings):
     DEBUG = False
     LOG_LEVEL = "INFO"
     TIMEOUT = 45
+    DEFAULT_STREAM = True
 
 
 class ProductionSettings(BaseSettings):
@@ -217,6 +222,7 @@ class ProductionSettings(BaseSettings):
     DEBUG = False
     LOG_LEVEL = "WARNING"
     TIMEOUT = 30
+    DEFAULT_STREAM = True
 
 
 def get_settings() -> BaseSettings:

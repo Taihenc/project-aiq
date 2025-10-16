@@ -1,5 +1,6 @@
 from typing import List, Optional, Literal
 
+from app.config import settings
 from pydantic import BaseModel
 
 from app.models.chat import ChatMessage, Role
@@ -8,9 +9,9 @@ from app.models.chat import ChatMessage, Role
 class ChatCompletionRequest(BaseModel):
     model: str
     messages: List[ChatMessage]
-    stream: bool = False
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
+    stream: bool = settings.DEFAULT_STREAM
+    temperature: Optional[float] = settings.DEFAULT_TEMPERATURE
+    max_tokens: Optional[int] = settings.DEFAULT_MAX_TOKENS
 
     # --- OpenAI extras (commented for later enable) ---
     # frequency_penalty: Optional[float] = None
@@ -87,6 +88,7 @@ class ChatCompletionChunk(BaseModel):
     model: str
     choices: List[ChunkChoice]
 
+
 # ----------------------------------------------
 # OpenAI logprobs (commented)
 # ----------------------------------------------
@@ -116,5 +118,3 @@ class ChatCompletionChunk(BaseModel):
 #     id: Optional[str] = None
 #     type: Literal["function"]
 #     function: Optional[DeltaToolCallFunction] = None
-
-
