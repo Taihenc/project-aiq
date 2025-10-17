@@ -16,6 +16,7 @@ dependencies = [
     "httpx>=0.25.0",
     "pydantic>=2.5.0",
     "python-dotenv>=1.0.0",
+    "crewai[tools]>=0.203.1",
 ]
 
 [project.optional-dependencies]
