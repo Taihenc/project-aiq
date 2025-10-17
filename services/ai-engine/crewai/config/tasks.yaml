@@ -1,112 +1,66 @@
 validate_and_route:
   description: >
-    Validate and understand the user query: "{user_query}"
-    
-    Chat history (for context):
-    {chat_history}
-    
-    Task:
-    1. Analyze the query to detect basic intent (consider chat history if available).
-    2. Be flexible — ask clarification only if essential info is missing.
-    3. Decide routing type:
-    
-    Decision types:
-    - NEEDS_CLARIFICATION:
-      → Query lacks key info or context.
-      → Examples:
-        * "ค้นหา", "search" (no target)
-        * "help me" (no context)
-        * "what about that thing" (unclear)
-        * "API" alone
-        * gibberish or empty text
-      → Clear examples (no clarification needed):
-        * "ค้นหาข้อมูล API" / "search API info"
-        * "วิธีใช้ REST API" / "how to use REST API"
-        * "เอกสารเกี่ยวกับ authentication"
-      → Stop workflow and return clarification questions.
+    Analyze user query: "{user_query}"
+    Chat history: {chat_history}
 
-    - SEARCH_REQUIRED:
-      → Query needs document retrieval (technical, factual, specific info).
-      → Even vague queries can proceed — RAG Analyzer will refine searches.
-      → Route to RAG Analyzer.
+    **Goal:** Understand intent and route to the right workflow.
 
-    - DIRECT_RESPONSE:
-      → General knowledge, greetings, or small talk.
-      → Skip search; route to Chat Responder.
+    Process:
+    1. Review chat history for context and past topics
+    2. Determine if the query is standalone or refers to earlier messages
+    3. Infer true user intent from conversation flow
 
-    Rules:
-    - Focus on validation before routing.
-    - If query has a clear topic → proceed.
-    - If only action word → ask for clarification.
-    - NEEDS_CLARIFICATION stops flow; DIRECT_RESPONSE skips RAG; SEARCH_REQUIRED triggers RAG.
+    Decision rules:
+    - SEARCH: User seeks information AND you can identify WHAT topic they want
+      → Do NOT choose SEARCH if you don't know what topic they want
+    - DIRECT_RESPONSE: Social or general reply with no info request
+    - NEEDS_CLARIFICATION: User wants to search but you CANNOT identify what topic they want
+
+
+    **Tip:** When unsure between SEARCH and DIRECT → choose SEARCH.
   expected_output: >
-    Return OrchestratorOutput with the selected decision type.
+    OrchestratorOutput (decision, reasoning, relevant fields)
   agent: orchestrator
 
 
 search_and_analyze:
   description: >
-    Search for relevant documents for user query: "{user_query}"
-    
-    Chat history (for context):
-    {chat_history}
-    
-    Context:
-    {context}
-    
-    Task:
-    1. Check orchestrator decision:
-       - DIRECT_RESPONSE → skip search, return empty results.
-       - SEARCH_REQUIRED → perform document search.
-       - NEEDS_CLARIFICATION → should not be called.
-    2. For SEARCH_REQUIRED:
-       - Generate best search keywords.
-       - Use the search tool (embedding + reranking).
-       - If no results, retry with synonyms or alternate phrasing (2–3 strategies).
-       - Output structured results, no summarization.
-    
-    Strategy tips:
-    - Start with direct keywords.
-    - Retry with synonyms, broader/narrower terms, or other languages.
-    - Be persistent and creative.
-    
-    Tool:
-    - search → semantic + reranking combined.
+    User query: "{user_query}"
+    Context: {context}
+    Chat history: {chat_history}
+
+    **Check orchestrator decision first.**
+
+    If decision = SEARCH:
+      1. Extract search intent (core topic/entity)
+      2. Generate ONE optimized query (focused, clean, uses synonyms if needed)
+      3. Execute search and return structured results
+
+    If decision = DIRECT_RESPONSE or NEEDS_CLARIFICATION:
+      Skip search.
   expected_output: >
-    Return RAGAnalyzerOutput with search results or skip flag.
+    RAGAnalyzerOutput (search_result or skip flag)
   agent: rag_analyzer
 
 
 generate_response:
   description: >
-    Generate a natural, validated response to user query: "{user_query}"
-    
-    Chat history (for context):
-    {chat_history}
-    
-    Context:
-    {context}
-    
-    Task:
-    1. Check orchestrator decision:
-       - NEEDS_CLARIFICATION → return clarification message.
-       - DIRECT_RESPONSE → reply using general knowledge (no search).
-       - SEARCH_REQUIRED → analyze search results and respond.
-    2. For SEARCH_REQUIRED:
-        - Validate if documents truly answer the query (consider chat history for context).
-        - If relevant → generate sourced, complete answer.
-        - If not → say none found; optionally provide general info.
-    3. For DIRECT_RESPONSE:
-        - Respond conversationally using general knowledge.
-        - Use chat history to maintain conversation continuity.
-        - Indicate info not from documents.
-    4. For NEEDS_CLARIFICATION:
-        - Return clarification only, no further output.
-    5. Ensure response fully answers the question.
-    6. **Always reply in the same language as the user query.**
-        - Thai → respond in Thai; English → respond in English.
-    7. Be transparent about knowledge limits.
-    8. Reference previous messages from chat history when appropriate.
+    Answer: "{user_query}"
+    Context: {context}
+    Chat history: {chat_history}
+
+    **Follow orchestrator decision:**
+    - NEEDS_CLARIFICATION → Ask short clarification
+    - DIRECT_RESPONSE → Reply from general knowledge (type="DIRECT")
+    - SEARCH → Check RAG analyzer decision:
+      * If RAG decision = SEARCH_PERFORMED → Use verified relevant docs (type="SEARCH_BASED")
+      * If RAG decision = SKIPPED → Reply from general knowledge (type="DIRECT")
+      * If docs irrelevant → Admit it and optionally answer generally
+
+    Rules:
+    - Respond in user’s language
+    - Don’t force irrelevant sources
+    - Reference chat history when useful
   expected_output: >
-    Return ChatResponderOutput with final response, type, and sources if any.
+    ChatResponderOutput (response, type, sources, language)
   agent: chat_responder

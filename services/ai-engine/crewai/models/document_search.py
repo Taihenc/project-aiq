@@ -11,7 +11,7 @@ class OrchestratorDecision(str, Enum):
     """Decision types for orchestrator agent."""
 
     NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
-    SEARCH_REQUIRED = "SEARCH_REQUIRED"
+    SEARCH = "SEARCH"
     DIRECT_RESPONSE = "DIRECT_RESPONSE"
 
 
@@ -36,19 +36,17 @@ class ResponseType(str, Enum):
 class SearchOutput(BaseModel):
     """Output schema from Search tool."""
 
-    documents: List[Dict[str, Any]] = Field(..., description="List of documents")
-    query: str = Field(..., description="Search query text")
-    total: int = Field(..., description="Total number of documents")
+    documents: List[Dict[str, Any]] = Field(
+        ..., description="List of documents returned from search"
+    )
+    query: str = Field(..., description="The search query text that was used")
+    total: int = Field(..., description="Total number of documents found")
 
 
 class SearchInput(BaseModel):
     """Input schema for Search tool."""
 
     query: str = Field(..., description="Search query text to find relevant documents")
-    top_k: int = Field(
-        default=10, description="Number of results from embedding search"
-    )
-    top_n: int = Field(default=5, description="Number of final results after reranking")
 
 
 # ============================================================================
@@ -59,27 +57,50 @@ class SearchInput(BaseModel):
 class OrchestratorOutput(BaseModel):
     """Output from orchestrator agent."""
 
-    decision: OrchestratorDecision
-    reasoning: str
-    validated_query: Optional[str] = None
-    clarification_questions: Optional[List[str]] = None
-    final_response: Optional[str] = None
+    decision: OrchestratorDecision = Field(
+        ...,
+        description="Routing decision: NEEDS_CLARIFICATION (ask user), SEARCH (search docs), or DIRECT_RESPONSE (answer directly)",
+    )
+    reasoning: str = Field(..., description="Explanation of why this decision was made")
 
 
 class RAGAnalyzerOutput(BaseModel):
     """Output from RAG analyzer agent."""
 
-    decision: RAGAnalyzerDecision
-    reasoning: str
-    search_attempts: Optional[List[str]] = None
-    search_result: Optional[SearchOutput] = None
-    search_success: Optional[bool] = None
+    decision: RAGAnalyzerDecision = Field(
+        ...,
+        description="Search decision: SKIPPED (no search needed) or SEARCH_PERFORMED (search executed)",
+    )
+    reasoning: str = Field(
+        ..., description="Explanation of the search decision and strategy used"
+    )
+    search_attempts: Optional[List[str]] = Field(
+        None, description="List of search queries that were attempted"
+    )
+    search_result: Optional[SearchOutput] = Field(
+        None,
+        description="Final search results with documents (if search was performed)",
+    )
+    search_success: Optional[bool] = Field(
+        None, description="Whether relevant documents were found (true/false)"
+    )
 
 
 class ChatResponderOutput(BaseModel):
     """Output from chat responder agent."""
 
-    response: str
-    response_type: ResponseType
-    sources_used: Optional[List[str]] = None
-    language: str
+    response: str = Field(
+        ..., description="The final response message to the user in their language"
+    )
+    response_type: ResponseType = Field(
+        ...,
+        description="Type of response: CLARIFICATION (asking questions), DIRECT (general knowledge), or SEARCH_BASED (from documents)",
+    )
+    sources_used: Optional[List[str]] = Field(
+        None,
+        description="List of document sources cited in the response (if SEARCH_BASED)",
+    )
+    language: str = Field(
+        ...,
+        description="Language code of the response (e.g., 'th' for Thai, 'en' for English)",
+    )
