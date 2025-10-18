@@ -4,7 +4,7 @@
 
 Build an AI-powered document search system that enables intelligent retrieval, reasoning, and interaction with uploaded documents through a web chat interface.
 
-The system integrates five main components — **Frontend** (web chat UI), **Backend** (API Gateway), **AI Engine** (reasoning), **Chat Service** (session management), and **Embedding Service** (document vectorization) — to handle user interaction, routing, LLM reasoning with autonomous RAG retrieval, conversation history, and document search respectively.
+The system integrates four main components — **Frontend** (web chat UI), **Backend** (API Gateway + session management), **AI Engine** (reasoning), and **Embedding Service** (document vectorization) — to handle user interaction, routing, session management, LLM reasoning with autonomous RAG retrieval, and document search respectively.
 
 ---
 
@@ -14,10 +14,9 @@ The system integrates five main components — **Frontend** (web chat UI), **Bac
 project-aiq-mvp/
 ├─ apps/
 │  ├─ web/                 # Streamlit chat UI
-│  └─ backend/             # NestJS orchestrator API (REST)
+│  └─ backend/             # NestJS orchestrator API (REST + session & history)
 ├─ services/
 │  ├─ ai-engine/           # AI Engine (CrewAI reasoning, reranker)
-│  ├─ chat-service/        # Chat Service (session & history)
 │  └─ embedding-service/   # Embedding Service (chunking, embedding, Qdrant)
 ├─ docker-compose.yml
 └─ README.md
@@ -25,7 +24,7 @@ project-aiq-mvp/
 
 ## Getting Started
 
-To start all services (backend, frontend, AI Engine, Chat Service, Embedding Service) in parallel, run the following command from the root of the monorepo:
+To start all services (backend, frontend, AI Engine, Embedding Service) in parallel, run the following command from the root of the monorepo:
 
 ```bash
 pnpm i -r
@@ -66,7 +65,7 @@ Handles LLM reasoning and orchestration using CrewAI with autonomous RAG retriev
 - Generate natural, contextually appropriate responses in the language user asks
 
 **Router Endpoints:**
-- `POST /v1/ai-engine/chat/completions` → Chat completion with agent reasoning
+- `POST /v1/chat/completions` → Chat completion with agent reasoning
 
 **Supported Providers:**
 - OpenAI
@@ -116,30 +115,7 @@ The service uses a 3-agent system with specialized roles:
 
 ---
 
-### 4. Chat Service
-**Purpose:**  
-Manages user chat sessions and conversation history.
-
-**Responsibilities:**
-- Manage user sessions and conversation history
-- Store and retrieve chat messages per session
-- Call AI Engine for response generation
-- Track conversation continuity
-- Provide context to AI Engine from previous conversations
-
-**Router Endpoints:**
-1. `POST /chat` → Send and receive chat messages
-2. `GET /get-history` → Retrieve previous chat history
-3. `POST /create-session` → Initialize a new user chat session
-4. `GET /check-session` → Validate or retrieve active session state
-
-**Technology:** Python FastAPI
-
-**Location:** `services/chat-service/`
-
----
-
-### 5. Embedding Service
+### 4. Embedding Service
 **Purpose:**  
 Handles document processing, vector embedding operations, and document search.
 
@@ -151,13 +127,13 @@ Handles document processing, vector embedding operations, and document search.
 - Own and manage Qdrant vector database (database per service pattern)
 
 **Router Endpoints:**
-1. `POST /upload` → Receive, chunk, embed, and store documents
-2. `POST /search` → Compute vector distance for document retrieval
-3. `GET /documents` → List or fetch available document metadata
-4. `POST /query` → Query via metadata or other structured filters
-5. `DELETE /delete` → Remove document by ID
-6. `PUT /edit` → Update existing document metadata or embedding
-7. `GET /get/:id` → Fetch document directly by ID
+1. `POST /v1/upload` → Receive, chunk, embed, and store documents
+2. `POST /v1/search` → Compute vector distance for document retrieval
+3. `GET /v1/documents` → List or fetch available document metadata
+4. `POST /v1/query` → Query via metadata or other structured filters
+5. `DELETE /v1/delete` → Remove document by ID
+6. `PUT /v1/edit` → Update existing document metadata or embedding
+7. `GET /v1/get/:id` → Fetch document directly by ID
 
 **Key Design Principle:**
 - Embedding Service is the **sole owner** of Qdrant DB
@@ -178,24 +154,21 @@ Handles document processing, vector embedding operations, and document search.
 graph TD
     %% LAYER: Frontend & Backend
     U[User <br/> <small>Frontend</small>]
-    B[Backend API Gateway<br/><small>Routing · Auth · Logging</small>]
+    B[Backend API Gateway<br/><small>Routing · Session · History · Auth · Logging</small>]
 
     %% LAYER: Services
-    C[Chat Service<br/><small>Session · History · Context</small>]
     A[AI Engine<br/><small>Orchestrator · RAG Analyzer · Chat Responder</small>]
     R[Embedding Service<br/><small>Chunker · Embedding · Vector Search</small>]
 
     %% CONNECTIONS
     U --> B
-    B --> C
+    B --> A
     B --> R
-    C --> A
     A --> R
 
     %% STYLE
     style U fill:#e1e4e8,stroke:#586069,stroke-width:2px,color:#24292e
     style B fill:#d1ecf1,stroke:#17a2b8,stroke-width:2px,color:#212529
-    style C fill:#fff,stroke:#fd7e14,stroke-width:2px,color:#24292e
     style A fill:#fff,stroke:#0366d6,stroke-width:2px,color:#24292e
     style R fill:#fff,stroke:#28a745,stroke-width:2px,color:#24292e
 ```
@@ -212,11 +185,7 @@ sequenceDiagram
     end
 
     box Gateway Layer
-        participant Backend as 🌐 Backend (API Gateway)
-    end
-
-    box Chat Service
-        participant Chat as 💬 Chat Service
+        participant Backend as 🌐 Backend (API Gateway + Session)
     end
 
     box AI Engine
@@ -232,12 +201,11 @@ sequenceDiagram
 
 
     %% USER SEND MESSAGE
-    User->>Backend: POST /api/chat {session_id, message}
-    Backend->>Chat: POST /chat {session_id, message}
+    User->>Backend: POST /chat {session_id, message}
 
-    %% CHAT LOAD HISTORY
-    Chat->>Chat: Load session + history from DB
-    Chat->>Orch: POST /ai-engine/chat/completions {message, history[]}
+    %% BACKEND LOAD HISTORY
+    Backend->>Backend: Load session + history from DB
+    Backend->>Orch: POST /v1/chat/completions {message, history[]}
 
     %% ORCHESTRATOR
     Orch->>Orch: Analyze intent (Chat / RAG)
@@ -246,7 +214,7 @@ sequenceDiagram
         Orch->>Rag: Forward query for retrieval analysis
         
         %% DOCUMENT SEARCH TOOL ACTION
-        Rag->>Retrieval: 🔧 DocumentSearchTool → POST /search {query_text}
+        Rag->>Retrieval: 🔧 DocumentSearchTool → POST /v1/search {query_text}
         Retrieval->>Qdrant: Vector search (cosine similarity)
         Qdrant-->>Retrieval: Return top-K documents + scores
         Retrieval-->>Rag: Relevant documents[]
@@ -258,11 +226,10 @@ sequenceDiagram
     %% RESPONSE GENERATION
     Responder->>Responder: Evaluate relevance & synthesize information
     Responder->>Responder: Generate final response (LLM)
-    Responder-->>Chat: {answer, context}
+    Responder-->>Backend: {answer, context}
 
     %% SAVE & RETURN
-    Chat->>Chat: Save message + response
-    Chat-->>Backend: {answer}
+    Backend->>Backend: Save message + response
     Backend-->>User: Return final message
 ```
 
@@ -289,8 +256,8 @@ sequenceDiagram
     end
 
     %% USER UPLOADS DOCUMENT
-    User->>Backend: POST /api/upload {file, metadata}
-    Backend->>Retrieval: POST /upload {file, metadata}
+    User->>Backend: POST /upload {file, metadata}
+    Backend->>Retrieval: POST /v1/upload {file, metadata}
 
     %% RETRIEVAL PROCESSES DOCUMENT
     Retrieval->>Chunker: Split document into chunks
@@ -313,19 +280,18 @@ sequenceDiagram
 
 ### Chat Flow
 1. **User(Frontend) sends query** → Backend (API Gateway)
-2. **Backend routes** → Chat Service
-3. **Chat Service** → loads session/history → forwards to AI Engine
-4. **Orchestrator Agent** → analyzes query intent using LLM reasoning
-5. **Route decision:**
+2. **Backend** → loads session/history → forwards to AI Engine
+3. **Orchestrator Agent** → analyzes query intent using LLM reasoning
+4. **Route decision:**
    - If document search needed → RAG Analyzer uses DocumentSearchTool which:
      - Calls Embedding Service via HTTP API for semantic search
      - Embedding Service queries Qdrant vector database
      - DocumentSearchTool receives results and automatically reranks them
      - Passes documents with scores to Chat Responder
    - If general chat → directly to Chat Responder
-6. **Chat Responder** → evaluates document relevance, filters, synthesizes, and generates response
-7. **Response stored** → Chat Service logs conversation in session
-8. **Backend returns** → final response to User(Frontend)
+5. **Chat Responder** → evaluates document relevance, filters, synthesizes, and generates response
+6. **Response stored** → Backend logs conversation in session
+7. **Backend returns** → final response to User(Frontend)
 
 ### Upload Flow
 1. **User(Frontend) uploads document** → Backend (API Gateway)
@@ -351,6 +317,7 @@ sequenceDiagram
 - Able to find relationships between documents and perform sequential document retrieval (e.g., Document1 finds Document2, then Document2 uses context to find Document3)
 - Document chunking and metadata management
 - Database per service pattern (Embedding Service owns Qdrant)
+- Session management and conversation history in Backend
 
 ---
 
@@ -358,38 +325,35 @@ sequenceDiagram
 
 ### Example 1: Document Search Query
 1. User(Frontend) asks: "README ของ AI service อยู่ที่ไหน?"
-2. Backend routes to Chat Service
-3. Chat Service loads history and forwards to AI Engine
-4. **Orchestrator Agent** analyzes → detects document search intent
-5. Routes to **RAG Analyzer Agent**
-6. RAG Analyzer generates keywords → uses DocumentSearchTool
-7. DocumentSearchTool calls Embedding Service API → queries Qdrant → retrieves documents with similarity scores
-8. DocumentSearchTool automatically reranks documents → passes results to Chat Responder
-9. **Chat Responder** evaluates relevance → filters documents → synthesizes information
-10. **Chat Responder** generates detailed answer with source information
-11. Response returned to Chat Service and stored in session
-12. Backend returns response to User(Frontend)
+2. Backend loads history and forwards to AI Engine
+3. **Orchestrator Agent** analyzes → detects document search intent
+4. Routes to **RAG Analyzer Agent**
+5. RAG Analyzer generates keywords → uses DocumentSearchTool
+6. DocumentSearchTool calls Embedding Service API → queries Qdrant → retrieves documents with similarity scores
+7. DocumentSearchTool automatically reranks documents → passes results to Chat Responder
+8. **Chat Responder** evaluates relevance → filters documents → synthesizes information
+9. **Chat Responder** generates detailed answer with source information
+10. Response returned to Backend and stored in session
+11. Backend returns response to User(Frontend)
 
 ### Example 2: General Knowledge Query
 1. User(Frontend) asks: "มี service อะไรบ้างในระบบ?"
-2. Backend routes to Chat Service
-3. Chat Service forwards to AI Engine
-4. **Orchestrator Agent** analyzes → detects potential document search
-5. Routes to **RAG Analyzer Agent**
-6. RAG Analyzer uses DocumentSearchTool → calls Embedding Service API → searches embeddings → finds related documents
-7. DocumentSearchTool automatically reranks results → passes to **Chat Responder**
-8. **Chat Responder** evaluates and filters documents → synthesizes information about available services
-9. Natural response mentioning AI Engine, Chat Service, Embedding Service, and Backend services
-10. Response stored and returned to User(Frontend)
+2. Backend forwards to AI Engine
+3. **Orchestrator Agent** analyzes → detects potential document search
+4. Routes to **RAG Analyzer Agent**
+5. RAG Analyzer uses DocumentSearchTool → calls Embedding Service API → searches embeddings → finds related documents
+6. DocumentSearchTool automatically reranks results → passes to **Chat Responder**
+7. **Chat Responder** evaluates and filters documents → synthesizes information about available services
+8. Natural response mentioning AI Engine, Embedding Service, and Backend services
+9. Response stored in Backend and returned to User(Frontend)
 
 ### Example 3: Conversational Query
 1. User(Frontend) says: "ขอบคุณครับ"
-2. Backend routes to Chat Service with conversation history
-3. Chat Service forwards to AI Engine
-4. **Orchestrator Agent** analyzes → detects casual conversation (no document search needed)
-5. Routes directly to **Chat Responder Agent**
-6. Chat Responder generates natural conversational response
-7. Efficient processing without unnecessary document retrieval
-8. Response returned to User(Frontend)
+2. Backend forwards to AI Engine with conversation history
+3. **Orchestrator Agent** analyzes → detects casual conversation (no document search needed)
+4. Routes directly to **Chat Responder Agent**
+5. Chat Responder generates natural conversational response
+6. Efficient processing without unnecessary document retrieval
+7. Response stored in Backend and returned to User(Frontend)
 
 ---
