@@ -76,39 +76,37 @@ Handles LLM reasoning and orchestration using CrewAI with autonomous RAG retriev
 
 **AI Engine Architecture:**
 
-The service uses a 4-component system with specialized roles:
+The service uses a 3-agent system with specialized roles:
 
 1. **Orchestrator Agent**
    - Analyzes user queries using LLM reasoning
    - Determines query intent (document search vs general chat)
+   - Asks for clarification when user intent is unclear
    - Routes queries to appropriate agents
    - Coordinates workflow between RAG Analyzer and Chat Responder
    - Extensible for future agent types
 
 2. **RAG Analyzer Agent**
+   - Analyzes user query to extract search intent
    - Generates optimal search keywords for retrieval
-   - Calls Embedding Service via HTTP API
-   - Receives similarity scores for retrieved documents
-   - Sends documents to Reranker for refinement
-   - Evaluates result relevance to avoid returning unrelated files
-   - Passes relevant context to Chat Responder
+   - Uses **DocumentSearchTool** which:
+     - Calls Embedding Service API for semantic vector similarity search
+     - Receives documents with similarity scores
+     - Automatically reranks retrieved documents to improve precision
+   - Passes search results directly to Chat Responder
 
-3. **Reranker**
-   - Component within Agent Service (not a separate service)
-   - Reranks documents based on query-document relevance
-   - Improves precision of retrieval results
-   - Filters out less relevant documents
-   - Optimizes result ordering for better context quality
-
-4. **Chat Responder Agent**
+3. **Chat Responder Agent**
+   - Primary agent for communicating with users
    - Receives context from other agents (RAG results or conversation history)
-   - Synthesizes information into coherent responses
+   - Evaluates relevance of retrieved documents to the query
+   - Filters out unrelated documents and synthesizes relevant information
    - Generates natural, conversational answers in the language user asks
    - Maintains tone appropriate to query context
 
 **Key Features:**
 - **Intelligent Query Routing:** LLM-based intent detection by Orchestrator
-- **Autonomous RAG:** internal API integration for document retrieval
+- **Autonomous RAG:** DocumentSearchTool provides autonomous API integration for document retrieval from Embedding Service
+- **Integrated Reranking:** DocumentSearchTool automatically reranks search results for improved precision
 - **Context-Aware Responses:** Agents collaborate to provide relevant answers
 - **Natural Language:** Generates conversational responses without technical jargon
 
@@ -184,7 +182,7 @@ graph TD
 
     %% LAYER: Services
     C[Chat Service<br/><small>Session · History · Context</small>]
-    A[AI Engine<br/><small>Orchestrator · RAG Analyzer · Reranker · Responder</small>]
+    A[AI Engine<br/><small>Orchestrator · RAG Analyzer · Chat Responder</small>]
     R[Embedding Service<br/><small>Chunker · Embedding · Vector Search</small>]
 
     %% CONNECTIONS
@@ -224,7 +222,6 @@ sequenceDiagram
     box AI Engine
         participant Orch as 🧩 Orchestrator Agent
         participant Rag as 🔍 RAG Analyzer Agent
-        participant Rerank as ⚖️ Reranker
         participant Responder as 💡 Chat Responder Agent
     end
 
@@ -245,28 +242,27 @@ sequenceDiagram
     %% ORCHESTRATOR
     Orch->>Orch: Analyze intent (Chat / RAG)
 
-    alt Query requires retrieval
+    alt 🔍 Query requires document retrieval
         Orch->>Rag: Forward query for retrieval analysis
-        Rag->>Retrieval: POST /search {query_text}
-        Retrieval->>Qdrant: vector search (cosine similarity)
-        Qdrant-->>Retrieval: top-K documents + scores
-        Retrieval-->>Rag: relevant_docs[]
-        Rag->>Rerank: Send docs for reranking
-        Rerank-->>Rag: top-ranked docs
-        Rag-->>Responder: relevant context
-    else Simple chat
+        
+        %% DOCUMENT SEARCH TOOL ACTION
+        Rag->>Retrieval: 🔧 DocumentSearchTool → POST /search {query_text}
+        Retrieval->>Qdrant: Vector search (cosine similarity)
+        Qdrant-->>Retrieval: Return top-K documents + scores
+        Retrieval-->>Rag: Relevant documents[]
+        Rag-->>Responder: Forward top-N context for response generation
+    else 💬 Simple chat
         Orch->>Responder: Forward message directly
     end
 
-    %% RESPONDER GENERATES FINAL ANSWER
+    %% RESPONSE GENERATION
+    Responder->>Responder: Evaluate relevance & synthesize information
     Responder->>Responder: Generate final response (LLM)
     Responder-->>Chat: {answer, context}
 
-    %% CHAT SERVICE SAVES HISTORY
-    Chat->>Chat: Save message + response to session DB
-    Chat-->>Backend: response {answer}
-
-    %% RETURN TO USER
+    %% SAVE & RETURN
+    Chat->>Chat: Save message + response
+    Chat-->>Backend: {answer}
     Backend-->>User: Return final message
 ```
 
@@ -321,11 +317,13 @@ sequenceDiagram
 3. **Chat Service** → loads session/history → forwards to AI Engine
 4. **Orchestrator Agent** → analyzes query intent using LLM reasoning
 5. **Route decision:**
-   - If document search needed → RAG Analyzer calls Embedding Service via HTTP API
-   - Retrieval queries Qdrant vector database
-   - RAG Analyzer passes results to Reranker for refinement
+   - If document search needed → RAG Analyzer uses DocumentSearchTool which:
+     - Calls Embedding Service via HTTP API for semantic search
+     - Embedding Service queries Qdrant vector database
+     - DocumentSearchTool receives results and automatically reranks them
+     - Passes documents with scores to Chat Responder
    - If general chat → directly to Chat Responder
-6. **Chat Responder** → synthesizes context and generates response
+6. **Chat Responder** → evaluates document relevance, filters, synthesizes, and generates response
 7. **Response stored** → Chat Service logs conversation in session
 8. **Backend returns** → final response to User(Frontend)
 
@@ -343,9 +341,9 @@ sequenceDiagram
 ## Expected Capabilities
 
 - Semantic document search via embeddings with cosine similarity
-- Result reranking for improved retrieval precision
+- DocumentSearchTool autonomously calls Embedding Service API for retrieval
+- Integrated reranking within DocumentSearchTool for improved retrieval precision
 - Intelligent query routing via Orchestrator agent
-- Autonomous RAG retrieval through Embedding Service via HTTP API
 - Natural language reasoning using multi-agent system (CrewAI)
 - Multi-turn chat with memory (session-based)
 - Multilingual support (Thai-English)
@@ -364,10 +362,10 @@ sequenceDiagram
 3. Chat Service loads history and forwards to AI Engine
 4. **Orchestrator Agent** analyzes → detects document search intent
 5. Routes to **RAG Analyzer Agent**
-6. RAG Analyzer generates keywords → calls Embedding Service via API
-7. Embedding Service queries Qdrant → retrieves relevant documents with similarity scores
-8. RAG Analyzer sends results to **Reranker** → refines and reorders results
-9. RAG Analyzer evaluates relevance → passes context to Chat Responder
+6. RAG Analyzer generates keywords → uses DocumentSearchTool
+7. DocumentSearchTool calls Embedding Service API → queries Qdrant → retrieves documents with similarity scores
+8. DocumentSearchTool automatically reranks documents → passes results to Chat Responder
+9. **Chat Responder** evaluates relevance → filters documents → synthesizes information
 10. **Chat Responder** generates detailed answer with source information
 11. Response returned to Chat Service and stored in session
 12. Backend returns response to User(Frontend)
@@ -378,12 +376,11 @@ sequenceDiagram
 3. Chat Service forwards to AI Engine
 4. **Orchestrator Agent** analyzes → detects potential document search
 5. Routes to **RAG Analyzer Agent**
-6. RAG Analyzer calls Embedding Service → searches embeddings → finds related documents
-7. RAG Analyzer sends to **Reranker** → improves result ordering
-8. Passes refined results to **Chat Responder**
-9. Chat Responder synthesizes information about available services
-10. Natural response mentioning AI Engine, Chat Service, Embedding Service, and Backend services
-11. Response stored and returned to User(Frontend)
+6. RAG Analyzer uses DocumentSearchTool → calls Embedding Service API → searches embeddings → finds related documents
+7. DocumentSearchTool automatically reranks results → passes to **Chat Responder**
+8. **Chat Responder** evaluates and filters documents → synthesizes information about available services
+9. Natural response mentioning AI Engine, Chat Service, Embedding Service, and Backend services
+10. Response stored and returned to User(Frontend)
 
 ### Example 3: Conversational Query
 1. User(Frontend) says: "ขอบคุณครับ"
