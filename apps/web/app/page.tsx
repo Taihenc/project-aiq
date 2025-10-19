@@ -16,6 +16,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { BookOpen } from 'lucide-react';
+import { sendChatMessage } from '@/lib/api/chat';
 
 interface Message {
   id: string;
@@ -27,41 +28,59 @@ interface Message {
     platform: string;
     content?: string;
   }>;
+  metadata?: {
+    model_used?: string;
+    processing_time_ms?: number;
+    tokens?: {
+      prompt: number;
+      completion: number;
+      total: number;
+    };
+  };
 }
 
-export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'user',
-      content: 'What is current Product Roadmap?',
-    },
-    {
-      id: '2',
-      role: 'assistant',
-      content:
-        "Based on your query about 'What is current Product Roadmap?', I found relevant information from your knowledge sources. The data shows significant growth trends in Q4 2024, with revenue increasing by 23% compared to the previous quarter. This growth was primarily driven by new product launches and expanded market presence in key demographics.",
-      sources: [
-        {
-          id: '1',
-          title: 'Q4 Financial Report 2024',
-          platform: 'SharePoint',
-          content:
-            'Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence. Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence.',
-        },
-        {
-          id: '2',
-          title: 'New Product',
-          platform: 'SharePoint',
-          content:
-            'Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence. Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence.',
-        },
-      ],
-    },
-  ]);
+// Demo/Preview data
+const DEMO_MESSAGES: Message[] = [
+  {
+    id: '1',
+    role: 'user',
+    content: 'What is current Product Roadmap?',
+  },
+  {
+    id: '2',
+    role: 'assistant',
+    content:
+      "Based on your query about 'What is current Product Roadmap?', I found relevant information from your knowledge sources. The data shows significant growth trends in Q4 2024, with revenue increasing by 23% compared to the previous quarter. This growth was primarily driven by new product launches and expanded market presence in key demographics.",
+    sources: [
+      {
+        id: '1',
+        title: 'Q4 Financial Report 2024',
+        platform: 'SharePoint',
+        content:
+          'Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence. Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence.',
+      },
+      {
+        id: '2',
+        title: 'New Product',
+        platform: 'SharePoint',
+        content:
+          'Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence. Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence.',
+      },
+    ],
+  },
+];
 
+export default function Home() {
+  // Check if demo mode is enabled from environment variable
+  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+  const [messages, setMessages] = useState<Message[]>(
+    isDemoMode ? DEMO_MESSAGES : [],
+  );
   const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
   const [currentChatId, setCurrentChatId] = useState('1');
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages change
@@ -69,23 +88,81 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = (content: string) => {
-    const newMessage: Message = {
+  const handleSendMessage = async (content: string) => {
+    // Add user message immediately
+    const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content,
     };
-    setMessages([...messages, newMessage]);
+    setMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
+    // Demo mode - simulate response
+    if (isDemoMode) {
+      setTimeout(() => {
+        const demoResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content:
+            'This is a demo response. The system is in preview mode with sample data. To connect to the real backend, toggle the demo mode off using the button in the header.',
+          sources: [
+            {
+              id: 'demo-1',
+              title: 'Demo Document',
+              platform: 'Preview',
+              content: 'This is sample content for demonstration purposes.',
+            },
+          ],
+        };
+        setMessages((prev) => [...prev, demoResponse]);
+        setIsLoading(false);
+      }, 1000);
+      return;
+    }
+
+    // Real mode - connect to backend
+    try {
+      // Send message to backend
+      const response = await sendChatMessage(content, sessionId);
+
+      // Update session ID if it's a new session
+      if (!sessionId && response.session_id) {
+        setSessionId(response.session_id);
+      }
+
+      // Add AI response
+      const aiMessage: Message = {
+        id: response.chat_id,
+        role: 'assistant',
+        content: response.chat_box.message,
+        metadata: {
+          model_used: response.model_used,
+          processing_time_ms: response.processing_time_ms,
+          tokens: {
+            prompt: response.prompt_tokens,
+            completion: response.completion_tokens,
+            total: response.total_tokens,
+          },
+        },
+        // You can parse sources from context if available
+        sources: response.chat_box.context?.sources,
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+
+      // Add error message
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I'm processing your request. This is a demo response.",
+        content:
+          'Sorry, I encountered an error processing your request. Please make sure the backend server is running and try again.',
       };
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const showWelcomeScreen = messages.length === 0;
@@ -161,7 +238,10 @@ export default function Home() {
 
                 {/* Input Area - Moved here for welcome screen */}
                 <div className="w-full max-w-3xl">
-                  <ChatInput onSendMessage={handleSendMessage} />
+                  <ChatInput
+                    onSendMessage={handleSendMessage}
+                    disabled={isLoading}
+                  />
                 </div>
               </div>
             </div>
@@ -191,7 +271,10 @@ export default function Home() {
           <div className="relative z-10 bg-white px-6 pb-2 sm:px-10 lg:px-12">
             <div className="pointer-events-none absolute inset-x-0 -top-3 h-3 bg-gradient-to-b from-transparent via-white/20 to-white/65" />
             <div className="relative z-10 mx-auto max-w-3xl">
-              <ChatInput onSendMessage={handleSendMessage} />
+              <ChatInput
+                onSendMessage={handleSendMessage}
+                disabled={isLoading}
+              />
             </div>
           </div>
         )}
