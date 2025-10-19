@@ -55,8 +55,8 @@ export function CitationsPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[420px] border-l border-[#e4dfff] bg-white/96 sm:w-[560px]">
-        <SheetHeader>
+      <SheetContent className="w-[420px] border-l border-[#e4dfff] bg-white/96 p-6 sm:w-[560px]">
+        <SheetHeader className="px-0">
           <SheetTitle className="text-primary-dark font-kiona">
             Sources & Citations
           </SheetTitle>
@@ -99,12 +99,12 @@ export function CitationsPanel({
           <Separator className="border-purple-soft" />
 
           {/* Citations List */}
-          <ScrollArea className="h-[calc(100vh-320px)] pr-3">
-            <div className="flex flex-col gap-4">
+          <ScrollArea className="h-[calc(100vh-320px)]">
+            <div className="flex flex-col gap-4 pr-4">
               {defaultCitations.map((citation) => (
                 <Card
                   key={citation.id}
-                  className="shadow-card-lg rounded-card border-[#e5dffb] bg-white/95 p-5"
+                  className="shadow-card-lg rounded-card border-[#e5dffb] bg-white/95 p-6"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
