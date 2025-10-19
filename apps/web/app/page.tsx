@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/custom/sidebar';
-import { ChatMessage } from '@/components/features/chat/chat-message';
-import { ChatInput } from '@/components/features/chat/chat-input';
-import { FeatureCards } from '@/components/features/chat/feature-cards';
+import { ChatHeader } from '@/components/features/chat/chat-header';
+import { ChatWelcome } from '@/components/features/chat/chat-welcome';
+import { ChatMessagesArea } from '@/components/features/chat/chat-messages-area';
+import { ChatInputArea } from '@/components/features/chat/chat-input-area';
 import { CitationsPanel } from '@/components/features/chat/citations-panel';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -181,84 +182,20 @@ export default function Home() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
         {/* Header */}
-        <div className="relative z-10 flex items-center justify-between px-6 pb-3 pt-4 sm:px-10 lg:px-12">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="border-purple-light text-primary-light shadow-button hover:bg-surface-light rounded-pill border bg-white h-9 w-9 sm:h-10 sm:w-10" />
-              <h1 className="text-primary-dark text-2xl font-semibold">
-                AI Assistant
-              </h1>
-              <Badge className="border-purple-light bg-card-purple text-primary-light rounded-pill gap-2 border px-4 py-1 text-xs font-medium">
-                <span className="h-2 w-2 rounded-full bg-[#4ade80]" /> 2 Sources
-                Active
-              </Badge>
-            </div>
-            <p className="text-secondary text-sm">
-              Ask anything with your personal knowledge manager
-            </p>
-          </div>
+        <ChatHeader onViewSources={() => setCitationsPanelOpen(true)} />
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-purple-light text-primary-light shadow-button hover:bg-surface-light rounded-pill relative gap-2 bg-white px-5 py-2"
-            onClick={() => setCitationsPanelOpen(true)}
-          >
-            <BookOpen className="h-4 w-4" />
-            View sources
-          </Button>
-        </div>
-
-        {/* Messages Area */}
+        {/* Messages Area / Welcome Screen */}
         <div className="relative z-0 flex flex-1 min-h-0 flex-col px-6 pt-2 sm:px-10 lg:px-12">
           {showWelcomeScreen ? (
-            <div className="flex flex-1 flex-col items-center justify-center">
-              <div className="flex flex-col items-center gap-8">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="flex items-baseline gap-3">
-                    <Avatar className="h-7 w-7">
-                      <AvatarImage
-                        src="/images/backgrounds/ai-profile.png"
-                        alt="AI Assistant"
-                      />
-                      <AvatarFallback className="bg-gradient-to-br from-[#a18fff] to-[#6f5deb] text-base font-semibold uppercase text-white">
-                        AI
-                      </AvatarFallback>
-                    </Avatar>
-                    <h2 className="text-primary-dark font-kiona text-4xl font-semibold">
-                      WHAT CAN I HELP WITH?
-                    </h2>
-                  </div>
-                  <p className="text-secondary text-base">
-                    Ask Anything with your personal knowledge Manager
-                  </p>
-                </div>
-
-                <FeatureCards />
-
-                {/* Input Area - Moved here for welcome screen */}
-                <div className="w-full max-w-3xl">
-                  <ChatInput
-                    onSendMessage={handleSendMessage}
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-            </div>
+            <ChatWelcome
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+            />
           ) : (
-            <ScrollArea className="h-full">
-              <div className="mx-auto max-w-3xl space-y-6 pb-28">
-                {messages.map((message) => (
-                  <ChatMessage
-                    key={message.id}
-                    role={message.role}
-                    content={message.content}
-                    sources={message.sources}
-                  />
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
+            <ChatMessagesArea
+              messages={messages}
+              messagesEndRef={messagesEndRef}
+            />
           )}
           {/* Fade overlay above input - only show when not on welcome screen */}
           {!showWelcomeScreen && (
@@ -268,15 +205,10 @@ export default function Home() {
 
         {/* Input Area - only show when not on welcome screen */}
         {!showWelcomeScreen && (
-          <div className="relative z-10 bg-white px-6 pb-2 sm:px-10 lg:px-12">
-            <div className="pointer-events-none absolute inset-x-0 -top-3 h-3 bg-gradient-to-b from-transparent via-white/20 to-white/65" />
-            <div className="relative z-10 mx-auto max-w-3xl">
-              <ChatInput
-                onSendMessage={handleSendMessage}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
+          <ChatInputArea
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+          />
         )}
 
         {/* Citations Panel */}
