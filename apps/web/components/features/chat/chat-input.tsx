@@ -1,13 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import {
-  InputGroup,
-  InputGroupInput,
-  InputGroupAddon,
-} from '@/components/ui/input-group';
 import { Paperclip, Globe, ArrowUp } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +19,7 @@ interface ChatInputProps {
 export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const isExpanded = isFocused || message.length > 0;
 
@@ -31,6 +27,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
     if (message.trim() && !disabled) {
       onSendMessage?.(message);
       setMessage('');
+      textAreaRef.current?.blur();
     }
   };
 
@@ -53,6 +50,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
         <div className="flex flex-1 flex-col gap-3">
           {/* Upper part - textarea */}
           <textarea
+            ref={textAreaRef}
             placeholder="Ask anything..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
