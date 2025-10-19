@@ -7,16 +7,7 @@ import { ChatWelcome } from '@/components/features/chat/chat-welcome';
 import { ChatMessagesArea } from '@/components/features/chat/chat-messages-area';
 import { ChatInputArea } from '@/components/features/chat/chat-input-area';
 import { CitationsPanel } from '@/components/features/chat/citations-panel';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  SidebarProvider,
-  SidebarInset,
-  SidebarTrigger,
-} from '@/components/ui/sidebar';
-import { BookOpen } from 'lucide-react';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { sendChatMessage } from '@/lib/api/chat';
 
 interface Message {
@@ -106,7 +97,7 @@ export default function Home() {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
           content:
-            'This is a demo response. The system is in preview mode with sample data. To connect to the real backend, toggle the demo mode off using the button in the header.',
+            'This is a demo response. The system is in preview mode with sample data.',
           sources: [
             {
               id: 'demo-1',

@@ -35,12 +35,10 @@ export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
   const userMsgRef = useRef<HTMLDivElement>(null);
   const [isLongUserMessage, setIsLongUserMessage] = useState(false);
   const [userMsgHeight, setUserMsgHeight] = useState<number>(0);
-  const [contentHeight, setContentHeight] = useState<number>(0);
 
   useEffect(() => {
     if (isUser && userMsgRef.current) {
       const scrollHeight = userMsgRef.current.scrollHeight;
-      setContentHeight(scrollHeight);
       // If content height exceeds 350px, it's long
       if (scrollHeight > 350) {
         setIsLongUserMessage(true);

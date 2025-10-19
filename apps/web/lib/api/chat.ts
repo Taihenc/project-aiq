@@ -3,7 +3,7 @@
 export interface ChatRequest {
   chat_box: {
     message: string;
-    context?: Record<string, any>;
+    context?: Record<string, unknown>;
   };
   session_id?: string;
   provider?: string;
@@ -18,7 +18,7 @@ export interface ChatRequest {
 export interface ChatResponse {
   chat_box: {
     message: string;
-    context?: Record<string, any>;
+    context?: Record<string, unknown>;
   };
   model_used: string;
   timestamp: string;
