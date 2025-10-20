@@ -5,7 +5,7 @@ Settings เป็นที่กำหนดค่าทั้งหมดเ�
 Class และ function แยกออกไปใน models.py
 """
 
-import yaml
+import json
 from pathlib import Path
 from typing import Dict, Any
 from app.models.agents import AgentConfig
@@ -14,25 +14,25 @@ from .settings import settings
 from .tools import TOOLS
 
 
-def load_crews() -> Dict[str, Any]:
-    """Load crews configuration from YAML file."""
-    config_path = Path(__file__).parent / "crews.yaml"
-    with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+# def load_crews() -> Dict[str, Any]:
+#     """Load crews configuration from JSON file."""
+#     config_path = Path(__file__).parent / "crews.json"
+#     with open(config_path, "r", encoding="utf-8") as f:
+#         return json.load(f) or {}
 
 
 def load_models() -> Dict[str, Any]:
-    """Load models configuration from YAML file."""
-    config_path = Path(__file__).parent / "models.yaml"
+    """Load models configuration from JSON file."""
+    config_path = Path(__file__).parent / "models.json"
     with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+        return json.load(f) or {}
 
 
-def load_agents() -> Dict[str, AgentConfig]:
-    """Load agents configuration from YAML file and convert to AgentConfig objects."""
-    config_path = Path(__file__).parent / "agents.yaml"
+def load_agents() -> Dict[str, Any]:
+    """Load agents configuration from JSON file and convert to AgentConfig objects."""
+    config_path = Path(__file__).parent / "agents.json"
     with open(config_path, "r", encoding="utf-8") as f:
-        agents_data = yaml.safe_load(f) or {}
+        agents_data = json.load(f) or {}
 
     # Convert to AgentConfig objects
     agents = {}
@@ -44,7 +44,7 @@ def load_agents() -> Dict[str, AgentConfig]:
 
 settings.MODELS = load_models()
 settings.AGENTS = load_agents()
-settings.CREWS = load_crews()
+# settings.CREWS = load_crews()
 settings.TOOLS = TOOLS
 
 
