@@ -17,6 +17,10 @@ class AgentConfig(BaseModel):
         ..., description="Model name to use (will be fetched from model service)"
     )
     tools: Optional[List[str]] = Field(
-        None,
+        [],
         description="List of tool names to use (will be fetched from tool service)",
+    )
+    verbose: bool = Field(
+        False,
+        description="Enable verbose logging for this agent (default: False)",
     )

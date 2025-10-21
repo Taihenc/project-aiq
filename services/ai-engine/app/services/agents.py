@@ -2,6 +2,7 @@ from crewai import Agent
 from typing import Dict, List, Optional
 from app.models import AgentConfig
 from app.services import ModelService
+from app.services.tools import ToolService
 from app.config import settings
 
 
@@ -10,15 +11,16 @@ class AgentService:
     def __init__(self):
         self._agent_configs: Dict[str, AgentConfig] = settings.AGENTS
         self.model_service = ModelService()
-        # self.tool_service = ToolService()
+        self.tool_service = ToolService()
 
     # ============================================================================
     # Agent Config CRUD Operations
     # ============================================================================
 
     def create_agent_config(self, config: AgentConfig) -> bool:
-        agent = config.name
-        self._agent_configs[agent] = config
+        if config.name in self._agent_configs:
+            return False
+        self._agent_configs[config.name] = config
         return True
 
     def get_agents_config(self) -> Dict[str, AgentConfig]:
@@ -43,10 +45,10 @@ class AgentService:
     # Agent Runtime Operations
     # ============================================================================
 
-    def get_agent(self, agent: str) -> Optional[Agent]:
+    def get_agent(self, agent: str) -> Agent:
         config = self.get_agent_config(agent)
-        if not config:
-            return None
+        # if not config:
+        #     return None
 
         llm = self.model_service.get_model(config.model)
         if not llm:
@@ -59,7 +61,7 @@ class AgentService:
             "goal": config.goal,
             "backstory": config.backstory,
             "llm": llm,
-            "verbose": False,
+            "verbose": config.verbose,
         }
 
         if tools:
@@ -72,10 +74,9 @@ class AgentService:
     # ============================================================================
 
     def _fetch_tools(self, config: AgentConfig) -> Optional[List]:
-
+        """Fetch tools for agent based on config."""
         if not config.tools:
             return None
 
-        tools = []
-
+        tools = self.tool_service.get_tools(config.tools)
         return tools if tools else None
