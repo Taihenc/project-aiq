@@ -45,10 +45,10 @@ class AgentService:
     # Agent Runtime Operations
     # ============================================================================
 
-    def get_agent(self, agent: str) -> Agent:
+    def get_agent(self, agent: str) -> Optional[Agent]:
         config = self.get_agent_config(agent)
-        # if not config:
-        #     return None
+        if not config:
+            return None
 
         llm = self.model_service.get_model(config.model)
         if not llm:
