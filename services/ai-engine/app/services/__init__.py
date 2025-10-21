@@ -1,8 +1,8 @@
-from .completion.completion import CompletionService
-from .models.models import ModelService
-from .agents.agents import AgentService
-from .crews.crews import CrewService
-from .tools.tools import ToolService
+from .completions import CompletionService
+from .models import ModelService
+from .agents import AgentService
+from .crews import CrewService
+from .tools import ToolService
 
 __all__ = [
     "CompletionService",
