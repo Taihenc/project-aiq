@@ -12,22 +12,16 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-
-interface Source {
-  id: string;
-  title: string;
-  platform: string;
-  content?: string;
-}
+import { Citation } from '@/lib/api/chat'; // Import Citation from API
 
 interface ChatMessageProps {
   role: 'user' | 'assistant';
   content: string;
-  sources?: Source[];
+  citations?: Citation[]; // Renamed from sources to match backend
   timestamp?: string;
 }
 
-export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
+export function ChatMessage({ role, content, citations = [] }: ChatMessageProps) {
   const isUser = role === 'user';
   const cardRef = useRef<HTMLDivElement>(null);
   const [isSingleLine, setIsSingleLine] = useState(false);
@@ -51,7 +45,7 @@ export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
   }, [content, isUser, isUserMessageExpanded]);
 
   useEffect(() => {
-    if (!isUser && cardRef.current && sources.length === 0) {
+    if (!isUser && cardRef.current && citations.length === 0) {
       // Wait a bit for the card to render fully
       const timer = setTimeout(() => {
         if (cardRef.current) {
@@ -64,7 +58,7 @@ export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
     } else {
       setIsSingleLine(false);
     }
-  }, [content, isUser, sources.length]);
+  }, [content, isUser, citations.length]);
 
   return (
     <div
@@ -138,17 +132,17 @@ export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
               </p>
             </Card>
 
-            {sources.length > 0 && (
+            {citations.length > 0 && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <Badge className="rounded-pill border border-[#dcd3ff] bg-[#f3f1ff] px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-[#6b5ae0]">
-                    Sources
+                    Citations
                   </Badge>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  {sources.map((source) => (
-                    <SourceCard key={source.id} source={source} />
+                  {citations.map((citation) => (
+                    <SourceCard key={citation.id} source={citation} />
                   ))}
                 </div>
               </div>
@@ -160,7 +154,7 @@ export function ChatMessage({ role, content, sources = [] }: ChatMessageProps) {
   );
 }
 
-function SourceCard({ source }: { source: Source }) {
+function SourceCard({ source }: { source: Citation }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (

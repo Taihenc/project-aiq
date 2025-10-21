@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Sidebar } from '@/components/custom/sidebar';
 import { ChatHeader } from '@/components/features/chat/chat-header';
 import { ChatWelcome } from '@/components/features/chat/chat-welcome';
@@ -8,154 +8,27 @@ import { ChatMessagesArea } from '@/components/features/chat/chat-messages-area'
 import { ChatInputArea } from '@/components/features/chat/chat-input-area';
 import { CitationsPanel } from '@/components/features/chat/citations-panel';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { sendChatMessage } from '@/lib/api/chat';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  sources?: Array<{
-    id: string;
-    title: string;
-    platform: string;
-    content?: string;
-  }>;
-  metadata?: {
-    model_used?: string;
-    processing_time_ms?: number;
-    tokens?: {
-      prompt: number;
-      completion: number;
-      total: number;
-    };
-  };
-}
-
-// Demo/Preview data
-const DEMO_MESSAGES: Message[] = [
-  {
-    id: '1',
-    role: 'user',
-    content: 'What is current Product Roadmap?',
-  },
-  {
-    id: '2',
-    role: 'assistant',
-    content:
-      "Based on your query about 'What is current Product Roadmap?', I found relevant information from your knowledge sources. The data shows significant growth trends in Q4 2024, with revenue increasing by 23% compared to the previous quarter. This growth was primarily driven by new product launches and expanded market presence in key demographics.",
-    sources: [
-      {
-        id: '1',
-        title: 'Q4 Financial Report 2024',
-        platform: 'SharePoint',
-        content:
-          'Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence. Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence.',
-      },
-      {
-        id: '2',
-        title: 'New Product',
-        platform: 'SharePoint',
-        content:
-          'Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence. Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence.',
-      },
-    ],
-  },
-];
+import { useChatMessages } from '@/hooks/useChatMessages';
+import { useAutoScroll } from '@/hooks/useAutoScroll';
+import { extractCitations } from '@/lib/utils/citations';
+import { DEMO_MESSAGES } from '@/constants/demo-data';
 
 export default function Home() {
   // Check if demo mode is enabled from environment variable
   const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
-  const [messages, setMessages] = useState<Message[]>(
-    isDemoMode ? DEMO_MESSAGES : [],
-  );
+  // Chat messages state and logic
+  const { messages, isLoading, sendMessage, clearMessages } = useChatMessages({
+    isDemoMode,
+    initialMessages: isDemoMode ? DEMO_MESSAGES : [],
+  });
+
+  // UI state
   const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
   const [currentChatId, setCurrentChatId] = useState('1');
-  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleSendMessage = async (content: string) => {
-    // Add user message immediately
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content,
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-
-    // Demo mode - simulate response
-    if (isDemoMode) {
-      setTimeout(() => {
-        const demoResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content:
-            'This is a demo response. The system is in preview mode with sample data.',
-          sources: [
-            {
-              id: 'demo-1',
-              title: 'Demo Document',
-              platform: 'Preview',
-              content: 'This is sample content for demonstration purposes.',
-            },
-          ],
-        };
-        setMessages((prev) => [...prev, demoResponse]);
-        setIsLoading(false);
-      }, 1000);
-      return;
-    }
-
-    // Real mode - connect to backend
-    try {
-      // Send message to backend
-      const response = await sendChatMessage(content, sessionId);
-
-      // Update session ID if it's a new session
-      if (!sessionId && response.session_id) {
-        setSessionId(response.session_id);
-      }
-
-      // Add AI response
-      const aiMessage: Message = {
-        id: response.chat_id,
-        role: 'assistant',
-        content: response.chat_box.message,
-        metadata: {
-          model_used: response.model_used,
-          processing_time_ms: response.processing_time_ms,
-          tokens: {
-            prompt: response.prompt_tokens,
-            completion: response.completion_tokens,
-            total: response.total_tokens,
-          },
-        },
-        // You can parse sources from context if available
-        sources: response.chat_box.context?.sources,
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-
-      // Add error message
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content:
-          'Sorry, I encountered an error processing your request. Please make sure the backend server is running and try again.',
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const messagesEndRef = useAutoScroll(messages);
 
   const showWelcomeScreen = messages.length === 0;
 
@@ -165,7 +38,7 @@ export default function Home() {
       <Sidebar
         currentChatId={currentChatId}
         onChatSelect={setCurrentChatId}
-        onNewChat={() => setMessages([])}
+        onNewChat={clearMessages}
       />
 
       {/* Main Chat Area */}
@@ -179,7 +52,7 @@ export default function Home() {
         <div className="relative z-0 flex flex-1 min-h-0 flex-col px-6 pt-2 sm:px-10 lg:px-12">
           {showWelcomeScreen ? (
             <ChatWelcome
-              onSendMessage={handleSendMessage}
+              onSendMessage={sendMessage}
               isLoading={isLoading}
             />
           ) : (
@@ -197,7 +70,7 @@ export default function Home() {
         {/* Input Area - only show when not on welcome screen */}
         {!showWelcomeScreen && (
           <ChatInputArea
-            onSendMessage={handleSendMessage}
+            onSendMessage={sendMessage}
             isLoading={isLoading}
           />
         )}
@@ -206,15 +79,7 @@ export default function Home() {
         <CitationsPanel
           open={citationsPanelOpen}
           onOpenChange={setCitationsPanelOpen}
-          citations={messages
-            .filter((m) => m.sources)
-            .flatMap((m) => m.sources || [])
-            .map((s) => ({
-              id: s.id,
-              title: s.title,
-              platform: s.platform,
-              content: s.content || '',
-            }))}
+          citations={extractCitations(messages)}
         />
       </SidebarInset>
     </SidebarProvider>

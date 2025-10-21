@@ -14,13 +14,7 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Search, Copy, ExternalLink, FileText } from 'lucide-react';
-
-interface Citation {
-  id: string;
-  title: string;
-  platform: string;
-  content: string;
-}
+import { Citation } from '@/lib/api/chat'; // Import Citation from API
 
 interface CitationsPanelProps {
   open: boolean;
@@ -33,25 +27,8 @@ export function CitationsPanel({
   onOpenChange,
   citations = [],
 }: CitationsPanelProps) {
-  const defaultCitations: Citation[] =
-    citations.length > 0
-      ? citations
-      : [
-          {
-            id: '1',
-            title: 'Q4 Financial Report 2024',
-            platform: 'SharePoint',
-            content:
-              'Revenue increased by 23% compared to Q3, driven primarily by our new product launches and expanded market presence.',
-          },
-          {
-            id: '2',
-            title: 'Market Analysis - Tech Sector',
-            platform: 'OneNote',
-            content:
-              'The technology sector showed remarkable resilience with consistent growth patterns across all major segments.',
-          },
-        ];
+  // Only show actual citations, no default fallback
+  const displayCitations: Citation[] = citations;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -62,7 +39,7 @@ export function CitationsPanel({
           </SheetTitle>
           <SheetDescription>
             <Badge className="bg-card-purple text-primary-light rounded-pill border-purple-light mt-2 border px-3 py-1 text-xs font-medium">
-              {defaultCitations.length} references found
+              {displayCitations.length} references found
             </Badge>
           </SheetDescription>
         </SheetHeader>
@@ -101,7 +78,8 @@ export function CitationsPanel({
           {/* Citations List */}
           <ScrollArea className="h-[calc(100vh-320px)]">
             <div className="flex flex-col gap-4 pr-4">
-              {defaultCitations.map((citation) => (
+              {displayCitations.length > 0 ? (
+                displayCitations.map((citation) => (
                 <Card
                   key={citation.id}
                   className="shadow-card-lg rounded-card border-[#e5dffb] bg-white/95 p-6"
@@ -123,7 +101,7 @@ export function CitationsPanel({
                   <Separator className="border-purple-soft my-4" />
 
                   <p className="text-sm leading-relaxed text-[#7c73b7]">
-                    {citation.content}
+                    {citation.content || 'No content available'}
                   </p>
 
                   <div className="mt-4 flex items-center gap-3">
@@ -145,7 +123,20 @@ export function CitationsPanel({
                     </Button>
                   </div>
                 </Card>
-              ))}
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="rounded-full bg-[#f4f2ff] p-4 mb-4">
+                    <FileText className="h-8 w-8 text-[#7e74d4]" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[#3d366b] mb-2">
+                    No Sources Available
+                  </h3>
+                  <p className="text-sm text-[#7c73b7] max-w-sm">
+                    This conversation doesn't have any sources to display yet.
+                  </p>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </div>

@@ -1,3 +1,3 @@
 // Re-export all types for convenient importing
-export type { Message } from './chat';
+export type { UIMessage } from './chat';
 

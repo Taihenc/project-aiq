@@ -1,30 +1,10 @@
 import { ChatMessage } from '@/components/features/chat/chat-message';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import React, { RefObject } from 'react';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  sources?: Array<{
-    id: string;
-    title: string;
-    platform: string;
-    content?: string;
-  }>;
-  metadata?: {
-    model_used?: string;
-    processing_time_ms?: number;
-    tokens?: {
-      prompt: number;
-      completion: number;
-      total: number;
-    };
-  };
-}
+import { UIMessage } from '@/types/chat';
 
 interface ChatMessagesAreaProps {
-  messages: Message[];
+  messages: UIMessage[];
   messagesEndRef: RefObject<HTMLDivElement | null>;
 }
 
@@ -39,7 +19,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
           key={message.id}
           role={message.role}
           content={message.content}
-          sources={message.sources}
+          citations={message.citations}
         />
       ))}
       <div ref={messagesEndRef} />
