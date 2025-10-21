@@ -6,7 +6,7 @@ from pydantic import BaseModel, create_model
 
 from app.config import settings
 from app.models import CrewConfig
-from app.services import AgentService
+from app.services.agents import AgentService
 
 
 class CrewService:

@@ -1,7 +1,7 @@
 from crewai import Agent
 from typing import Dict, List, Optional
 from app.models import AgentConfig
-from app.services import ModelService
+from app.services.models import ModelService
 from app.services.tools import ToolService
 from app.config import settings
 
