@@ -16,14 +16,6 @@ from typing import List, Dict, Optional, Tuple
 import logging
 from app.config import settings
 
-from app.models.embedding import (
-    Document as dc
-)
-
-from embedder.embedder import {
-    LocalEmbedder
-}
-
 logger = logging.getLogger(__name__)
 
 
@@ -32,21 +24,17 @@ class EmbeddingService:
         """Initialize the embedding service with Qdrant client"""
         self.qdrant_client = QdrantClient(":memory:")
         self.model_name = model_name
-        self.model = LocalEmbedder('bge-m3')
         self.collection_name = "knowledge_base"
         self._setup_collection()
         self._mock_articles()
 
     def _setup_collection(self):
         """Setup Qdrant collection"""
-
-        embedding_size = self.model.get_embedding_size()
-
         # Create collection
         self.qdrant_client.create_collection(
             collection_name=self.collection_name,
             vectors_config=VectorParams(
-                size=embedding_size,
+                size=self.qdrant_client.get_embedding_size(self.model_name),
                 distance=Distance.COSINE,
             ),
         )
@@ -177,20 +165,8 @@ class EmbeddingService:
             logger.error(f"Error in embedding search: {str(e)}")
             return []
 
-    async def upload_document(
-        self,
-        documents: dc,
-        limit: int = settings.UPLOAD_RESULTS_LIMIT,
-    ) -> List[str]:
+    async def upload_document(self):
         """
         Upload a new document to the collection
         """
-
-        try:
-            documents_id = [str(d.document_id) for d in documents]
-
-            return documents_id
-        except Exception as e:
-            logger.error(f"Error in embedding search: {str(e)}")
-            return []
-
+        pass
