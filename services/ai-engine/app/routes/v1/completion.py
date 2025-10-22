@@ -2,13 +2,13 @@ from fastapi import APIRouter, HTTPException, Path, Body
 from app.services import CompletionService
 from app.schemas.completions import ChatCompletionRequest
 
-router = APIRouter()
+router = APIRouter(prefix="/completions", tags=["completions"])
 
 completion_service = CompletionService()
 
 
 @router.post(
-    "/crew/{crew}",
+    "/crews/{crew}",
     summary="Create Crew Completion",
     description="Process messages through a specific crew and return AI-generated response",
     responses={

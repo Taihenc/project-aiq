@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Path
 from app.services import ModelService
 from app.schemas import BaseResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/models", tags=["models"])
 
 model_service = ModelService()
 

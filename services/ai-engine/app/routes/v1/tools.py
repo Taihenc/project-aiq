@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Path
 from app.services import ToolService
 from app.schemas import BaseResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/tools", tags=["tools"])
 
 tool_service = ToolService()
 

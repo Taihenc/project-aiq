@@ -3,7 +3,7 @@ from app.services import CrewService
 from app.models import CrewConfig
 from app.schemas import BaseResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/crews", tags=["crews"])
 
 crew_service = CrewService()
 

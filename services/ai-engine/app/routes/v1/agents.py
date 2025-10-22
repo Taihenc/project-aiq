@@ -3,7 +3,7 @@ from app.services import AgentService
 from app.models.agents import AgentConfig
 from app.schemas import BaseResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/agents", tags=["agents"])
 
 agent_service = AgentService()
 
