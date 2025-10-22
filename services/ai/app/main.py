@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from app.routers.v1 import chat, embedding
 from app.config import settings
 import logging
+from pydantic_settings import BaseSettings
 
 app = FastAPI(
     title=settings.APP_NAME,

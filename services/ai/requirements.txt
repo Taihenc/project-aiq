@@ -6,10 +6,11 @@ sentence-transformers
 torch
 openai
 pydantic
+pydantic-settings
 python-multipart
 crewai[tools]
 qdrant-client[fastembed]
-sentence-transformers
 pytest
+FlagEmbedding
 python-dotenv
-
+numpy

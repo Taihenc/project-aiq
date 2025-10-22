@@ -15,7 +15,7 @@ class DocumentBatchUpload(BaseModel):
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query text")
     limit: int = Field(default=10, ge=1, le=100, description="Number of results to return")
-    score_threshold: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Minimum similarity score")
+    score_threshold: Optional[float] = Field(default=0, ge=0.0, le=1.0, description="Minimum similarity score")
     filter: Optional[Dict[str, Any]] = Field(default=None, description="Metadata filter")
 
 

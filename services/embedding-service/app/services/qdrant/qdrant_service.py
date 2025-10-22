@@ -15,19 +15,12 @@ class QdrantService:
         self.collection_name = settings.collection_name
         
     def connect(self):
-        """Connect to Qdrant"""
         if self.client is None:
-            print(f"Connecting to Qdrant at {settings.qdrant_host}:{settings.qdrant_port}")
-            self.client = QdrantClient(
-                host=settings.qdrant_host,
-                port=settings.qdrant_port,
-                api_key=settings.qdrant_api_key
-            )
+            self.client = QdrantClient(":memory:")
             self._ensure_collection()
-            print("Connected to Qdrant successfully")
+            print("Create Qdrant in memory successfully")
     
     def _ensure_collection(self):
-        """Ensure collection exists, create if not"""
         collections = self.client.get_collections().collections
         collection_exists = any(col.name == self.collection_name for col in collections)
         
@@ -42,66 +35,14 @@ class QdrantService:
             )
             print(f"Collection {self.collection_name} created")
     
-    def upload_document(self, text: str, metadata: Dict[str, Any] = None) -> str:
-        """
-        Upload a single document
-        
-        Args:
-            text: Document text
-            metadata: Optional metadata
-            
-        Returns:
-            Document ID
-        """
+    def upload_documents(self, documents: List[Dict[str, Any]]) -> List[str]:
         if self.client is None:
             self.connect()
         
-        # Generate embedding
-        embedding = embedding_service.encode_single(text)
-        
-        # Generate unique ID
-        doc_id = str(uuid.uuid4())
-        
-        # Prepare payload
-        payload = {
-            "text": text,
-            **(metadata or {})
-        }
-        
-        # Upload to Qdrant
-        self.client.upsert(
-            collection_name=self.collection_name,
-            points=[
-                PointStruct(
-                    id=doc_id,
-                    vector=embedding,
-                    payload=payload
-                )
-            ]
-        )
-        
-        return doc_id
-    
-    def upload_documents_batch(self, documents: List[Dict[str, Any]]) -> List[str]:
-        """
-        Upload multiple documents in batch
-        
-        Args:
-            documents: List of documents with 'text' and optional 'metadata'
-            
-        Returns:
-            List of document IDs
-        """
-        if self.client is None:
-            self.connect()
-        
-        # Extract texts
         texts = [doc['text'] for doc in documents]
         
-        # Generate embeddings in batch
-        embeddings = embedding_service.encode_batch(texts)
+        embeddings = embedding_service.encodes(texts)
         
-        # Prepare points
         points = []
         doc_ids = []
         
@@ -122,7 +63,6 @@ class QdrantService:
                 )
             )
         
-        # Upload to Qdrant
         self.client.upsert(
             collection_name=self.collection_name,
             points=points
@@ -137,26 +77,14 @@ class QdrantService:
         score_threshold: Optional[float] = None,
         query_filter: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Search for similar documents
         
-        Args:
-            query: Search query text
-            limit: Number of results
-            score_threshold: Minimum similarity score
-            query_filter: Metadata filter
-            
-        Returns:
-            List of search results
-        """
         if self.client is None:
             self.connect()
         
-        # Generate query embedding
-        query_embedding = embedding_service.encode_single(query)
-        
-        # Build filter if provided
+        query_embedding = embedding_service.encode(query)
+
         qdrant_filter = None
+        
         if query_filter:
             conditions = []
             for key, value in query_filter.items():
@@ -166,10 +94,11 @@ class QdrantService:
                         match=MatchValue(value=value)
                     )
                 )
+
+            print('finish format filter')
             if conditions:
                 qdrant_filter = Filter(must=conditions)
-        
-        # Search
+
         results = self.client.search(
             collection_name=self.collection_name,
             query_vector=query_embedding,
@@ -178,7 +107,6 @@ class QdrantService:
             query_filter=qdrant_filter
         )
         
-        # Format results
         formatted_results = []
         for result in results:
             formatted_results.append({
@@ -191,15 +119,6 @@ class QdrantService:
         return formatted_results
     
     def get_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get a document by ID
-        
-        Args:
-            doc_id: Document ID
-            
-        Returns:
-            Document data or None if not found
-        """
         if self.client is None:
             self.connect()
         
@@ -220,21 +139,10 @@ class QdrantService:
         except Exception:
             return None
     
-    def get_all_documents(self, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
-        """
-        Get all documents with pagination
-        
-        Args:
-            limit: Maximum number of documents to return
-            offset: Number of documents to skip
-            
-        Returns:
-            List of documents
-        """
+    def get_documents(self, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
         if self.client is None:
             self.connect()
         
-        # Scroll through all points
         results, _ = self.client.scroll(
             collection_name=self.collection_name,
             limit=limit or 100,
@@ -254,17 +162,6 @@ class QdrantService:
         return documents
     
     def update_document(self, doc_id: str, text: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> bool:
-        """
-        Update a document
-        
-        Args:
-            doc_id: Document ID
-            text: New text (optional)
-            metadata: New metadata (optional)
-            
-        Returns:
-            True if successful
-        """
         if self.client is None:
             self.connect()
         
@@ -279,7 +176,7 @@ class QdrantService:
         
         # Generate new embedding if text changed
         if text is not None:
-            embedding = embedding_service.encode_single(new_text)
+            embedding = embedding_service.encode(new_text)
         else:
             # Keep existing vector
             result = self.client.retrieve(
@@ -310,15 +207,6 @@ class QdrantService:
         return True
     
     def delete_document(self, doc_id: str) -> bool:
-        """
-        Delete a document
-        
-        Args:
-            doc_id: Document ID
-            
-        Returns:
-            True if successful
-        """
         if self.client is None:
             self.connect()
         
@@ -332,7 +220,6 @@ class QdrantService:
             return False
     
     def get_collection_info(self) -> Dict[str, Any]:
-        """Get collection information"""
         if self.client is None:
             self.connect()
         
