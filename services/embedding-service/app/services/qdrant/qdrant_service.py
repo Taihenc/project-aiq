@@ -1,12 +1,15 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance, VectorParams, PointStruct, 
-    Filter, FieldCondition, MatchValue, SearchRequest as QdrantSearchRequest
+    Filter, FieldCondition, MatchText, SearchRequest as QdrantSearchRequest
 )
 from typing import List, Dict, Any, Optional
 import uuid
 from app.config import settings
 from app.services.embedding.embedding_service import embedding_service
+from app.models.models import (
+    SearchFilter
+)
 
 
 class QdrantService:
@@ -41,7 +44,7 @@ class QdrantService:
         
         texts = [doc['text'] for doc in documents]
         
-        embeddings = embedding_service.encodes(texts)
+        embeddings = embedding_service.encode_batch(texts)
         
         points = []
         doc_ids = []
@@ -75,23 +78,24 @@ class QdrantService:
         query: str, 
         limit: int = 10, 
         score_threshold: Optional[float] = None,
-        query_filter: Optional[Dict[str, Any]] = None
+        query_filter: Optional[SearchFilter] = None
     ) -> List[Dict[str, Any]]:
         
         if self.client is None:
             self.connect()
         
-        query_embedding = embedding_service.encode(query)
+        query_embedding = embedding_service.encode_single(query)
 
         qdrant_filter = None
         
         if query_filter:
             conditions = []
-            for key, value in query_filter.items():
+
+            if query_filter.path:
                 conditions.append(
                     FieldCondition(
-                        key=key,
-                        match=MatchValue(value=value)
+                        key="path",
+                        match=MatchText(text=query_filter.path)
                     )
                 )
 
@@ -111,9 +115,9 @@ class QdrantService:
         for result in results:
             formatted_results.append({
                 "id": result.id,
-                "score": result.score,
                 "text": result.payload.get("text", ""),
-                "metadata": {k: v for k, v in result.payload.items() if k != "text"}
+                "metadata": {k: v for k, v in result.payload.items() if k != "text"},
+                "score": result.score,
             })
         
         return formatted_results
@@ -165,20 +169,16 @@ class QdrantService:
         if self.client is None:
             self.connect()
         
-        # Get existing document
         existing = self.get_document(doc_id)
         if not existing:
             return False
         
-        # Determine new text and metadata
         new_text = text if text is not None else existing["text"]
         new_metadata = metadata if metadata is not None else existing["metadata"]
         
-        # Generate new embedding if text changed
         if text is not None:
-            embedding = embedding_service.encode(new_text)
+            embedding = embedding_service.encode_single(new_text)
         else:
-            # Keep existing vector
             result = self.client.retrieve(
                 collection_name=self.collection_name,
                 ids=[doc_id],
@@ -186,13 +186,11 @@ class QdrantService:
             )
             embedding = result[0].vector
         
-        # Prepare payload
         payload = {
             "text": new_text,
             **new_metadata
         }
         
-        # Update
         self.client.upsert(
             collection_name=self.collection_name,
             points=[

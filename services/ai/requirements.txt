@@ -14,3 +14,4 @@ pytest
 FlagEmbedding
 python-dotenv
 numpy
+litellm

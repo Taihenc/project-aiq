@@ -1,17 +1,25 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from app.models.models import (
-    DocumentUpload, DocumentBatchUpload, SearchRequest, QueryRequest,
-    DocumentUpdate, DocumentResponse, UploadResponse, BatchUploadResponse,
-    DeleteResponse, UpdateResponse, EmbeddingResponse, DocumentListResponse
+    DocumentUploadRequest,
+    DocumentUploadResponse,
+    SearchRequest,
+    DocumentResponse,
+    SearchResponse,
+    DocumentsResponse,
+    QueryRequest,
+    QueryResponse,
+    DocumentUpdateRequest,
+    DocumentUpdateResponse,
+    DocumentDeleteResponse,
 )
 from app.services.qdrant.qdrant_service import qdrant_service
 from app.services.embedding.embedding_service import embedding_service
 
 router = APIRouter()
 
-@router.post("/upload", response_model=BatchUploadResponse, status_code=201)
-async def upload_documents(batch: DocumentBatchUpload):
+@router.post("/upload", response_model=DocumentUploadResponse, status_code=201)
+async def upload_documents(batch: DocumentUploadRequest):
     try:
         documents = [
             {
@@ -23,7 +31,7 @@ async def upload_documents(batch: DocumentBatchUpload):
         
         doc_ids = qdrant_service.upload_documents(documents)
         
-        return BatchUploadResponse(
+        return DocumentUploadResponse(
             ids=doc_ids,
             count=len(doc_ids),
             message="Documents uploaded successfully"
@@ -32,7 +40,7 @@ async def upload_documents(batch: DocumentBatchUpload):
         raise HTTPException(status_code=500, detail=f"Failed to upload documents: {str(e)}")
 
 
-@router.post("/search", response_model=list[DocumentResponse])
+@router.post("/search", response_model=SearchResponse)
 async def search_documents(search_request: SearchRequest):
     try:
         results = qdrant_service.search(
@@ -42,7 +50,7 @@ async def search_documents(search_request: SearchRequest):
             query_filter=search_request.filter
         )
         
-        return [
+        return SearchResponse(documents=[
             DocumentResponse(
                 id=result["id"],
                 text=result["text"],
@@ -50,12 +58,12 @@ async def search_documents(search_request: SearchRequest):
                 score=result["score"]
             )
             for result in results
-        ]
+        ])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
-@router.get("/documents", response_model=DocumentListResponse)
+@router.get("/documents", response_model=DocumentsResponse)
 async def get_documents(
     limit: Optional[int] = Query(None, ge=1, le=1000, description="Maximum number of documents to return"),
     offset: int = Query(0, ge=0, description="Number of documents to skip")
@@ -63,7 +71,7 @@ async def get_documents(
     try:
         documents = qdrant_service.get_documents(limit=limit, offset=offset)
         
-        return DocumentListResponse(
+        return DocumentsResponse(
             documents=[
                 DocumentResponse(
                     id=doc["id"],
@@ -80,12 +88,12 @@ async def get_documents(
         raise HTTPException(status_code=500, detail=f"Failed to retrieve documents: {str(e)}")
 
 
-@router.post("/query", response_model=EmbeddingResponse)
+@router.post("/query", response_model=QueryResponse)
 async def get_embedding(query_request: QueryRequest):
     try:
-        embedding = embedding_service.encode(query_request.text)
+        embedding = embedding_service.encode_single(query_request.text)
         
-        return EmbeddingResponse(
+        return QueryResponse(
             embedding=embedding,
             dimension=len(embedding)
         )
@@ -112,19 +120,19 @@ async def get_document(id: str):
         raise HTTPException(status_code=500, detail=f"Failed to retrieve document: {str(e)}")
 
 
-@router.put("/edit/{id}", response_model=UpdateResponse)
-async def update_document(id: str, update: DocumentUpdate):
+@router.put("/edit/{id}", response_model=DocumentUpdateResponse)
+async def update_document(id: str, update_ducument_request: DocumentUpdateRequest):
     try:
         success = qdrant_service.update_document(
             doc_id=id,
-            text=update.text,
-            metadata=update.metadata
+            text=update_ducument_request.text,
+            metadata=update_ducument_request.metadata
         )
         
         if not success:
             raise HTTPException(status_code=404, detail="Document not found")
         
-        return UpdateResponse(
+        return DocumentUpdateResponse(
             id=id,
             message="Document updated successfully"
         )
@@ -134,7 +142,7 @@ async def update_document(id: str, update: DocumentUpdate):
         raise HTTPException(status_code=500, detail=f"Failed to update document: {str(e)}")
 
 
-@router.delete("/delete/{id}", response_model=DeleteResponse)
+@router.delete("/delete/{id}", response_model=DocumentDeleteResponse)
 async def delete_document(id: str):
     try:
         success = qdrant_service.delete_document(id)
@@ -142,7 +150,7 @@ async def delete_document(id: str):
         if not success:
             raise HTTPException(status_code=404, detail="Document not found")
         
-        return DeleteResponse(message="Document deleted successfully")
+        return DocumentDeleteResponse(message="Document deleted successfully")
     except HTTPException:
         raise
     except Exception as e:

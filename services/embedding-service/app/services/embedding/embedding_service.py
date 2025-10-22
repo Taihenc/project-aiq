@@ -13,7 +13,7 @@ class EmbeddingService:
         """Load BGE-M3 model"""
         if self.model is None:
             print(f"Loading embedding model: {self.model_name}")
-            self.model = FlagModel('BAAI/bge-m3', use_fp16=True)
+            self.model = FlagModel(settings.embedding_model, use_fp16=True)
             print("Model loaded successfully")
     
     def encode(self, texts: Union[str, List[str]], batch_size: int = None) -> np.ndarray:
@@ -38,11 +38,11 @@ class EmbeddingService:
             
         return dense_embeddings
     
-    def encode(self, text: str) -> List[float]:
+    def encode_single(self, text: str) -> List[float]:
         embedding = self.encode(text)
         return embedding[0].tolist()
     
-    def encodes(self, texts: List[str]) -> List[List[float]]:
+    def encode_batch(self, texts: List[str]) -> List[List[float]]:
         embeddings = self.encode(texts)
         return [emb.tolist() for emb in embeddings]
     
