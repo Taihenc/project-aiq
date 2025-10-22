@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
 import { Observable } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { map } from 'rxjs/operators';
 import { ConfigService } from '@nestjs/config';
 import { ChatRequestDto, ChatCompletionsRequestDto } from './dto/chat-request.dto';
 import { ChatResponseDto, ChatCompletionsResponseDto, ChoiceDto, UsageDto, CitationDto } from './dto/chat-response.dto';
@@ -23,6 +23,14 @@ export class AppService {
     return this.configService.get<string>('aiService.baseUrl') || 'http://127.0.0.1:8000';
   }
 
+  getAiEngineBaseUrl(): string {
+    return this.configService.get<string>('aiService.aiEngineBaseUrl') || 'http://127.0.0.1:8001';
+  }
+
+  getDefaultCrew(): string {
+    return this.configService.get<string>('aiService.defaultCrew') || 'document_search_crew';
+  }
+
   // Legacy method for backward compatibility
   chatWithAi(chatRequest: ChatRequestDto): Observable<ChatResponseDto> {
     const aiServiceBaseUrl =
@@ -37,28 +45,27 @@ export class AppService {
       );
   }
 
-  // OpenAI-compatible method with adapter logic
-  chatWithAiOpenAI(chatRequest: ChatCompletionsRequestDto): Observable<ChatCompletionsResponseDto> {
+  // OpenAI-compatible method with adapter logic using AI Engine
+  chatWithAiEngine(chatRequest: ChatCompletionsRequestDto): Observable<ChatCompletionsResponseDto> {
     try {
-      // Transform OpenAI format to legacy format for AI service
-      const legacyRequest = this.transformOpenAIToLegacy(chatRequest);
-      
-      const aiServiceBaseUrl =
-        this.configService.get<string>('aiService.baseUrl') || 'http://127.0.0.1:8000';
-      
-      // If no session_id provided, create one first
-      if (!legacyRequest.session_id) {
-        return this.createSessionAndChat(aiServiceBaseUrl, legacyRequest, chatRequest);
-      }
-      
-      const aiServiceUrl = `${aiServiceBaseUrl}/v1/chat/`;
-      
+      const aiEngineBaseUrl = this.getAiEngineBaseUrl();
+      const crew = this.getDefaultCrew();
+
+      // Transform OpenAI format to AI Engine format
+      const aiEngineRequest = {
+        messages: chatRequest.messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+      };
+
+      const aiEngineUrl = `${aiEngineBaseUrl}/v1/completions/crew/${crew}`;
+
       return this.httpService
-        .post<ChatResponseDto>(aiServiceUrl, legacyRequest)
+        .post<{ message: string }>(aiEngineUrl, aiEngineRequest)
         .pipe(
-          map(
-            (axiosResponse: AxiosResponse<ChatResponseDto>) => 
-              this.transformLegacyToOpenAI(axiosResponse.data, chatRequest),
+          map((axiosResponse: AxiosResponse<{ message: string }>) =>
+            this.transformAiEngineToOpenAI(axiosResponse.data, chatRequest),
           ),
         );
     } catch (error) {
@@ -67,27 +74,38 @@ export class AppService {
     }
   }
 
-  // Helper method to create session and then chat
-  private createSessionAndChat(
-    aiServiceBaseUrl: string, 
-    legacyRequest: ChatRequestDto, 
+  // Transform AI Engine response to OpenAI format
+  private transformAiEngineToOpenAI(
+    aiEngineResponse: { message: string },
     originalRequest: ChatCompletionsRequestDto
-  ): Observable<ChatCompletionsResponseDto> {
-    const createSessionUrl = `${aiServiceBaseUrl}/v1/chat/create-session`;
-    
-    return this.httpService
-      .post(createSessionUrl, {}, { responseType: 'text' })
-      .pipe(
-        switchMap((sessionResponse: AxiosResponse<string>) => {
-          // Update the legacy request with the new session ID
-          legacyRequest.session_id = sessionResponse.data.replace(/"/g, ''); // Remove quotes if present
-          const aiServiceUrl = `${aiServiceBaseUrl}/v1/chat/`;
-          return this.httpService.post<ChatResponseDto>(aiServiceUrl, legacyRequest);
-        }),
-        map((axiosResponse: AxiosResponse<ChatResponseDto>) => 
-          this.transformLegacyToOpenAI(axiosResponse.data, originalRequest)
-        )
-      );
+  ): ChatCompletionsResponseDto {
+    const choice: ChoiceDto = {
+      index: 0,
+      message: {
+        role: 'assistant',
+        content: aiEngineResponse.message,
+      },
+      finish_reason: 'stop',
+    };
+
+    const usage: UsageDto = {
+      prompt_tokens: 0, // AI Engine doesn't return token usage yet
+      completion_tokens: 0,
+      total_tokens: 0,
+    };
+
+    return {
+      id: uuidv4(),
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: originalRequest.model || 'gemini-2.0-flash',
+      choices: [choice],
+      usage,
+      session_id: originalRequest.session_id,
+      request_source: originalRequest.request_source,
+      citations: undefined,
+      processing_time_ms: 0,
+    };
   }
 
   // Transform OpenAI format to legacy format
@@ -151,7 +169,7 @@ export class AppService {
 
     // Extract citations from context if available
     const citationsData = legacyResponse.chat_box.context?.citations || [];
-    
+
     // Transform citations to proper format
     const citations: CitationDto[] | undefined = citationsData.length > 0
       ? citationsData.map((citation: any, index: number) => {
@@ -173,7 +191,7 @@ export class AppService {
           };
         })
       : undefined;
-    
+
     return {
       id: legacyResponse.chat_id || uuidv4(),
       object: 'chat.completion',

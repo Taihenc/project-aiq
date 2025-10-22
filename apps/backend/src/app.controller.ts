@@ -30,7 +30,7 @@ export class AppController {
   @Post('v1/chat/completions')
   async chatCompletions(@Body() chatRequest: ChatCompletionsRequestDto): Promise<ChatCompletionsResponseDto> {
     const aiResponse = await this.appService
-      .chatWithAiOpenAI(chatRequest)
+      .chatWithAiEngine(chatRequest)
       .toPromise();
 
     if (!aiResponse) {
