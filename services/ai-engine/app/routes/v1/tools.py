@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, Path
-from app.services import ToolService
-from app.schemas import BaseResponse
+from fastapi import APIRouter, Path
+from app.services.tools import ToolService
+from app.schemas.base import BaseResponse
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
@@ -40,19 +40,7 @@ tool_service = ToolService()
     },
 )
 async def get_tools_config():
-    configs = tool_service.get_tools_config()
-    # Transform list of ToolConfig to dict keyed by name for consistency with examples
-    configs_dict = {
-        cfg.name: {"name": cfg.name, "description": cfg.description} for cfg in configs
-    }
-    return BaseResponse(
-        success=True,
-        message="Tool configs fetched successfully",
-        data={
-            "configs": configs_dict,
-            "count": len(configs_dict),
-        },
-    )
+    return tool_service.get_tools_config()
 
 
 @router.get(
@@ -97,16 +85,4 @@ async def get_tool_config(
         max_length=50,
     )
 ):
-    config = tool_service.get_tool_config(tool)
-    if not config:
-        raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
-    return BaseResponse(
-        success=True,
-        message="Tool config fetched successfully",
-        data={
-            "config": {
-                "name": config.name,
-                "description": config.description,
-            },
-        },
-    )
+    return tool_service.get_tool_config(tool)

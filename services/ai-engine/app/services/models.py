@@ -1,6 +1,8 @@
 from crewai import LLM
 from typing import Dict, Optional, Any
+from fastapi import HTTPException
 from app.config import settings
+from app.schemas.base import BaseResponse
 
 
 class ModelService:
@@ -9,22 +11,38 @@ class ModelService:
     # Model Config Operations
     # ============================================================================
 
-    def get_models_config(self) -> Dict[str, Any]:
-        return settings.MODELS
+    def get_models_config(self) -> BaseResponse:
+        try:
+            models = settings.MODELS
+            return BaseResponse(
+                success=True,
+                message="Models fetched successfully",
+                data={"configs": models, "count": len(models)},
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_model_config(self, model_key: str) -> Optional[Dict[str, Any]]:
-        if not self._check_model_exists(model_key):
-            return None
-        return settings.MODELS.get(model_key)
-
-    def _check_model_exists(self, model_key: str) -> bool:
-        return model_key in settings.MODELS.keys()
+    def get_model_config(self, model: str) -> BaseResponse:
+        try:
+            if not model in settings.MODELS.keys():
+                raise HTTPException(
+                    status_code=404, detail=f"Model '{model}' not found"
+                )
+            return BaseResponse(
+                success=True,
+                message="Model fetched successfully",
+                data={"config": settings.MODELS.get(model)},
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
     # ============================================================================
     # Model Runtime Operations
     # ============================================================================
-    def get_model(self, model_key: str) -> Optional[LLM]:
-        model_info = settings.MODELS.get(model_key)
+    def get_model(self, model: str) -> Optional[LLM]:
+        model_info = settings.MODELS.get(model)
         if not model_info:
             return None
 

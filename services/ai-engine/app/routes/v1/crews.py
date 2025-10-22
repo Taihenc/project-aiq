@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, Path, Body
-from app.services import CrewService
-from app.models import CrewConfig
-from app.schemas import BaseResponse
+from fastapi import APIRouter, Path, Body
+from app.services.crews import CrewService
+from app.models.crews import CrewConfig
+from app.schemas.base import BaseResponse
 
 router = APIRouter(prefix="/crews", tags=["crews"])
 
@@ -116,19 +116,7 @@ async def create_crew_config(
         },
     )
 ):
-    if crew_service.get_crew_config(config.name):
-        raise HTTPException(
-            status_code=409, detail=f"Crew '{config.name}' already exists"
-        )
-    if not crew_service.create_crew_config(config):
-        raise HTTPException(status_code=400, detail="Failed to create crew config")
-    return BaseResponse(
-        success=True,
-        message="Crew config created successfully",
-        data={
-            "config": config,
-        },
-    )
+    return crew_service.create_crew_config(config)
 
 
 @router.get(
@@ -191,15 +179,7 @@ async def create_crew_config(
     },
 )
 async def get_crews_config():
-    configs = crew_service.get_crews_config()
-    return BaseResponse(
-        success=True,
-        message="Crew configs fetched successfully",
-        data={
-            "configs": configs,
-            "count": len(configs),
-        },
-    )
+    return crew_service.get_crews_config()
 
 
 @router.get(
@@ -275,16 +255,7 @@ async def get_crew_config(
         max_length=50,
     )
 ):
-    config = crew_service.get_crew_config(crew)
-    if not config:
-        raise HTTPException(status_code=404, detail=f"Crew '{crew}' not found")
-    return BaseResponse(
-        success=True,
-        message="Crew config fetched successfully",
-        data={
-            "config": config,
-        },
-    )
+    return crew_service.get_crew_config(crew)
 
 
 @router.put(
@@ -395,19 +366,7 @@ async def update_crew_config(
         },
     ),
 ):
-    existing_crew = crew_service.get_crew_config(config.name)
-    if not existing_crew:
-        raise HTTPException(status_code=404, detail=f"Crew '{config.name}' not found")
-
-    if not crew_service.update_crew_config(config.name, config):
-        raise HTTPException(status_code=400, detail="Failed to update crew config")
-    return BaseResponse(
-        success=True,
-        message="Crew config updated successfully",
-        data={
-            "config": config,
-        },
-    )
+    return crew_service.update_crew_config(config)
 
 
 @router.delete(
@@ -455,16 +414,4 @@ async def delete_crew_config(
         max_length=50,
     )
 ):
-    existing_crew = crew_service.get_crew_config(crew)
-    if not existing_crew:
-        raise HTTPException(status_code=404, detail=f"Crew '{crew}' not found")
-
-    if not crew_service.delete_crew_config(crew):
-        raise HTTPException(status_code=400, detail="Failed to delete crew config")
-    return BaseResponse(
-        success=True,
-        message="Crew config deleted successfully",
-        data={
-            "crew": crew,
-        },
-    )
+    return crew_service.delete_crew_config(crew)

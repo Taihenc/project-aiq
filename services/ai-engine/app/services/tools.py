@@ -1,6 +1,8 @@
 from typing import Dict, List, Optional
+from fastapi import HTTPException
 from crewai.tools import BaseTool
-from app.models import ToolConfig
+from app.models.tools import ToolConfig
+from app.schemas.base import BaseResponse
 from app.config import settings
 
 
@@ -14,21 +16,45 @@ class ToolService:
     # Tool Config Operations
     # ============================================================================
 
-    def get_tools_config(self) -> List[ToolConfig]:
-        tool_config = [
-            ToolConfig(name=tool.name, description=tool.description)
-            for tool in self._tools.values()
-        ]
-        return tool_config
+    def get_tools_config(self) -> BaseResponse:
+        try:
+            tool_configs = [
+                ToolConfig(name=tool.name, description=tool.description)
+                for tool in self._tools.values()
+            ]
+            # Transform list of ToolConfig to dict keyed by name for consistency with examples
+            configs_dict = {
+                cfg.name: {"name": cfg.name, "description": cfg.description}
+                for cfg in tool_configs
+            }
+            return BaseResponse(
+                success=True,
+                message="Tool configs fetched successfully",
+                data={"configs": configs_dict, "count": len(configs_dict)},
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_tool_config(self, tool: str) -> Optional[ToolConfig]:
-        tool_instance = self._tools.get(tool)
-        if not tool_instance:
-            return None
-        return ToolConfig(
-            name=tool_instance.name,
-            description=tool_instance.description,
-        )
+    def get_tool_config(self, tool: str) -> BaseResponse:
+        try:
+            tool_instance = self._tools.get(tool)
+            if not tool_instance:
+                raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
+            config = ToolConfig(
+                name=tool_instance.name,
+                description=tool_instance.description,
+            )
+            return BaseResponse(
+                success=True,
+                message="Tool config fetched successfully",
+                data={
+                    "config": {"name": config.name, "description": config.description}
+                },
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
     # ============================================================================
     # Tool Instance Operations

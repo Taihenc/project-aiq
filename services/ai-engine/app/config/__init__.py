@@ -5,7 +5,8 @@ Configuration module for AI Engine Service.
 import json
 from pathlib import Path
 from typing import Dict, Any
-from app.models import AgentConfig, CrewConfig
+from app.models.agents import AgentConfig
+from app.models.crews import CrewConfig
 
 from .settings import settings
 from .tools import TOOLS

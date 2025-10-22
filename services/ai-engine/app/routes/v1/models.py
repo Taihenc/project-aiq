@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, Path
-from app.services import ModelService
-from app.schemas import BaseResponse
+from fastapi import APIRouter, Path
+from app.services.models import ModelService
+from app.schemas.base import BaseResponse
 
 router = APIRouter(prefix="/models", tags=["models"])
 
@@ -39,16 +39,7 @@ model_service = ModelService()
     },
 )
 async def get_models_config():
-    models = model_service.get_models_config()
-
-    return BaseResponse(
-        success=True,
-        message="Models fetched successfully",
-        data={
-            "configs": models,
-            "count": len(models),
-        },
-    )
+    return model_service.get_models_config()
 
 
 @router.get(
@@ -96,11 +87,4 @@ async def get_model_config(
         max_length=50,
     )
 ):
-    model_config = model_service.get_model_config(model)
-    if not model_config:
-        raise HTTPException(status_code=404, detail=f"Model '{model}' not found")
-    return BaseResponse(
-        success=True,
-        message="Model fetched successfully",
-        data={"config": model_config},
-    )
+    return model_service.get_model_config(model)

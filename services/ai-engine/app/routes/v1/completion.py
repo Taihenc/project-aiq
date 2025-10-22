@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Path, Body
-from app.services import CompletionService
-from app.schemas.completions import ChatCompletionRequest
+from app.services.completions import CompletionService
+from app.schemas.completions import CompletionRequest
 
 router = APIRouter(prefix="/completions", tags=["completions"])
 
@@ -56,7 +56,7 @@ async def create_crew_completion(
         min_length=1,
         max_length=50,
     ),
-    request: ChatCompletionRequest = Body(
+    request: CompletionRequest = Body(
         example={
             "messages": [
                 {"role": "user", "content": "สวัสดี ผมชื่อพล"},

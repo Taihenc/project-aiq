@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, Path, Body
-from app.services import AgentService
+from fastapi import APIRouter, Path, Body
+from app.services.agents import AgentService
 from app.models.agents import AgentConfig
-from app.schemas import BaseResponse
+from app.schemas.base import BaseResponse
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -67,19 +67,7 @@ async def create_agent_config(
         },
     )
 ):
-    if agent_service.get_agent_config(config.name):
-        raise HTTPException(
-            status_code=409, detail=f"Agent '{config.name}' already exists"
-        )
-    if not agent_service.create_agent_config(config):
-        raise HTTPException(status_code=400, detail="Failed to create agent config")
-    return BaseResponse(
-        success=True,
-        message="Agent config created successfully",
-        data={
-            "config": config,
-        },
-    )
+    return agent_service.create_agent_config(config)
 
 
 @router.get(
@@ -125,15 +113,7 @@ async def create_agent_config(
     },
 )
 async def get_agents_config():
-    configs = agent_service.get_agents_config()
-    return BaseResponse(
-        success=True,
-        message="Agent configs fetched successfully",
-        data={
-            "configs": configs,
-            "count": len(configs),
-        },
-    )
+    return agent_service.get_agents_config()
 
 
 @router.get(
@@ -183,16 +163,7 @@ async def get_agent_config(
         max_length=50,
     )
 ):
-    config = agent_service.get_agent_config(agent)
-    if not config:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent}' not found")
-    return BaseResponse(
-        success=True,
-        message="Agent config fetched successfully",
-        data={
-            "config": config,
-        },
-    )
+    return agent_service.get_agent_config(agent)
 
 
 @router.put(
@@ -258,19 +229,7 @@ async def update_agent_config(
         },
     ),
 ):
-    existing_agent = agent_service.get_agent_config(config.name)
-    if not existing_agent:
-        raise HTTPException(status_code=404, detail=f"Agent '{config.name}' not found")
-
-    if not agent_service.update_agent_config(config.name, config):
-        raise HTTPException(status_code=400, detail="Failed to update agent config")
-    return BaseResponse(
-        success=True,
-        message="Agent config updated successfully",
-        data={
-            "config": config,
-        },
-    )
+    return agent_service.update_agent_config(config)
 
 
 @router.delete(
@@ -318,16 +277,4 @@ async def delete_agent_config(
         max_length=50,
     )
 ):
-    existing_agent = agent_service.get_agent_config(agent)
-    if not existing_agent:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent}' not found")
-
-    if not agent_service.delete_agent_config(agent):
-        raise HTTPException(status_code=400, detail="Failed to delete agent config")
-    return BaseResponse(
-        success=True,
-        message="Agent config deleted successfully",
-        data={
-            "agent": agent,
-        },
-    )
+    return agent_service.delete_agent_config(agent)

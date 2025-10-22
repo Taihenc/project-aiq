@@ -2,10 +2,12 @@ import json
 import typing
 from crewai import Crew, Task
 from typing import Any, Dict, Optional, get_type_hints
+from fastapi import HTTPException
 from pydantic import BaseModel, create_model
 
 from app.config import settings
-from app.models import CrewConfig
+from app.models.crews import CrewConfig
+from app.schemas.base import BaseResponse
 from app.services.agents import AgentService
 
 
@@ -13,42 +15,98 @@ class CrewService:
 
     def __init__(self):
         self.agent_service = AgentService()
-        self._crew_configs: Dict[str, CrewConfig] = settings.CREWS
+        self._crew_configs: Dict[str, CrewConfig] = (
+            settings.CREWS
+        )  # TODO: In future, we will use database to store crew configs
 
     # ============================================================================
     # Crew Config CRUD Operations
     # ============================================================================
 
-    def create_crew_config(self, config: CrewConfig) -> bool:
-        if config.name in self._crew_configs:
-            return False
-        self._crew_configs[config.name] = config
-        return True
+    def create_crew_config(self, config: CrewConfig) -> BaseResponse:
+        try:
+            if config.name in self._crew_configs:
+                raise HTTPException(
+                    status_code=409, detail=f"Crew '{config.name}' already exists"
+                )
+            self._crew_configs[config.name] = config
+            return BaseResponse(
+                success=True,
+                message="Crew config created successfully",
+                data={"config": config},
+            )
+        except HTTPException:
+            raise
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_crews_config(self) -> Dict[str, CrewConfig]:
-        return self._crew_configs
+    def get_crews_config(self) -> BaseResponse:
+        try:
+            return BaseResponse(
+                success=True,
+                message="Crew configs fetched successfully",
+                data={"configs": self._crew_configs, "count": len(self._crew_configs)},
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_crew_config(self, crew: str) -> Optional[CrewConfig]:
-        return self._crew_configs.get(crew)
+    def get_crew_config(self, crew: str) -> BaseResponse:
+        try:
+            config = self._crew_configs.get(crew)
+            if not config:
+                raise HTTPException(status_code=404, detail=f"Crew '{crew}' not found")
+            return BaseResponse(
+                success=True,
+                message="Crew config fetched successfully",
+                data={"config": config},
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def update_crew_config(self, crew: str, config: CrewConfig) -> bool:
-        if crew not in self._crew_configs:
-            return False
-        self._crew_configs[crew] = config
-        return True
+    def update_crew_config(self, config: CrewConfig) -> BaseResponse:
+        try:
+            if config.name not in self._crew_configs:
+                raise HTTPException(
+                    status_code=404, detail=f"Crew '{config.name}' not found"
+                )
+            self._crew_configs[config.name] = config
+            return BaseResponse(
+                success=True,
+                message="Crew config updated successfully",
+                data={"config": config},
+            )
+        except HTTPException:
+            raise
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def delete_crew_config(self, crew: str) -> bool:
-        if crew not in self._crew_configs:
-            return False
-        del self._crew_configs[crew]
-        return True
+    def delete_crew_config(self, crew: str) -> BaseResponse:
+        try:
+            if crew not in self._crew_configs:
+                raise HTTPException(status_code=404, detail=f"Crew '{crew}' not found")
+            del self._crew_configs[crew]
+            return BaseResponse(
+                success=True,
+                message="Crew config deleted successfully",
+                data={"crew": crew},
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
     # ============================================================================
     # Crew Runtime Operations
     # ============================================================================
 
     def get_crew(self, crew: str) -> Optional[Crew]:
-        config = self.get_crew_config(crew)
+        config = self._crew_configs.get(crew)
         if not config:
             return None
 
@@ -76,7 +134,6 @@ class CrewService:
         )
 
     def _json_to_pydantic_class(self, class_name: str, schema_json: str) -> BaseModel:
-
         try:
             schema = json.loads(schema_json)
         except json.JSONDecodeError as e:
