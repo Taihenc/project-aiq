@@ -1,21 +1,37 @@
 from crewai import Agent
 from typing import Dict, List, Optional
 from fastapi import HTTPException
+import json
+from pathlib import Path
 from app.models.agents import AgentConfig
 from app.schemas.base import BaseResponse
 from app.services.models import ModelService
 from app.services.tools import ToolService
-from app.config import settings
 
 
 class AgentService:
 
     def __init__(self):
-        self._agent_configs: Dict[str, AgentConfig] = (
-            settings.AGENTS
-        )  # TODO: In future, we will use database to store agent configs
+        self._agent_configs: Dict[str, AgentConfig] = self._load_agents()
         self.model_service = ModelService()
         self.tool_service = ToolService()
+
+    # ============================================================================
+    # Helper Methods
+    # ============================================================================
+
+    def _load_agents(self) -> Dict[str, AgentConfig]:
+        """Load agents configuration from JSON file and convert to AgentConfig objects."""
+        config_path = Path(__file__).parent.parent / "config" / "agents.json"
+        with open(config_path, "r", encoding="utf-8") as f:
+            agents_data = json.load(f) or {}
+
+        # Convert to AgentConfig objects
+        agents = {}
+        for name, config_data in agents_data.items():
+            agents[name] = AgentConfig(**config_data)
+
+        return agents
 
     # ============================================================================
     # Agent Config CRUD Operations
@@ -107,7 +123,7 @@ class AgentService:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
     # ============================================================================
-    # Agent Runtime Operations
+    # Get Agent Instance
     # ============================================================================
 
     def get_agent(self, agent: str) -> Optional[Agent]:

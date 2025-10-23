@@ -3,14 +3,14 @@ from fastapi import HTTPException
 from crewai.tools import BaseTool
 from app.models.tools import ToolConfig
 from app.schemas.base import BaseResponse
-from app.config import settings
+from app.config.tools import TOOLS
 
 
 class ToolService:
     """Service for managing tools."""
 
     def __init__(self):
-        self._tools: Dict[str, BaseTool] = settings.TOOLS
+        self._tools: Dict[str, BaseTool] = TOOLS
 
     # ============================================================================
     # Tool Config Operations

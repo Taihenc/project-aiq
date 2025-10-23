@@ -4,8 +4,8 @@ from crewai import Crew, Task
 from typing import Any, Dict, Optional, get_type_hints
 from fastapi import HTTPException
 from pydantic import BaseModel, create_model
+from pathlib import Path
 
-from app.config import settings
 from app.models.crews import CrewConfig
 from app.schemas.base import BaseResponse
 from app.services.agents import AgentService
@@ -15,9 +15,46 @@ class CrewService:
 
     def __init__(self):
         self.agent_service = AgentService()
-        self._crew_configs: Dict[str, CrewConfig] = (
-            settings.CREWS
-        )  # TODO: In future, we will use database to store crew configs
+        self._crew_configs: Dict[str, CrewConfig] = self._load_crews()
+
+    # ============================================================================
+    # Helper Methods
+    # ============================================================================
+
+    def _load_crews(self) -> Dict[str, CrewConfig]:
+        """Load crews configuration from JSON file."""
+        config_path = Path(__file__).parent.parent / "config" / "crews.json"
+        with open(config_path, "r", encoding="utf-8") as f:
+            crews_data = json.load(f) or {}
+
+        crews = {}
+        for name, config_data in crews_data.items():
+            crews[name] = CrewConfig(**config_data)
+
+        return crews
+
+    def _json_to_pydantic_class(self, class_name: str, schema_json: str) -> BaseModel:
+        try:
+            schema = json.loads(schema_json)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON: {e}")
+
+        if not isinstance(schema, dict):
+            raise TypeError("Schema JSON must represent an object (dict).")
+
+        # ใช้ eval ภายใต้ context ที่ปลอดภัย (แค่ builtins + typing)
+        safe_globals = {"__builtins__": {}, **typing.__dict__}
+
+        fields = {}
+        for key, type_str in schema.items():
+            try:
+                py_type = eval(type_str, safe_globals)
+            except Exception:
+                py_type = Any
+            fields[key] = (py_type, ...)
+
+        # สร้าง class runtime
+        return create_model(class_name, **fields)
 
     # ============================================================================
     # Crew Config CRUD Operations
@@ -102,7 +139,7 @@ class CrewService:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
     # ============================================================================
-    # Crew Runtime Operations
+    # Get Crew Instance
     # ============================================================================
 
     def get_crew(self, crew: str) -> Optional[Crew]:
@@ -132,26 +169,3 @@ class CrewService:
             verbose=config.verbose,
             tasks=tasks,
         )
-
-    def _json_to_pydantic_class(self, class_name: str, schema_json: str) -> BaseModel:
-        try:
-            schema = json.loads(schema_json)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON: {e}")
-
-        if not isinstance(schema, dict):
-            raise TypeError("Schema JSON must represent an object (dict).")
-
-        # ใช้ eval ภายใต้ context ที่ปลอดภัย (แค่ builtins + typing)
-        safe_globals = {"__builtins__": {}, **typing.__dict__}
-
-        fields = {}
-        for key, type_str in schema.items():
-            try:
-                py_type = eval(type_str, safe_globals)
-            except Exception:
-                py_type = Any
-            fields[key] = (py_type, ...)
-
-        # สร้าง class runtime
-        return create_model(class_name, **fields)
