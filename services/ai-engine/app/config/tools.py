@@ -11,6 +11,13 @@ class DocumentSearchTool(BaseTool):
         "The tool will return the most relevant documents from the vector database "
         "along with their similarity scores, automatically reranked for best results."
     )
+    
+    class DocumentSearchToolSchema(BaseModel):
+        query: str = Field(description="The search query text")
+        top_k: int = Field(default=10, description="Number of results from embedding search")
+        top_n: int = Field(default=5, description="Number of final results after reranking")
+    
+    args_schema = DocumentSearchToolSchema
 
     # Mock data for S.T.A.R.S unit
     STARS_DOCS: List[Dict[str, Any]] = [
