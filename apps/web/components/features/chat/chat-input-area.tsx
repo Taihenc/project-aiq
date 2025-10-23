@@ -1,10 +1,6 @@
 import { ChatInput } from '@/components/features/chat/chat-input';
 import React from 'react';
-
-interface ChatInputAreaProps {
-  onSendMessage: (message: string) => void;
-  isLoading: boolean;
-}
+import type { ChatInputAreaProps } from '@/types';
 
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   onSendMessage,

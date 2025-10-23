@@ -1,6 +1,8 @@
 /**
  * API Type Definitions
  * OpenAI-compatible types for API communication
+ * 
+ * These types mirror the backend API contracts and should be kept in sync
  */
 
 // OpenAI-compatible message structure (for API requests)
@@ -68,6 +70,9 @@ export interface ChatCompletionsResponse {
 }
 
 // Legacy interfaces for backward compatibility
+/**
+ * @deprecated Use ChatCompletionsRequest instead
+ */
 export interface ChatRequest {
   chat_box: {
     message: string;
@@ -83,6 +88,9 @@ export interface ChatRequest {
   stream?: boolean;
 }
 
+/**
+ * @deprecated Use ChatCompletionsResponse instead
+ */
 export interface ChatResponse {
   chat_box: {
     message: string;
@@ -97,4 +105,7 @@ export interface ChatResponse {
   session_id: string;
   chat_id: string;
 }
+
+// Type aliases for convenience
+export type Message = APIMessage;
 

@@ -1,4 +1,4 @@
-import type { Citation } from '@/lib/api/types';
+import type { Citation } from './api';
 
 /**
  * UI Message interface that reflects the ChatCompletionsResponseDto from backend

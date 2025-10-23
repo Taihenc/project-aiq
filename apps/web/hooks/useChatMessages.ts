@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UIMessage } from '@/types/chat';
+import type { UIMessage, UseChatMessagesOptions } from '@/types';
 import { sendChatCompletions } from '@/lib/api/chat';
 import {
   createUserMessage,
@@ -8,11 +8,6 @@ import {
   transformResponseToMessage,
   convertMessagesToAPIFormat,
 } from '@/lib/utils/message-transformer';
-
-interface UseChatMessagesOptions {
-  isDemoMode?: boolean;
-  initialMessages?: UIMessage[];
-}
 
 export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const { isDemoMode = false, initialMessages = [] } = options;

@@ -9,12 +9,12 @@ import type {
   ChatCompletionsResponse,
   ChatRequest,
   ChatResponse,
-} from './types';
+} from '@/types/api';
 
 // Re-export types for backward compatibility
 export type {
   APIMessage,
-  APIMessage as Message, // Alias for backward compatibility
+  Message,
   Choice,
   Usage,
   Citation,
@@ -22,7 +22,7 @@ export type {
   ChatCompletionsResponse,
   ChatRequest,
   ChatResponse,
-} from './types';
+} from '@/types/api';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 

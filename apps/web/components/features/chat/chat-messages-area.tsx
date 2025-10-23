@@ -1,12 +1,7 @@
 import { ChatMessage } from '@/components/features/chat/chat-message';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import React, { RefObject } from 'react';
-import { UIMessage } from '@/types/chat';
-
-interface ChatMessagesAreaProps {
-  messages: UIMessage[];
-  messagesEndRef: RefObject<HTMLDivElement | null>;
-}
+import React from 'react';
+import type { ChatMessagesAreaProps } from '@/types';
 
 export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   messages,

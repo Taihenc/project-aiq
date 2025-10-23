@@ -1,5 +1,4 @@
-import { UIMessage } from '@/types/chat';
-import { ChatCompletionsResponse, Message } from '@/lib/api/chat';
+import type { UIMessage, ChatCompletionsResponse, Message } from '@/types';
 
 /**
  * Creates a user message object

@@ -12,14 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Citation } from '@/lib/api/chat'; // Import Citation from API
-
-interface ChatMessageProps {
-  role: 'user' | 'assistant';
-  content: string;
-  citations?: Citation[]; // Renamed from sources to match backend
-  timestamp?: string;
-}
+import type { ChatMessageProps, Citation } from '@/types';
 
 export function ChatMessage({ role, content, citations = [] }: ChatMessageProps) {
   const isUser = role === 'user';

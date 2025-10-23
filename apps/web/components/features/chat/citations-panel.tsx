@@ -14,13 +14,7 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Search, Copy, ExternalLink, FileText } from 'lucide-react';
-import { Citation } from '@/lib/api/chat'; // Import Citation from API
-
-interface CitationsPanelProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  citations?: Citation[];
-}
+import type { CitationsPanelProps, Citation } from '@/types';
 
 export function CitationsPanel({
   open,
@@ -133,7 +127,7 @@ export function CitationsPanel({
                     No Sources Available
                   </h3>
                   <p className="text-sm text-[#7c73b7] max-w-sm">
-                    This conversation doesn't have any sources to display yet.
+                    This conversation doesn&apos;t have any sources to display yet.
                   </p>
                 </div>
               )}
