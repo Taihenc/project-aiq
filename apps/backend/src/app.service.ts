@@ -59,14 +59,19 @@ export class AppService {
         })),
       };
 
-      const aiEngineUrl = `${aiEngineBaseUrl}/v1/completions/crew/${crew}`;
+      const aiEngineUrl = `${aiEngineBaseUrl}/v1/completions/crews/${crew}`;
 
       return this.httpService
-        .post<{ message: string }>(aiEngineUrl, aiEngineRequest)
+        .post<any>(aiEngineUrl, aiEngineRequest)
         .pipe(
-          map((axiosResponse: AxiosResponse<{ message: string }>) =>
-            this.transformAiEngineToOpenAI(axiosResponse.data, chatRequest),
-          ),
+          map((axiosResponse: AxiosResponse<any>) => {
+
+            // Parse the AI Engine response to handle different formats
+            const parsedResponse = this.parseAiEngineResponse(axiosResponse.data);
+
+            const transformed = this.transformAiEngineToOpenAI(parsedResponse, chatRequest);
+            return transformed;
+          }),
         );
     } catch (error) {
       console.error('Error in chatWithAiOpenAI:', error);
@@ -74,16 +79,82 @@ export class AppService {
     }
   }
 
+  // Parse AI Engine response to handle different formats
+  private parseAiEngineResponse(data: any): { response: string; response_type: string; sources_used: any[]; language: string } {
+    // If the response already has the expected format, return it
+    if (data.response !== undefined && data.response_type !== undefined) {
+      return {
+        response: data.response,
+        response_type: data.response_type,
+        sources_used: data.sources_used || [],
+        language: data.language || 'en',
+      };
+    }
+
+    // If the response has a 'message' field with a stringified Pydantic model
+    // Format: response="..." or response='...' with response_type, sources_used, language
+    if (data.message && typeof data.message === 'string') {
+      try {
+        // Extract fields using regex - handle both single and double quotes
+        // For response field: match either "..." or '...'
+        const responseMatch = data.message.match(/response=(["'])((?:(?!\1).|\\\1)*?)\1/);
+        const responseTypeMatch = data.message.match(/response_type=(["'])([^'"]*)\1/);
+        const sourcesMatch = data.message.match(/sources_used=\[([^\]]*)\]/);
+        const languageMatch = data.message.match(/language=(["'])([^'"]*)\1/);
+
+        const response = responseMatch ? responseMatch[2].replace(/\\"/g, '"').replace(/\\'/g, "'") : '';
+        const response_type = responseTypeMatch ? responseTypeMatch[2] : 'DIRECT';
+        const language = languageMatch ? languageMatch[2] : 'en';
+
+        // Parse sources_used array
+        let sources_used: any[] = [];
+        if (sourcesMatch && sourcesMatch[1]) {
+          const sourcesStr = sourcesMatch[1];
+          // Extract quoted strings from the array (handle both quote types)
+          const sourceMatches = sourcesStr.match(/(['"])([^'"]*)\1/g);
+          if (sourceMatches) {
+            sources_used = sourceMatches.map(s => s.slice(1, -1)); // Remove quotes
+          }
+        }
+
+        return {
+          response,
+          response_type,
+          sources_used,
+          language,
+        };
+      } catch (error) {
+        console.error('[BACKEND] Error parsing AI Engine message:', error);
+        // Fallback: use the entire message as response
+        return {
+          response: data.message,
+          response_type: 'DIRECT',
+          sources_used: [],
+          language: 'en',
+        };
+      }
+    }
+
+    // Fallback: return a default structure
+    console.warn('[BACKEND] Unknown AI Engine response format, using fallback');
+    return {
+      response: data.message || JSON.stringify(data),
+      response_type: 'DIRECT',
+      sources_used: [],
+      language: 'en',
+    };
+  }
+
   // Transform AI Engine response to OpenAI format
   private transformAiEngineToOpenAI(
-    aiEngineResponse: { message: string },
+    aiEngineResponse: { response: string; response_type: string; sources_used: any[]; language: string },
     originalRequest: ChatCompletionsRequestDto
   ): ChatCompletionsResponseDto {
     const choice: ChoiceDto = {
       index: 0,
       message: {
         role: 'assistant',
-        content: aiEngineResponse.message,
+        content: aiEngineResponse.response,
       },
       finish_reason: 'stop',
     };
@@ -94,16 +165,50 @@ export class AppService {
       total_tokens: 0,
     };
 
+    // Transform sources_used to citations if available
+    // const citations: CitationDto[] | undefined = aiEngineResponse.sources_used && aiEngineResponse.sources_used.length > 0
+    //   ? aiEngineResponse.sources_used.map((source: any, index: number) => ({
+    //       id: source.id || `citation-${index}`,
+    //       title: source.title || source.name || `Source ${index + 1}`,
+    //       platform: source.platform || source.source || 'AI Engine',
+    //       content: source.content || source.description || '',
+    //     }))
+    //   : undefined;
+
+    // right now the sources_used is only a array list of source name ex. "sources_used": ["stars_001", "stars_002", "stars_003"]
+    // so for the citations title we will use the source name ex. "stars_001", "stars_002", "stars_003"
+
+    const citations: CitationDto[] | undefined = aiEngineResponse.sources_used && aiEngineResponse.sources_used.length > 0
+      ? aiEngineResponse.sources_used.map((source: any, index: number) => {
+          // If source is a string (source name), create a simple citation object
+          if (typeof source === 'string') {
+            return {
+              id: `citation-${index}`,
+              title: source,
+              platform: 'AI Engine',
+              content: '',
+            };
+          }
+          // If source is an object, use its properties
+          return {
+            id: source.id || `citation-${index}`,
+            title: source.title || source.name || `Source ${index + 1}`,
+            platform: source.platform || source.source || 'AI Engine',
+            content: source.content || source.description || '',
+          };
+        })
+      : undefined;
+
     return {
       id: uuidv4(),
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
-      model: originalRequest.model || 'gemini-2.0-flash',
+      model: originalRequest.model || 'gpt-4o-mini',
       choices: [choice],
       usage,
       session_id: originalRequest.session_id,
       request_source: originalRequest.request_source,
-      citations: undefined,
+      citations,
       processing_time_ms: 0,
     };
   }
