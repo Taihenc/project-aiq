@@ -1,0 +1,34 @@
+{
+  "document_search_crew": {
+    "name": "document_search_crew",
+    "description": "Crew for RAG-based document retrieval and response generation.\nFlow:\n  1. Orchestrator validates query and routes it\n  2. RAG Analyzer performs semantic search\n  3. Chat Responder generates the final answer with sources",
+    "process": "sequential",
+    "verbose": true,
+    "workflow": [
+      {
+        "name": "validate_and_route",
+        "description": "Analyze user query: \"{user_query}\"\nChat history: {chat_history}\n\n**Goal:** Understand intent and route to the right workflow.\n\nProcess:\n1. Review chat history for context and past topics\n2. Determine if the query is standalone or refers to earlier messages\n3. Infer true user intent from conversation flow\n\nDecision rules:\n- SEARCH: User seeks information AND you can identify WHAT topic they want\n  → Do NOT choose SEARCH if you don't know what topic they want\n- DIRECT_RESPONSE: Social or general reply with no info request\n- NEEDS_CLARIFICATION: User wants to search but you CANNOT identify what topic they want\n\n\n**Tip:** When unsure between SEARCH and DIRECT → choose SEARCH.",
+        "expected_output": "OrchestratorOutput (decision, reasoning, relevant fields)",
+        "agent": "orchestrator",
+        "context": [],
+        "output_json": "{\n  \"decision\": \"str\",\n  \"reasoning\": \"str\"\n}"
+      },
+      {
+        "name": "search_and_analyze",
+        "description": "User query: \"{user_query}\"\nContext: {context}\nChat history: {chat_history}\n\n**Check orchestrator decision first.**\n\nIf decision = SEARCH:\n  1. Extract search intent (core topic/entity)\n  2. Generate ONE optimized query (focused, clean, uses synonyms if needed)\n  3. Execute search and return structured results\n\nIf decision = DIRECT_RESPONSE or NEEDS_CLARIFICATION:\n  Skip search.",
+        "expected_output": "RAGAnalyzerOutput (search_result or skip flag)",
+        "agent": "rag_analyzer",
+        "context": ["validate_and_route"],
+        "output_json": "{\n  \"decision\": \"str\",\n  \"reasoning\": \"str\",\n  \"search_attempts\": \"List[str]\",\n  \"search_result\": \"dict\",\n  \"search_success\": \"bool\"\n}"
+      },
+      {
+        "name": "generate_response",
+        "description": "Answer: \"{user_query}\"\nContext: {context}\nChat history: {chat_history}\n\n**Follow orchestrator decision:**\n- NEEDS_CLARIFICATION → Ask short clarification\n- DIRECT_RESPONSE → Reply from general knowledge (type=\"DIRECT\")\n- SEARCH → Check RAG analyzer decision:\n  * If RAG decision = SEARCH_PERFORMED → Use verified relevant docs (type=\"SEARCH_BASED\")\n  * If RAG decision = SKIPPED → Reply from general knowledge (type=\"DIRECT\")\n  * If docs irrelevant → Admit it and optionally answer generally\n\nRules:\n- Respond in user’s language\n- Don’t force irrelevant sources\n- Reference chat history when useful",
+        "expected_output": "ChatResponderOutput (response, type, sources, language)",
+        "agent": "chat_responder",
+        "context": ["validate_and_route", "search_and_analyze"],
+        "output_json": "{\n  \"response\": \"str\",\n  \"response_type\": \"str\",\n  \"sources_used\": \"List[str]\",\n  \"language\": \"str\"\n}"
+      }
+    ]
+  }
+}
