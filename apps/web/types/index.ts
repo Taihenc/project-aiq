@@ -1,7 +1,7 @@
 /**
  * Central Type Export Hub
  * Single source of truth for all TypeScript types in the application
- * 
+ *
  * Usage:
  * - Import from @/types for all type needs
  * - Organized by domain (API, UI, Components, Hooks)
@@ -52,4 +52,3 @@ export type {
   UseAutoScrollOptions,
   UseAutoScrollReturn,
 } from './hooks';
-

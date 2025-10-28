@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from app.services.crews import CrewService
 from app.models.completions import Message
 import json
+from app.schemas.base import BaseResponse
 
 
 class CompletionService:
@@ -59,7 +60,11 @@ class CompletionService:
                     except json.JSONDecodeError:
                         pass
 
-            return {"message": str(result)}
+            return BaseResponse(
+                success=True,
+                message="Crew completion created successfully",
+                data=result,
+            )
         except HTTPException:
             raise
         except ValueError as e:

@@ -7,8 +7,14 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { AppService } from './app.service';
-import { ChatRequestDto, ChatCompletionsRequestDto } from './dto/chat-request.dto';
-import { ChatResponseDto, ChatCompletionsResponseDto } from './dto/chat-response.dto';
+import {
+  ChatRequestDto,
+  ChatCompletionsRequestDto,
+} from './dto/chat-request.dto';
+import {
+  ChatResponseDto,
+  ChatCompletionsResponseDto,
+} from './dto/chat-response.dto';
 
 @Controller()
 export class AppController {
@@ -28,7 +34,9 @@ export class AppController {
 
   // OpenAI-compatible endpoint
   @Post('v1/chat/completions')
-  async chatCompletions(@Body() chatRequest: ChatCompletionsRequestDto): Promise<ChatCompletionsResponseDto> {
+  async chatCompletions(
+    @Body() chatRequest: ChatCompletionsRequestDto,
+  ): Promise<ChatCompletionsResponseDto> {
     const aiResponse = await this.appService
       .chatWithAiEngine(chatRequest)
       .toPromise();

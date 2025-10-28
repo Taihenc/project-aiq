@@ -60,7 +60,7 @@ export function createDemoResponse(hasCitations: boolean = false): UIMessage {
  * Transforms ChatCompletionsResponse to UI Message
  */
 export function transformResponseToMessage(
-  response: ChatCompletionsResponse
+  response: ChatCompletionsResponse,
 ): UIMessage {
   return {
     id: response.id,
@@ -95,4 +95,3 @@ export function convertMessagesToAPIFormat(messages: UIMessage[]): Message[] {
     content: msg.content,
   }));
 }
-

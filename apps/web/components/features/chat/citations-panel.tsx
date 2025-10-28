@@ -74,49 +74,49 @@ export function CitationsPanel({
             <div className="flex flex-col gap-4 pr-4">
               {displayCitations.length > 0 ? (
                 displayCitations.map((citation) => (
-                <Card
-                  key={citation.id}
-                  className="shadow-card-lg rounded-card border-[#e5dffb] bg-white/95 p-6"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-[#7e74d4]" />
-                        <h4 className="text-primary-medium text-sm font-semibold">
-                          {citation.title}
-                        </h4>
+                  <Card
+                    key={citation.id}
+                    className="shadow-card-lg rounded-card border-[#e5dffb] bg-white/95 p-6"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-[#7e74d4]" />
+                          <h4 className="text-primary-medium text-sm font-semibold">
+                            {citation.title}
+                          </h4>
+                        </div>
+                        <p className="text-muted-purple mt-1 text-xs font-medium uppercase tracking-widest">
+                          {citation.platform}
+                        </p>
                       </div>
-                      <p className="text-muted-purple mt-1 text-xs font-medium uppercase tracking-widest">
-                        {citation.platform}
-                      </p>
                     </div>
-                  </div>
 
-                  <Separator className="border-purple-soft my-4" />
+                    <Separator className="border-purple-soft my-4" />
 
-                  <p className="text-sm leading-relaxed text-[#7c73b7]">
-                    {citation.content || 'No content available'}
-                  </p>
+                    <p className="text-sm leading-relaxed text-[#7c73b7]">
+                      {citation.content || 'No content available'}
+                    </p>
 
-                  <div className="mt-4 flex items-center gap-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary-light rounded-pill h-9 gap-2 hover:bg-[#f4f2ff]"
-                    >
-                      <Copy className="h-3 w-3" />
-                      Copy
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary-light rounded-pill h-9 gap-2 hover:bg-[#f4f2ff]"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Open
-                    </Button>
-                  </div>
-                </Card>
+                    <div className="mt-4 flex items-center gap-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary-light rounded-pill h-9 gap-2 hover:bg-[#f4f2ff]"
+                      >
+                        <Copy className="h-3 w-3" />
+                        Copy
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary-light rounded-pill h-9 gap-2 hover:bg-[#f4f2ff]"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Open
+                      </Button>
+                    </div>
+                  </Card>
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -127,7 +127,8 @@ export function CitationsPanel({
                     No Sources Available
                   </h3>
                   <p className="text-sm text-[#7c73b7] max-w-sm">
-                    This conversation doesn&apos;t have any sources to display yet.
+                    This conversation doesn&apos;t have any sources to display
+                    yet.
                   </p>
                 </div>
               )}

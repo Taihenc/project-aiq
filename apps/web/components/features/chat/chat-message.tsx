@@ -14,7 +14,11 @@ import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { ChatMessageProps, Citation } from '@/types';
 
-export function ChatMessage({ role, content, citations = [] }: ChatMessageProps) {
+export function ChatMessage({
+  role,
+  content,
+  citations = [],
+}: ChatMessageProps) {
   const isUser = role === 'user';
   const cardRef = useRef<HTMLDivElement>(null);
   const [isSingleLine, setIsSingleLine] = useState(false);

@@ -1,6 +1,0 @@
-{
-  "editor.defaultFormatter": "ms-python.black-formatter",
-  "editor.formatOnSave": true,
-  "python.defaultInterpreterPath": "./.venv/bin/python",
-  "python.terminal.activateEnvironment": true,
-}

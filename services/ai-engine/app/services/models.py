@@ -1,11 +1,26 @@
 from crewai import LLM
 from typing import Dict, Optional, Any
 from fastapi import HTTPException
-from app.config import settings
+import json
+from pathlib import Path
+from app.config.settings import settings
 from app.schemas.base import BaseResponse
 
 
 class ModelService:
+
+    def __init__(self):
+        self._models: Dict[str, Any] = self._load_models()
+
+    # ============================================================================
+    # Helper Methods
+    # ============================================================================
+
+    def _load_models(self) -> Dict[str, Any]:
+        """Load models configuration from JSON file."""
+        config_path = Path(__file__).parent.parent / "config" / "models.json"
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f) or {}
 
     # ============================================================================
     # Model Config Operations
@@ -13,25 +28,24 @@ class ModelService:
 
     def get_models_config(self) -> BaseResponse:
         try:
-            models = settings.MODELS
             return BaseResponse(
                 success=True,
                 message="Models fetched successfully",
-                data={"configs": models, "count": len(models)},
+                data={"configs": self._models, "count": len(self._models)},
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
     def get_model_config(self, model: str) -> BaseResponse:
         try:
-            if not model in settings.MODELS.keys():
+            if not model in self._models.keys():
                 raise HTTPException(
                     status_code=404, detail=f"Model '{model}' not found"
                 )
             return BaseResponse(
                 success=True,
                 message="Model fetched successfully",
-                data={"config": settings.MODELS.get(model)},
+                data={"config": self._models.get(model)},
             )
         except HTTPException:
             raise
@@ -39,10 +53,10 @@ class ModelService:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
     # ============================================================================
-    # Model Runtime Operations
+    # Get Model Instance
     # ============================================================================
     def get_model(self, model: str) -> Optional[LLM]:
-        model_info = settings.MODELS.get(model)
+        model_info = self._models.get(model)
         if not model_info:
             return None
 

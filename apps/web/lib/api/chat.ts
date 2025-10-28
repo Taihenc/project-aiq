@@ -24,7 +24,8 @@ export type {
   ChatResponse,
 } from '@/types/api';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
 /**
  * Send chat completions request (OpenAI-compatible)
@@ -38,7 +39,7 @@ export async function sendChatCompletions(
     temperature?: number;
     maxTokens?: number;
     stream?: boolean;
-  }
+  },
 ): Promise<ChatCompletionsResponse> {
   const requestBody: ChatCompletionsRequest = {
     messages,
@@ -69,7 +70,10 @@ export async function sendChatCompletions(
  * Send chat message (Legacy API)
  * @deprecated Use sendChatCompletions instead
  */
-export async function sendChatMessage(message: string, sessionId?: string): Promise<ChatResponse> {
+export async function sendChatMessage(
+  message: string,
+  sessionId?: string,
+): Promise<ChatResponse> {
   const requestBody: ChatRequest = {
     chat_box: {
       message,
