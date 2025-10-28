@@ -7,8 +7,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { AppService } from './app.service';
-import { ChatRequestDto } from './dto/chat-request.dto';
-import { ChatResponseDto } from './dto/chat-response.dto';
+import { ChatRequestDto, ChatCompletionsRequestDto } from './dto/chat-request.dto';
+import { ChatResponseDto, ChatCompletionsResponseDto } from './dto/chat-response.dto';
 
 @Controller()
 export class AppController {
@@ -19,6 +19,30 @@ export class AppController {
     return this.appService.getHello();
   }
 
+  @Get('config')
+  getConfig(): any {
+    return {
+      aiServiceBaseUrl: this.appService.getAiServiceBaseUrl(),
+    };
+  }
+
+  // OpenAI-compatible endpoint
+  @Post('v1/chat/completions')
+  async chatCompletions(@Body() chatRequest: ChatCompletionsRequestDto): Promise<ChatCompletionsResponseDto> {
+    const aiResponse = await this.appService
+      .chatWithAiOpenAI(chatRequest)
+      .toPromise();
+
+    if (!aiResponse) {
+      throw new HttpException(
+        'No response from AI service',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+    return aiResponse;
+  }
+
+  // Legacy endpoint for backward compatibility
   @Post('chat')
   async chat(@Body() chatRequest: ChatRequestDto): Promise<ChatResponseDto> {
     const aiResponse = await this.appService
