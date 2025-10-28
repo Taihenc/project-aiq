@@ -5,7 +5,7 @@ app = FastAPI(title="Embedding Service", version="1.0.0")
 
 @app.get("/")
 async def root():
-    return {"message": "Embedding Service is running"}
+    return {"message": "Embedding Service is running..."}
 
 
 @app.get("/health")
