@@ -1,11 +1,15 @@
 /**
  * API Module Exports
- * Central export point for all API-related types and functions
+ * Central export point for all API-related functions
+ *
+ * Note: Types should now be imported from @/types instead
+ * This file maintains backward compatibility by re-exporting types
  */
 
-// Re-export all types
+// Re-export all types for backward compatibility
 export type {
   APIMessage,
+  Message,
   Choice,
   Usage,
   Citation,
@@ -13,11 +17,7 @@ export type {
   ChatCompletionsResponse,
   ChatRequest,
   ChatResponse,
-} from './types';
-
-// Re-export APIMessage as Message alias (for backward compatibility)
-export type { APIMessage as Message } from './types';
+} from '@/types/api';
 
 // Re-export all functions
 export { sendChatCompletions, sendChatMessage } from './chat';
-

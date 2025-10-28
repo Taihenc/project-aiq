@@ -2,11 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FeatureCards } from '@/components/features/chat/feature-cards';
 import { ChatInput } from '@/components/features/chat/chat-input';
 import React from 'react';
-
-interface ChatWelcomeProps {
-  onSendMessage: (message: string) => void;
-  isLoading: boolean;
-}
+import type { ChatWelcomeProps } from '@/types';
 
 export const ChatWelcome: React.FC<ChatWelcomeProps> = ({
   onSendMessage,

@@ -1,3 +1,54 @@
-// Re-export all types for convenient importing
+/**
+ * Central Type Export Hub
+ * Single source of truth for all TypeScript types in the application
+ *
+ * Usage:
+ * - Import from @/types for all type needs
+ * - Organized by domain (API, UI, Components, Hooks)
+ */
+
+// ============================================================================
+// UI/Domain Types
+// ============================================================================
 export type { UIMessage } from './chat';
 
+// ============================================================================
+// API Types
+// ============================================================================
+export type {
+  APIMessage,
+  Message, // Alias for APIMessage
+  Choice,
+  Usage,
+  Citation,
+  ChatCompletionsRequest,
+  ChatCompletionsResponse,
+  ChatRequest,
+  ChatResponse,
+} from './api';
+
+// ============================================================================
+// Component Props Types
+// ============================================================================
+export type {
+  ChatMessageProps,
+  ChatInputProps,
+  ChatInputAreaProps,
+  ChatMessagesAreaProps,
+  ChatHeaderProps,
+  ChatWelcomeProps,
+  CitationsPanelProps,
+  FeatureCardProps,
+  ChatHistoryItem,
+  SidebarProps,
+} from './components';
+
+// ============================================================================
+// Hook Types
+// ============================================================================
+export type {
+  UseChatMessagesOptions,
+  UseChatMessagesReturn,
+  UseAutoScrollOptions,
+  UseAutoScrollReturn,
+} from './hooks';

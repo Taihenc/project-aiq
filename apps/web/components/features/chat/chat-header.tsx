@@ -3,10 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BookOpen } from 'lucide-react';
 import React from 'react';
-
-interface ChatHeaderProps {
-  onViewSources: () => void;
-}
+import type { ChatHeaderProps } from '@/types';
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ onViewSources }) => (
   <div className="relative z-10 flex items-center justify-between px-6 pb-3 pt-4 sm:px-10 lg:px-12">

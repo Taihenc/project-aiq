@@ -16,19 +16,7 @@ import {
 } from '@/components/ui/sidebar';
 import { MessageSquare, FileText, Sparkles, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface ChatHistoryItem {
-  id: string;
-  title: string;
-  timestamp: string;
-}
-
-interface SidebarProps {
-  chatHistory?: ChatHistoryItem[];
-  currentChatId?: string;
-  onChatSelect?: (chatId: string) => void;
-  onNewChat?: () => void;
-}
+import type { SidebarProps, ChatHistoryItem } from '@/types';
 
 export function Sidebar({
   chatHistory = [],

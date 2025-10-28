@@ -1,18 +1,9 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { FileText, Search, Lightbulb } from 'lucide-react';
-import GradientText from '@/components/GradientText';
-
-interface FeatureCardProps {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  iconColor: string;
-  gradientColors: string[];
-  onClick?: () => void;
-}
+import GradientText from '@/components/custom/GradientText';
+import type { FeatureCardProps } from '@/types';
 
 function FeatureCard({
   icon,

@@ -10,11 +10,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-
-interface ChatInputProps {
-  onSendMessage?: (message: string) => void;
-  disabled?: boolean;
-}
+import type { ChatInputProps } from '@/types';
 
 export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
   const [message, setMessage] = useState('');
