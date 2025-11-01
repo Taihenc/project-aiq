@@ -1,0 +1,16 @@
+{
+  "name": "data-ingestion",
+  "version": "1.0.0",
+  "description": "Data Ingestion Service for document processing and vectorization pipeline",
+  "main": "main.py",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "uv sync",
+    "dev": "source .venv/bin/activate && uvicorn main:app --reload --port 8002",
+    "start": "source .venv/bin/activate && uvicorn main:app --port 8002"
+  },
+  "keywords": ["data-ingestion", "document-processing", "vectorization", "fastapi"],
+  "author": "",
+  "license": "ISC"
+}
+

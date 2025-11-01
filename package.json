@@ -11,11 +11,13 @@
     "dev:backend": "turbo run dev --filter=backend",
     "dev:ai-engine": "turbo run dev --filter=ai-engine",
     "dev:embedding-service": "turbo run dev --filter=embedding-service",
+    "dev:data-ingestion": "turbo run dev --filter=data-ingestion",
     "start": "turbo run start --parallel",
     "start:web": "turbo run start --filter=web",
     "start:backend": "turbo run start --filter=backend",
     "start:ai-engine": "turbo run start --filter=ai-engine",
     "start:embedding-service": "turbo run start --filter=embedding-service",
+    "start:data-ingestion": "turbo run start --filter=data-ingestion",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "prepare": "husky"

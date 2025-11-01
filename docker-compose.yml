@@ -53,6 +53,21 @@ services:
     networks:
       - aingo-net
 
+  data-ingestion:
+    build:
+      context: .
+      dockerfile: services/data-ingestion/Dockerfile
+    ports:
+      - '8002:8002'
+    volumes:
+      - ./services/data-ingestion:/app/services/data-ingestion
+      - ./turbo.json:/app/turbo.json
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: uvicorn main:app --host 0.0.0.0 --port 8002
+    networks:
+      - aingo-net
+
 networks:
   aingo-net:
     driver: bridge
