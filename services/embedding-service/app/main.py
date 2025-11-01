@@ -5,6 +5,7 @@ from app.routes.route_v1 import router as route_v1
 from app.services.embedding.embedding_service import embedding_service
 from app.services.qdrant.qdrant_service import qdrant_service
 from app.services.mock_doc import mock_service
+from app.services.reranking.reranking_service import reranking_service
 
 
 @asynccontextmanager
@@ -14,6 +15,7 @@ async def lifespan(app: FastAPI):
     embedding_service.load_model()
     qdrant_service.connect()
     mock_service.mock()
+    reranking_service.load_model()
     print("Application ready!")
     
     yield

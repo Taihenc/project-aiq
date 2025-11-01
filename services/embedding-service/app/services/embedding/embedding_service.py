@@ -10,7 +10,6 @@ class EmbeddingService:
         self.model_name = settings.embedding_model
         
     def load_model(self):
-        """Load BGE-M3 model"""
         if self.model is None:
             print(f"Loading embedding model: {self.model_name}")
             self.model = FlagModel(settings.embedding_model, use_fp16=True)
