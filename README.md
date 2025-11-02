@@ -55,17 +55,22 @@ The backend service is a NestJS application that acts as an orchestrator between
 
 ### 3. AI Engine
 **Purpose:**  
-Handles LLM reasoning and orchestration using CrewAI with autonomous RAG retrieval through internal API calls.
+Generic multi-agent orchestration service that enables flexible workflow creation and management using CrewAI framework.
 
 **Responsibilities:**
-- Process chat completion requests using multi-agent reasoning (CrewAI)
+- Create and manage AI agents with customizable roles, goals, and backstories
+- Compose agents into crews with defined workflows and task sequences
 - Support multiple LLM providers (OpenAI, Anthropic, Google AI, Ollama)
-- Route queries intelligently based on user intent
-- Request document retrieval via Embedding Service API.
-- Generate natural, contextually appropriate responses in the language user asks
+- Provide dynamic configuration management through REST APIs
+- Enable flexible multi-agent reasoning and task orchestration
+- Generate natural, contextually appropriate responses in multiple languages
 
 **Router Endpoints:**
-- `POST /v1/chat/completions` → Chat completion with agent reasoning
+- `POST /v1/completions/crews/{crew}` → Chat completion through specified crew
+- `GET/POST/PUT/DELETE /v1/models` → Model configuration management
+- `GET /v1/tools` → Tool configuration retrieval
+- `GET/POST/PUT/DELETE /v1/agents` → Agent configuration management
+- `GET/POST/PUT/DELETE /v1/crews` → Crew configuration management
 
 **Supported Providers:**
 - OpenAI
@@ -75,7 +80,25 @@ Handles LLM reasoning and orchestration using CrewAI with autonomous RAG retriev
 
 **AI Engine Architecture:**
 
-The service uses a 3-agent system with specialized roles:
+The service uses a **dynamic configuration system** with both static JSON configurations and runtime API management. The system provides a flexible framework for creating and orchestrating multi-agent workflows that can be customized for different projects and use cases.
+
+**Configuration Management:**
+- **Static Configuration:** JSON files (`agents.json`, `crews.json`, `models.json`) define default configurations
+- **Dynamic Configuration:** REST APIs allow runtime management of models, agents, crews, and tools
+- **Configuration Files:**
+  - `agents.json` - Agent definitions with roles, goals, and backstories
+  - `crews.json` - Crew workflows and task sequences
+  - `models.json` - Model configurations and provider settings
+  - `tools.py` - Tool implementations and schemas
+
+**Core Components:**
+- **Agent Management:** Create agents with specific roles, goals, and capabilities
+- **Crew Composition:** Combine agents into coordinated workflows
+- **Task Orchestration:** Define sequential or parallel task execution
+- **Tool Integration:** Connect agents with external tools and APIs
+- **Model Flexibility:** Support multiple LLM providers and configurations
+
+**AIQ Workflow Example (Document Search & RAG):**
 
 1. **Orchestrator Agent**
    - Analyzes user queries using LLM reasoning
@@ -90,9 +113,9 @@ The service uses a 3-agent system with specialized roles:
    - Generates optimal search keywords for retrieval
    - Uses **DocumentSearchTool** which:
      - Calls Embedding Service API for semantic vector similarity search
-     - Receives documents with similarity scores
-     - Automatically reranks retrieved documents to improve precision
-   - Passes search results directly to Chat Responder
+     - Embedding Service performs vector search and integrated reranking
+     - Returns reranked documents with improved precision scores
+     - Passes reranked results directly to Chat Responder
 
 3. **Chat Responder Agent**
    - Primary agent for communicating with users
@@ -103,11 +126,14 @@ The service uses a 3-agent system with specialized roles:
    - Maintains tone appropriate to query context
 
 **Key Features:**
-- **Intelligent Query Routing:** LLM-based intent detection by Orchestrator
-- **Autonomous RAG:** DocumentSearchTool provides autonomous API integration for document retrieval from Embedding Service
-- **Integrated Reranking:** DocumentSearchTool automatically reranks search results for improved precision
-- **Context-Aware Responses:** Agents collaborate to provide relevant answers
-- **Natural Language:** Generates conversational responses without technical jargon
+- **Dynamic Configuration Management:** CRUD APIs for models, agents, crews, and tools
+- **Flexible Multi-Agent System:** Configurable workflows for different projects and use cases
+- **Agent Creation & Management:** Define agents with custom roles, goals, and capabilities
+- **Crew Composition:** Combine multiple agents into coordinated workflows
+- **Task Orchestration:** Support sequential and parallel task execution patterns
+- **Tool Integration:** Connect agents with external tools and APIs
+- **Multi-Provider Support:** Compatible with OpenAI, Anthropic, Google AI, and Ollama
+- **Natural Language Processing:** Generate contextually appropriate responses in multiple languages
 
 **Technology:** Python FastAPI, CrewAI
 
@@ -205,7 +231,7 @@ sequenceDiagram
 
     %% BACKEND LOAD HISTORY
     Backend->>Backend: Load session + history from DB
-    Backend->>Orch: POST /v1/chat/completions {message, history[]}
+    Backend->>Orch: POST /v1/completions/crews/document_search_crew {message, history[]}
 
     %% ORCHESTRATOR
     Orch->>Orch: Analyze intent (Chat / RAG)
@@ -217,8 +243,9 @@ sequenceDiagram
         Rag->>Retrieval: 🔧 DocumentSearchTool → POST /v1/search {query_text}
         Retrieval->>Qdrant: Vector search (cosine similarity)
         Qdrant-->>Retrieval: Return top-K documents + scores
-        Retrieval-->>Rag: Relevant documents[]
-        Rag-->>Responder: Forward top-N context for response generation
+        Retrieval->>Retrieval: 🔄 Integrated reranking for improved precision
+        Retrieval-->>Rag: Reranked documents with improved scores
+        Rag-->>Responder: Forward reranked top-N documents for response generation
     else 💬 Simple chat
         Orch->>Responder: Forward message directly
     end
@@ -278,16 +305,16 @@ sequenceDiagram
 
 ## Data Flow Summary
 
-### Chat Flow
+### Chat Flow (AIQ Implementation Example)
 1. **User(Frontend) sends query** → Backend (API Gateway)
-2. **Backend** → loads session/history → forwards to AI Engine
+2. **Backend** → loads session/history → forwards to AI Engine via `POST /v1/completions/crews/document_search_crew`
 3. **Orchestrator Agent** → analyzes query intent using LLM reasoning
 4. **Route decision:**
    - If document search needed → RAG Analyzer uses DocumentSearchTool which:
      - Calls Embedding Service via HTTP API for semantic search
-     - Embedding Service queries Qdrant vector database
-     - DocumentSearchTool receives results and automatically reranks them
-     - Passes documents with scores to Chat Responder
+     - Embedding Service queries Qdrant vector database and performs integrated reranking
+     - DocumentSearchTool receives reranked results with improved precision scores
+     - Passes reranked documents to Chat Responder
    - If general chat → directly to Chat Responder
 5. **Chat Responder** → evaluates document relevance, filters, synthesizes, and generates response
 6. **Response stored** → Backend logs conversation in session
@@ -306,31 +333,39 @@ sequenceDiagram
 
 ## Expected Capabilities
 
-- Semantic document search via embeddings with cosine similarity
-- DocumentSearchTool autonomously calls Embedding Service API for retrieval
-- Integrated reranking within DocumentSearchTool for improved retrieval precision
-- Intelligent query routing via Orchestrator agent
-- Natural language reasoning using multi-agent system (CrewAI)
-- Multi-turn chat with memory (session-based)
-- Multilingual support (Thai-English)
-- Support for multiple LLM providers (OpenAI, Anthropic, Google AI, Ollama)
-- Able to find relationships between documents and perform sequential document retrieval (e.g., Document1 finds Document2, then Document2 uses context to find Document3)
+- **Dynamic Configuration Management:** REST APIs for runtime management of models, agents, crews, and tools
+- **Flexible Multi-Agent System:** Configurable workflows for different projects and use cases
+- **Agent Creation & Management:** Create agents with custom roles, goals, and capabilities
+- **Crew Composition:** Combine multiple agents into coordinated workflows
+- **Task Orchestration:** Support sequential and parallel task execution patterns
+- **Tool Integration:** Connect agents with external tools and APIs
+- **Multi-Provider Support:** Compatible with OpenAI, Anthropic, Google AI, and Ollama
+- **Natural Language Processing:** Generate contextually appropriate responses in multiple languages
+- **AIQ-Specific Capabilities (Example Implementation):**
+  - Semantic document search via embeddings with cosine similarity
+  - DocumentSearchTool autonomously calls Embedding Service API for retrieval
+  - Integrated reranking by Embedding Service for improved retrieval precision
+  - Intelligent query routing via Orchestrator agent
+  - Natural language reasoning using multi-agent system (CrewAI)
+  - Multi-turn chat with memory (session-based)
+  - Multilingual support (Thai-English)
+  - Able to find relationships between documents and perform sequential document retrieval (e.g., Document1 finds Document2, then Document2 uses context to find Document3)
 - Document chunking and metadata management
 - Database per service pattern (Embedding Service owns Qdrant)
 - Session management and conversation history in Backend
 
 ---
 
-## Example Workflows
+## Example Workflows (AIQ Implementation Example)
 
 ### Example 1: Document Search Query
 1. User(Frontend) asks: "README ของ AI service อยู่ที่ไหน?"
-2. Backend loads history and forwards to AI Engine
+2. Backend loads history and forwards to AI Engine via `POST /v1/completions/crews/document_search_crew`
 3. **Orchestrator Agent** analyzes → detects document search intent
 4. Routes to **RAG Analyzer Agent**
 5. RAG Analyzer generates keywords → uses DocumentSearchTool
-6. DocumentSearchTool calls Embedding Service API → queries Qdrant → retrieves documents with similarity scores
-7. DocumentSearchTool automatically reranks documents → passes results to Chat Responder
+6. DocumentSearchTool calls Embedding Service API → queries Qdrant → Embedding Service performs integrated reranking
+7. DocumentSearchTool receives reranked results with improved precision scores → passes to Chat Responder
 8. **Chat Responder** evaluates relevance → filters documents → synthesizes information
 9. **Chat Responder** generates detailed answer with source information
 10. Response returned to Backend and stored in session
@@ -338,18 +373,18 @@ sequenceDiagram
 
 ### Example 2: General Knowledge Query
 1. User(Frontend) asks: "มี service อะไรบ้างในระบบ?"
-2. Backend forwards to AI Engine
+2. Backend forwards to AI Engine via `POST /v1/completions/crews/document_search_crew`
 3. **Orchestrator Agent** analyzes → detects potential document search
 4. Routes to **RAG Analyzer Agent**
-5. RAG Analyzer uses DocumentSearchTool → calls Embedding Service API → searches embeddings → finds related documents
-6. DocumentSearchTool automatically reranks results → passes to **Chat Responder**
+5. RAG Analyzer uses DocumentSearchTool → calls Embedding Service API → searches embeddings → Embedding Service performs integrated reranking
+6. DocumentSearchTool receives reranked results with improved precision scores → passes to **Chat Responder**
 7. **Chat Responder** evaluates and filters documents → synthesizes information about available services
 8. Natural response mentioning AI Engine, Embedding Service, and Backend services
 9. Response stored in Backend and returned to User(Frontend)
 
 ### Example 3: Conversational Query
 1. User(Frontend) says: "ขอบคุณครับ"
-2. Backend forwards to AI Engine with conversation history
+2. Backend forwards to AI Engine via `POST /v1/completions/crews/document_search_crew` with conversation history
 3. **Orchestrator Agent** analyzes → detects casual conversation (no document search needed)
 4. Routes directly to **Chat Responder Agent**
 5. Chat Responder generates natural conversational response
