@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     vector_size: int = 1024
     batch_size: int = 32
+
+    # Reranking Settings
+    reranking_model: str = "BAAI/bge-reranker-v2-m3"
+
     
     # API Settings
     api_title: str = "Embedding Service"

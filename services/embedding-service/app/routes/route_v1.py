@@ -15,6 +15,7 @@ from app.models.models import (
 )
 from app.services.qdrant.qdrant_service import qdrant_service
 from app.services.embedding.embedding_service import embedding_service
+from app.services.reranking.reranking_service import reranking_service
 
 router = APIRouter()
 
@@ -43,22 +44,27 @@ async def upload_documents(batch: DocumentUploadRequest):
 @router.post("/search", response_model=SearchResponse)
 async def search_documents(search_request: SearchRequest):
     try:
-        results = qdrant_service.search(
+        documents = qdrant_service.search(
             query=search_request.query,
-            limit=search_request.limit,
+            limit=search_request.top_k,
             score_threshold=search_request.score_threshold,
             query_filter=search_request.filter
         )
+
+        format_document = [DocumentResponse(
+            id=document["id"],
+            text=document["text"],
+            metadata=document["metadata"],
+            score=document["score"]
+        ) for document in documents]
+
+        results = reranking_service.rerank(
+            query=search_request.query,
+            documents=format_document,
+            top_n=search_request.top_n
+        )
         
-        return SearchResponse(documents=[
-            DocumentResponse(
-                id=result["id"],
-                text=result["text"],
-                metadata=result["metadata"],
-                score=result["score"]
-            )
-            for result in results
-        ])
+        return SearchResponse(documents=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
