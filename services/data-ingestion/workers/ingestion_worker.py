@@ -1,10 +1,13 @@
 from ingestion import (
     file_reader,
     modality,
-    extractor,
     context_builder,
     chunker,
     indexer,
+)
+
+from ingestion.extractor import (
+    extractor
 )
 
 
