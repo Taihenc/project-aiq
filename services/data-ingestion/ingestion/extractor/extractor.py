@@ -7,7 +7,6 @@ class Extractor:
 
     def extract(self, content):
         for ele in content:
-            print(ele["element_number"])
 
             if ele["type"] == "Image":
                 binary = base64.b64decode(ele["img_base64"])
