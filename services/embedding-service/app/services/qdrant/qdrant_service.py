@@ -14,14 +14,18 @@ from app.models.models import (
 
 class QdrantService:
     def __init__(self):
-        self.client = None
         self.collection_name = settings.collection_name
+        self.client = QdrantClient(
+            url=settings.qdrant_url,
+            api_key=settings.qdrant_api_key
+        )
+        print(f"Connected to Qdrant at {settings.qdrant_url}")
+        self._ensure_collection()
         
     def connect(self):
+        # for backward compatibility
         if self.client is None:
-            self.client = QdrantClient(":memory:")
-            self._ensure_collection()
-            print("Create Qdrant in memory successfully")
+            self.__init__()
     
     def _ensure_collection(self):
         collections = self.client.get_collections().collections
@@ -39,9 +43,6 @@ class QdrantService:
             print(f"Collection {self.collection_name} created")
     
     def upload_documents(self, documents: List[Dict[str, Any]]) -> List[str]:
-        if self.client is None:
-            self.connect()
-        
         texts = [doc['text'] for doc in documents]
         
         embeddings = embedding_service.encode_batch(texts)
@@ -80,9 +81,6 @@ class QdrantService:
         score_threshold: Optional[float] = None,
         query_filter: Optional[SearchFilter] = None
     ) -> List[Dict[str, Any]]:
-        
-        if self.client is None:
-            self.connect()
         
         query_embedding = embedding_service.encode_single(query)
 
@@ -123,9 +121,6 @@ class QdrantService:
         return formatted_results
     
     def get_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
-        if self.client is None:
-            self.connect()
-        
         try:
             result = self.client.retrieve(
                 collection_name=self.collection_name,
@@ -144,9 +139,6 @@ class QdrantService:
             return None
     
     def get_documents(self, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
-        if self.client is None:
-            self.connect()
-        
         results, _ = self.client.scroll(
             collection_name=self.collection_name,
             limit=limit or 100,
@@ -166,9 +158,6 @@ class QdrantService:
         return documents
     
     def update_document(self, doc_id: str, text: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> bool:
-        if self.client is None:
-            self.connect()
-        
         existing = self.get_document(doc_id)
         if not existing:
             return False
@@ -205,9 +194,6 @@ class QdrantService:
         return True
     
     def delete_document(self, doc_id: str) -> bool:
-        if self.client is None:
-            self.connect()
-        
         try:
             self.client.delete(
                 collection_name=self.collection_name,
@@ -218,9 +204,6 @@ class QdrantService:
             return False
     
     def get_collection_info(self) -> Dict[str, Any]:
-        if self.client is None:
-            self.connect()
-        
         info = self.client.get_collection(collection_name=self.collection_name)
         return {
             "name": self.collection_name,
