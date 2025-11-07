@@ -4,11 +4,14 @@ from typing import List, Dict, Any
 from ingestion import (
     file_reader,
     modality,
-    extractor,
     context_builder,
     chunker,
 )
 from embedding.client import EmbeddingClient
+
+from ingestion.extractor import (
+    extractor
+)
 
 
 class IngestionWorker:
