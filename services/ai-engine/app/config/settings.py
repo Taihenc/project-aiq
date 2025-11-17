@@ -86,6 +86,11 @@ class Settings:
         # Chat Completion Settings
         # ============================================================================
         self.DEFAULT_STREAM = self.get_bool_env("DEFAULT_STREAM", False)
+        self.FREQUENCY_PENALTY = self.get_env("FREQUENCY_PENALTY", 0.0, float)
+        self.PRESENCE_PENALTY = self.get_env("PRESENCE_PENALTY", 0.0, float)
+        self.TEMPERATURE = self.get_env("TEMPERATURE", 0.7, float)
+        self.MAX_TOKENS = self.get_env("MAX_TOKENS", 1024, int)
+        self.TOP_P = self.get_env("TOP_P", 1.0, float)
 
         # ============================================================================
         # Models

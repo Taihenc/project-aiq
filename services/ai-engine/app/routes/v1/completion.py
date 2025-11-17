@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Path, Body
+from fastapi import APIRouter, Path, Body
 from app.services.completions import CompletionService
-from app.schemas.completions import CompletionRequest
+from app.schemas.completions import CrewRequest
+from app.schemas.base import BaseResponse
 
 router = APIRouter(prefix="/completions", tags=["completions"])
 
@@ -9,6 +10,7 @@ completion_service = CompletionService()
 
 @router.post(
     "/crews/{crew}",
+    response_model=BaseResponse,
     summary="Create Crew Completion",
     description="Process messages through a specific crew and return AI-generated response",
     responses={
@@ -17,16 +19,20 @@ completion_service = CompletionService()
             "content": {
                 "application/json": {
                     "example": {
-                        "message": "สวัสดีครับ! ผมคือ AI Assistant ที่พร้อมช่วยเหลือคุณในเรื่องต่างๆ ครับ"
+                        "success": True,
+                        "message": "Crew completion created successfully",
+                        "data": {
+                            "output": "ในส่วนของdata จะreturn object แบบไหนก็ได้ ขึ้นกับการออกแบบcrew นั้นๆ"
+                        },
                     }
                 }
             },
         },
         400: {
-            "description": "Invalid request - empty messages or last message not from user",
+            "description": "Failed to process crew completion",
             "content": {
                 "application/json": {
-                    "example": {"detail": "Messages list cannot be empty"}
+                    "example": {"detail": "Validation error: Invalid input"}
                 }
             },
         },
@@ -56,14 +62,23 @@ async def create_crew_completion(
         min_length=1,
         max_length=50,
     ),
-    request: CompletionRequest = Body(
+    request: CrewRequest = Body(
         example={
-            "messages": [
-                {"role": "user", "content": "สวัสดี ผมชื่อพล"},
-                {"role": "assistant", "content": "สวัสดีครับพล ยินดีที่ได้รู้จักครับ"},
-                {"role": "user", "content": "มีชื่อผมในหน่วยStarไหม"},
-            ]
+            "inputs": {
+                "user_query": "มีชื่อผมในหน่วยStarไหม?",
+                "chat_history": [
+                    {"role": "user", "content": "สวัสดี ผมชื่อพล"},
+                    {"role": "assistant", "content": "สวัสดีครับพล ยินดีที่ได้รู้จักครับ"},
+                ],
+                "context": [],
+            },
+            "temperature": 0.7,
+            "max_tokens": 1024,
+            "stream": False,
+            "frequency_penalty": 0.0,
+            "presence_penalty": 0.0,
+            "top_p": 1.0,
         }
     ),
 ):
-    return await completion_service.create_crew_completion(crew, request.messages)
+    return await completion_service.create_crew_completion(crew, request)

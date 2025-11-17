@@ -1,17 +1,17 @@
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel, Field
-from app.models.completions import Message
+from app.config.settings import settings
+from app.schemas.base import BaseModelSettings
 
 
-class CompletionRequest(BaseModel):
-    """Request model for chat completion"""
-
-    messages: List[Message] = Field(
-        ..., description="List of messages in the conversation", min_items=1
-    )
+class CrewRequest(BaseModelSettings):
+    inputs: dict = Field(..., description="Input data for the crew")
 
 
-class CompletionResponse(BaseModel):
-    """Response model for chat completion"""
+class ModelRequest(BaseModelSettings):
+    prompt: str = Field(..., description="The prompt text")
+    model: str = Field(default=settings.DEFAULT_MODEL, description="The model to use")
 
-    message: str = Field(..., description="AI-generated response message")
+
+class AgentRequest(BaseModelSettings):
+    prompt: str = Field(..., description="The prompt for the agent")
