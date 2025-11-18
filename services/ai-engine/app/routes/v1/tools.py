@@ -26,8 +26,8 @@ tool_service = ToolService()
                                     "name": "web_search",
                                     "description": "Search the web for information",
                                 },
-                                "document_search": {
-                                    "name": "document_search",
+                                "aiq_search_tool": {
+                                    "name": "aiq_search_tool",
                                     "description": "Search internal documents and knowledge base",
                                 },
                             },
@@ -80,7 +80,7 @@ async def get_tool_config(
     tool: str = Path(
         ...,
         description="Name of the tool to retrieve configuration for",
-        example="document_search",
+        example="aiq_search_tool",
         min_length=1,
         max_length=50,
     )

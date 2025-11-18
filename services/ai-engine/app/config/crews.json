@@ -1,6 +1,6 @@
 {
-  "document_search_crew": {
-    "name": "document_search_crew",
+  "aiq_search_crew": {
+    "name": "aiq_search_crew",
     "description": "Crew for RAG-based document retrieval and response generation.\nFlow:\n  1. Orchestrator validates query and routes it\n  2. RAG Analyzer performs semantic search\n  3. Chat Responder generates the final answer with sources",
     "process": "sequential",
     "verbose": true,

@@ -22,7 +22,19 @@ completion_service = CompletionService()
                         "success": True,
                         "message": "Crew completion created successfully",
                         "data": {
-                            "output": "ในส่วนของdata จะreturn object แบบไหนก็ได้ ขึ้นกับการออกแบบcrew นั้นๆ"
+                            "raw": "AI-generated response based on crew execution",
+                            "json_dict": None,
+                            "token_usage": {
+                                "total_tokens": 1500,
+                                "prompt_tokens": 800,
+                                "cached_prompt_tokens": 0,
+                                "completion_tokens": 700,
+                                "successful_requests": 1,
+                            },
+                            "tasks_output": [
+                                {"name": "research_task", "raw": "Task output content"},
+                                {"name": "analysis_task", "raw": "Analysis results"},
+                            ],
                         },
                     }
                 }
@@ -40,7 +52,7 @@ completion_service = CompletionService()
             "description": "Crew not found",
             "content": {
                 "application/json": {
-                    "example": {"detail": "Crew 'document_search_crew' not found"}
+                    "example": {"detail": "Crew 'aiq_search_crew' not found"}
                 }
             },
         },
@@ -58,7 +70,7 @@ async def create_crew_completion(
     crew: str = Path(
         ...,
         description="Name of the crew to process messages through",
-        example="document_search_crew",
+        example="aiq_search_crew",
         min_length=1,
         max_length=50,
     ),

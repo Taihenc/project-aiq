@@ -28,7 +28,7 @@ agent_service = AgentService()
                                 "goal": "Research and gather information on given topics",
                                 "backstory": "You are an expert researcher with years of experience in data analysis and information gathering",
                                 "model": "gpt-4o-mini",
-                                "tools": ["web_search", "document_search"],
+                                "tools": ["web_search", "aiq_search_tool"],
                                 "verbose": False,
                             }
                         },
@@ -62,7 +62,7 @@ async def create_agent_config(
             "goal": "Research and gather information on given topics",
             "backstory": "You are an expert researcher with years of experience in data analysis and information gathering",
             "model": "gpt-4o-mini",
-            "tools": ["web_search", "document_search"],
+            "tools": ["web_search", "aiq_search_tool"],
             "verbose": False,
         },
     )
@@ -91,7 +91,7 @@ async def create_agent_config(
                                     "goal": "Research and gather information on given topics",
                                     "backstory": "You are an expert researcher with years of experience in data analysis and information gathering",
                                     "model": "gpt-4o-mini",
-                                    "tools": ["web_search", "document_search"],
+                                    "tools": ["web_search", "aiq_search_tool"],
                                     "verbose": False,
                                 },
                                 "writer": {
@@ -136,7 +136,7 @@ async def get_agents_config():
                                 "goal": "Research and gather information on given topics",
                                 "backstory": "You are an expert researcher with years of experience in data analysis and information gathering",
                                 "model": "gpt-4o-mini",
-                                "tools": ["web_search", "document_search"],
+                                "tools": ["web_search", "aiq_search_tool"],
                                 "verbose": False,
                             }
                         },
@@ -188,7 +188,7 @@ async def get_agent_config(
                                 "model": "gpt-4o-mini",
                                 "tools": [
                                     "web_search",
-                                    "document_search",
+                                    "aiq_search_tool",
                                     "data_analysis",
                                 ],
                                 "verbose": False,
@@ -224,7 +224,7 @@ async def update_agent_config(
             "goal": "Research and gather comprehensive information on given topics",
             "backstory": "You are a senior expert researcher with extensive experience in data analysis and information gathering",
             "model": "gpt-4o-mini",
-            "tools": ["web_search", "document_search", "data_analysis"],
+            "tools": ["web_search", "aiq_search_tool", "data_analysis"],
             "verbose": False,
         },
     ),
