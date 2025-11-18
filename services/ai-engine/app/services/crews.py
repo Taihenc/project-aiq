@@ -149,8 +149,13 @@ class CrewService:
 
         tasks = []
         for task in config.workflow:
-            DynamicModel = self._json_to_pydantic_class(
-                f"{task.name}_Output", task.output_json
+            DynamicModel = (
+                self._json_to_pydantic_class(
+                    class_name=f"{config.name}_{task.name}_OutputModel",
+                    schema_json=task.output_json,
+                )
+                if task.output_json
+                else None
             )
 
             task_obj = Task(
@@ -158,7 +163,8 @@ class CrewService:
                 description=task.description,
                 expected_output=task.expected_output,
                 agent=self.agent_service.get_agent(task.agent),
-                output_pydantic=DynamicModel,
+                output_json=DynamicModel,
+                markdown=task.markdown,
             )
             tasks.append(task_obj)
 

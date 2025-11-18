@@ -10,7 +10,10 @@ class TaskConfig(BaseModel):
     description: str = Field(..., description="Task description")
     expected_output: str = Field(..., description="Expected output")
     agent: str = Field(..., description="Agent name")
-    output_json: str = Field(..., description="Output JSON")
+    output_json: Optional[str] = Field(None, description="Output JSON")
+    markdown: Optional[bool] = Field(
+        False, description="Whether to use markdown formatting"
+    )
     context: List[str] = Field([], description="Context")
 
 
