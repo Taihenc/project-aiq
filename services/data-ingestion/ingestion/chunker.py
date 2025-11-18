@@ -1,4 +1,4 @@
-from summarizer import Summarizer
+from ingestion.summarizer import Summarizer
 
 
 class Chunker:

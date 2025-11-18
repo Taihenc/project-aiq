@@ -1,9 +1,9 @@
-from storage import Storage
+from ingestion.storage import StorageManager
 
 
 class Extractor:
     def __init__(self):
-        self.storage = Storage()
+        self.storage = StorageManager()
 
     def extract(self, content, type: str):
         pass

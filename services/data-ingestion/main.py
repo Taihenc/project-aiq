@@ -31,3 +31,9 @@ if __name__ == "__main__":
     reload_flag = reload_env in ("1", "true", "yes", "on")
 
     uvicorn.run(app, host=host, port=port, reload=reload_flag)
+
+@app.on_event("startup")
+async def startup_event():
+    from workers.event_consumer import EventConsumer
+    consumer = EventConsumer()
+    consumer.start_in_thread()
