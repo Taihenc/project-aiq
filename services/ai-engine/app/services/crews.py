@@ -7,7 +7,7 @@ from pydantic import BaseModel, create_model
 from pathlib import Path
 
 from app.models.crews import CrewConfig
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 from app.services.agents import AgentService
 
 
@@ -60,14 +60,14 @@ class CrewService:
     # Crew Config CRUD Operations
     # ============================================================================
 
-    def create_crew_config(self, config: CrewConfig) -> BaseResponse:
+    def create_crew_config(self, config: CrewConfig) -> Response:
         try:
             if config.name in self._crew_configs:
                 raise HTTPException(
                     status_code=409, detail=f"Crew '{config.name}' already exists"
                 )
             self._crew_configs[config.name] = config
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Crew config created successfully",
                 data={"config": config},
@@ -79,9 +79,9 @@ class CrewService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_crews_config(self) -> BaseResponse:
+    def get_crews_config(self) -> Response:
         try:
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Crew configs fetched successfully",
                 data={"configs": self._crew_configs, "count": len(self._crew_configs)},
@@ -89,12 +89,12 @@ class CrewService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_crew_config(self, crew: str) -> BaseResponse:
+    def get_crew_config(self, crew: str) -> Response:
         try:
             config = self._crew_configs.get(crew)
             if not config:
                 raise HTTPException(status_code=404, detail=f"Crew '{crew}' not found")
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Crew config fetched successfully",
                 data={"config": config},
@@ -104,14 +104,14 @@ class CrewService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def update_crew_config(self, config: CrewConfig) -> BaseResponse:
+    def update_crew_config(self, config: CrewConfig) -> Response:
         try:
             if config.name not in self._crew_configs:
                 raise HTTPException(
                     status_code=404, detail=f"Crew '{config.name}' not found"
                 )
             self._crew_configs[config.name] = config
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Crew config updated successfully",
                 data={"config": config},
@@ -123,12 +123,12 @@ class CrewService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def delete_crew_config(self, crew: str) -> BaseResponse:
+    def delete_crew_config(self, crew: str) -> Response:
         try:
             if crew not in self._crew_configs:
                 raise HTTPException(status_code=404, detail=f"Crew '{crew}' not found")
             del self._crew_configs[crew]
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Crew config deleted successfully",
                 data={"crew": crew},

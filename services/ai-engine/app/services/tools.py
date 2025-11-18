@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 from fastapi import HTTPException
 from crewai.tools import BaseTool
 from app.models.tools import ToolConfig
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 from app.tools.aiq_search_tool import AIQSearchTool
 
 
@@ -17,7 +17,7 @@ class ToolService:
     # Tool Config Operations
     # ============================================================================
 
-    def get_tools_config(self) -> BaseResponse:
+    def get_tools_config(self) -> Response:
         try:
             tool_configs = [
                 ToolConfig(name=tool.name, description=tool.description)
@@ -28,7 +28,7 @@ class ToolService:
                 cfg.name: {"name": cfg.name, "description": cfg.description}
                 for cfg in tool_configs
             }
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Tool configs fetched successfully",
                 data={"configs": configs_dict, "count": len(configs_dict)},
@@ -36,7 +36,7 @@ class ToolService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_tool_config(self, tool: str) -> BaseResponse:
+    def get_tool_config(self, tool: str) -> Response:
         try:
             tool_instance = self._tools.get(tool)
             if not tool_instance:
@@ -45,7 +45,7 @@ class ToolService:
                 name=tool_instance.name,
                 description=tool_instance.description,
             )
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Tool config fetched successfully",
                 data={

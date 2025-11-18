@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Path, Body
 from app.services.completions import CompletionService
 from app.schemas.completions import CrewRequest
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 
 router = APIRouter(prefix="/completions", tags=["completions"])
 
@@ -10,7 +10,7 @@ completion_service = CompletionService()
 
 @router.post(
     "/crews/{crew}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Create Crew Completion",
     description="Process messages through a specific crew and return AI-generated response",
     responses={

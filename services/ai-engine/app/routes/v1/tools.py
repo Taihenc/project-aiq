@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Path
 from app.services.tools import ToolService
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
@@ -9,7 +9,7 @@ tool_service = ToolService()
 
 @router.get(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get All Available Tool Configurations",
     description="Retrieve all available tool configurations in the system with their details",
     responses={
@@ -45,7 +45,7 @@ async def get_tools_config():
 
 @router.get(
     "/{tool}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get Specific Tool Configuration",
     description="Retrieve configuration details for a specific tool",
     responses={

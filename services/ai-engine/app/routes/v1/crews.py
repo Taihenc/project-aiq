@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Path, Body
 from app.services.crews import CrewService
 from app.models.crews import CrewConfig
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 
 router = APIRouter(prefix="/crews", tags=["crews"])
 
@@ -10,7 +10,7 @@ crew_service = CrewService()
 
 @router.post(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Create New Crew Configuration",
     description="Create a new crew configuration with specified workflow, process, and agents",
     responses={
@@ -121,7 +121,7 @@ async def create_crew_config(
 
 @router.get(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get All Available Crew Configurations",
     description="Retrieve all available crew configurations in the system with their details",
     responses={
@@ -184,7 +184,7 @@ async def get_crews_config():
 
 @router.get(
     "/{crew}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get Specific Crew Configuration",
     description="Retrieve configuration details for a specific crew",
     responses={
@@ -260,7 +260,7 @@ async def get_crew_config(
 
 @router.put(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Update Crew Configuration",
     description="Update configuration for an existing crew using name from request body",
     responses={
@@ -371,7 +371,7 @@ async def update_crew_config(
 
 @router.delete(
     "/{crew}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Delete Crew Configuration",
     description="Delete an existing crew configuration",
     responses={

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Path, Body
 from app.services.agents import AgentService
 from app.models.agents import AgentConfig
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -10,7 +10,7 @@ agent_service = AgentService()
 
 @router.post(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Create New Agent Configuration",
     description="Create a new agent configuration with specified role, goal, and backstory",
     responses={
@@ -72,7 +72,7 @@ async def create_agent_config(
 
 @router.get(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get All Available Agent Configurations",
     description="Retrieve all available agent configurations in the system with their details",
     responses={
@@ -118,7 +118,7 @@ async def get_agents_config():
 
 @router.get(
     "/{agent}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get Specific Agent Configuration",
     description="Retrieve configuration details for a specific agent",
     responses={
@@ -168,7 +168,7 @@ async def get_agent_config(
 
 @router.put(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Update Agent Configuration",
     description="Update configuration for an existing agent using name from request body",
     responses={
@@ -234,7 +234,7 @@ async def update_agent_config(
 
 @router.delete(
     "/{agent}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Delete Agent Configuration",
     description="Delete an existing agent configuration",
     responses={

@@ -4,7 +4,7 @@ from fastapi import HTTPException
 import json
 from pathlib import Path
 from app.config.settings import settings
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 
 
 class ModelService:
@@ -26,9 +26,9 @@ class ModelService:
     # Model Config Operations
     # ============================================================================
 
-    def get_models_config(self) -> BaseResponse:
+    def get_models_config(self) -> Response:
         try:
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Models fetched successfully",
                 data={"configs": self._models, "count": len(self._models)},
@@ -36,13 +36,13 @@ class ModelService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_model_config(self, model: str) -> BaseResponse:
+    def get_model_config(self, model: str) -> Response:
         try:
             if not model in self._models.keys():
                 raise HTTPException(
                     status_code=404, detail=f"Model '{model}' not found"
                 )
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Model fetched successfully",
                 data={"config": self._models.get(model)},
