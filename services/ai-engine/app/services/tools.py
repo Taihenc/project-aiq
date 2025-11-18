@@ -3,14 +3,15 @@ from fastapi import HTTPException
 from crewai.tools import BaseTool
 from app.models.tools import ToolConfig
 from app.schemas.base import BaseResponse
-from app.config.tools import TOOLS
+from app.tools.aiq_search_tool import AIQSearchTool
 
 
 class ToolService:
     """Service for managing tools."""
 
-    def __init__(self):
-        self._tools: Dict[str, BaseTool] = TOOLS
+    _tools: Dict[str, BaseTool] = {
+        "aiq_search_tool": AIQSearchTool(),
+    }
 
     # ============================================================================
     # Tool Config Operations

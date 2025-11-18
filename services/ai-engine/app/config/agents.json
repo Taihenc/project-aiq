@@ -14,7 +14,7 @@
     "backstory": "You're a skilled search expert who refines messy user input into clear intent.\nYou identify the core topic or entity, then craft the most effective search query.\nYou never search with raw text — you analyze first, then search smartly.",
     "model": "gpt-4o-mini",
     "tools": [
-      "document_search"
+      "aiq_search_tool"
     ],
     "verbose": true
   },
