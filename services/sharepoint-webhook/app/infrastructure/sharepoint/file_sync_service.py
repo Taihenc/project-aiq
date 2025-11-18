@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -15,7 +16,7 @@ logger = get_logger(__name__)
 
 
 class FileSyncService:
-    """Sync SharePoint files to a local directory."""
+    """Delegates file download to File Storage Service."""
 
     def __init__(self, graph_client: GraphAPIClient, sync_dir: str = "./synced_files"):
         self.graph_client = graph_client
@@ -23,6 +24,9 @@ class FileSyncService:
         self.sync_dir.mkdir(parents=True, exist_ok=True)
         self._file_id_map: dict[str, Path] = {}
         logger.info("Local sync directory: %s", self.sync_dir.absolute())
+        
+        self.file_storage_url = os.getenv("FILE_STORAGE_URL", "http://file-storage-service:8003")
+        logger.info("File Storage Service URL: %s", self.file_storage_url)
 
     def sync_changes(self, changes: list[dict], drive_id: str) -> None:
         if not changes:
@@ -31,21 +35,65 @@ class FileSyncService:
         logger.info("Processing %s changes...", len(changes))
         for item in changes:
             name = item.get("name", "Unknown")
-            relative_path = self._extract_relative_path(item)
-
+            
             if "deleted" in item:
                 item_id = item.get("id", "")
-                if "file" in item or self._looks_like_file(name):
-                    self._delete_local_file(name, relative_path, item_id)
-                else:
-                    self._delete_local_folder(name, relative_path)
-            elif "file" in item:
+                logger.info("Processing deleted item: %s (ID: %s)", name, item_id)
+                self._delegate_delete(item_id, name)
+                continue
+            
+            if "file" in item:
                 size = item.get("size", 0)
                 if size > 0:
                     item_id = item.get("id", "")
-                    self._download_file(drive_id, item_id, name, relative_path)
+                    # Use delegation by default
+                    self._delegate_download(drive_id, item_id, name, item)
             elif "folder" in item:
-                self._create_local_folder(name, relative_path)
+                logger.info("Skipping folder: %s", name)
+
+    def _delegate_download(self, drive_id: str, item_id: str, file_name: str, item_metadata: dict) -> bool:
+        token = self.graph_client.get_access_token()
+        if not token:
+            logger.error("Failed to get access token for delegating %s", file_name)
+            return False
+
+        source_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/content"
+        
+        payload = {
+            "source_url": source_url,
+            "source_headers": {"Authorization": f"Bearer {token}"},
+            "file_name": file_name,
+            "metadata": item_metadata
+        }
+
+        try:
+            response = requests.post(f"{self.file_storage_url}/files/upload-from-url", json=payload, timeout=10)
+            if response.status_code == 202:
+                logger.info("Delegated download for %s: ACCEPTED", file_name)
+                return True
+            logger.warning("Failed to delegate %s: HTTP %s", file_name, response.status_code)
+            logger.warning("Response: %s", response.text)
+        except Exception as exc:
+            logger.error("Error delegating %s: %s", file_name, exc)
+        return False
+
+    def _delegate_delete(self, item_id: str, file_name: str) -> bool:
+        try:
+            # Delete by Source ID (SharePoint Item ID)
+            response = requests.delete(f"{self.file_storage_url}/files/source/{item_id}", timeout=10)
+            if response.status_code == 200:
+                logger.info("Delegated deletion for %s: SUCCESS", file_name)
+                return True
+            elif response.status_code == 404:
+                logger.info("Delegated deletion for %s: NOT FOUND (Already deleted?)", file_name)
+                return True
+            
+            logger.warning("Failed to delegate deletion for %s: HTTP %s", file_name, response.status_code)
+        except Exception as exc:
+            logger.error("Error delegating deletion for %s: %s", file_name, exc)
+        return False
+
+    # --- Legacy Local Download Methods (Preserved but unused) ---
 
     def list_local_files(self) -> list[str]:
         return [str(path.relative_to(self.sync_dir)) for path in self.sync_dir.rglob("*") if path.is_file()]
@@ -133,4 +181,5 @@ class FileSyncService:
 
     def _looks_like_file(self, name: str) -> bool:
         return "." in name and not name.startswith(".")
+
 
