@@ -22,7 +22,7 @@
       },
       {
         "name": "generate_response",
-        "description": "Answer: \"{user_query}\"\nContext: {context}\nChat history: {chat_history}\n\n**Follow orchestrator decision:**\n- NEEDS_CLARIFICATION → Ask short clarification\n- DIRECT_RESPONSE → Reply from general knowledge (type=\"DIRECT\")\n- SEARCH → Check RAG analyzer decision:\n  * If RAG decision = SEARCH_PERFORMED → Use verified relevant docs (type=\"SEARCH_BASED\")\n  * If RAG decision = SKIPPED → Reply from general knowledge (type=\"DIRECT\")\n  * If docs irrelevant → Admit it and optionally answer generally\n\nRules:\n- Respond in user’s language\n- Don’t force irrelevant sources\n- Reference chat history when useful",
+        "description": "Answer: \"{user_query}\"\nContext: {context}\nChat history: {chat_history}\n\n**Follow orchestrator decision:**\n- NEEDS_CLARIFICATION → Ask short clarification\n- DIRECT_RESPONSE → Reply from general knowledge (type=\"DIRECT\")\n- SEARCH → Check RAG analyzer output:\n  * If error field exists → Inform user about the error and explain the reason\n  * If RAG decision = SEARCH_PERFORMED → Use verified relevant docs (type=\"SEARCH_BASED\")\n  * If RAG decision = SKIPPED → Reply from general knowledge (type=\"DIRECT\")\n  * If docs irrelevant → Admit it and optionally answer generally\n\nRules:\n- Respond in user's language\n- Don't force irrelevant sources\n- Reference chat history when useful\n- If search error occurs, explain the reason clearly to the user",
         "expected_output": "ChatResponderOutput (response, type, sources, language)",
         "agent": "chat_responder",
         "context": ["validate_and_route", "search_and_analyze"],

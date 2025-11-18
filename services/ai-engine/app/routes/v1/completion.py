@@ -65,7 +65,7 @@ async def create_crew_completion(
     request: CrewRequest = Body(
         example={
             "inputs": {
-                "user_query": "มีชื่อผมในหน่วยStarไหม?",
+                "user_query": "หาว่า AIQ โดนชมว่าไงบ้าง",
                 "chat_history": [
                     {"role": "user", "content": "สวัสดี ผมชื่อพล"},
                     {"role": "assistant", "content": "สวัสดีครับพล ยินดีที่ได้รู้จักครับ"},

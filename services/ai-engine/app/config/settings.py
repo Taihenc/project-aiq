@@ -42,11 +42,6 @@ class Settings:
         return os.getenv("ENVIRONMENT", "development").lower()
 
     # ============================================================================
-    # Available Providers
-    # ============================================================================
-    AVAILABLE_PROVIDERS = ["openai", "anthropic", "google", "ollama"]
-
-    # ============================================================================
     # Environment-specific overrides
     # ============================================================================
     def __init__(self):
@@ -62,10 +57,7 @@ class Settings:
         # Service Endpoints
         # ============================================================================
         self.EMBEDDING_SERVICE_URL = self.get_env(
-            "EMBEDDING_SERVICE_URL", "http://embedding-service:8000"
-        )
-        self.CHAT_SERVICE_URL = self.get_env(
-            "CHAT_SERVICE_URL", "http://chat-service:8000"
+            "EMBEDDING_SERVICE_URL", "http://localhost:8003"
         )
 
         # ============================================================================
@@ -78,9 +70,10 @@ class Settings:
         # ============================================================================
         # Retrieval / RAG Settings
         # ============================================================================
-        self.TOP_K = self.get_env("TOP_K", 5, int)
-        self.RAG_SEARCH_LIMIT = self.get_env("RAG_SEARCH_LIMIT", 10, int)
+        self.TOP_K = self.get_env("TOP_K", 10, int)
+        self.RAG_SEARCH_LIMIT = self.get_env("RAG_SEARCH_LIMIT", 30, int)
         self.RERANK_TOP_N = self.get_env("RERANK_TOP_N", 5, int)
+        self.SCORE_THRESHOLD = self.get_env("SCORE_THRESHOLD", 0.0, float)
 
         # ============================================================================
         # Chat Completion Settings
