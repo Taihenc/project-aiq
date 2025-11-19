@@ -28,12 +28,11 @@ class IngestionWorker:
         print(f"Starting ingestion for file: {file_path}")
         try:
             result = self.extractor.convert(file_path)
-            doc_dict = result.document.export_to_dict()
             # print(doc_dict)
 
             elements = []
-            if "texts" in doc_dict:
-                for item in doc_dict["texts"]:
+            if "texts" in result:
+                for item in result["texts"]:
                     page_no = 1
                     if "prov" in item and item["prov"]:
                         page_no = item["prov"][0].get("page_no", 1)
