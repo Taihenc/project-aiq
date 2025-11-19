@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Path, Body
 from app.services.crews import CrewService
 from app.models.crews import CrewConfig
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 
 router = APIRouter(prefix="/crews", tags=["crews"])
 
@@ -10,7 +10,7 @@ crew_service = CrewService()
 
 @router.post(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Create New Crew Configuration",
     description="Create a new crew configuration with specified workflow, process, and agents",
     responses={
@@ -23,7 +23,7 @@ crew_service = CrewService()
                         "message": "Crew config created successfully",
                         "data": {
                             "config": {
-                                "name": "document_search_crew",
+                                "name": "aiq_search_crew",
                                 "description": "Crew for RAG-based document retrieval and response generation",
                                 "process": "sequential",
                                 "verbose": False,
@@ -74,7 +74,7 @@ crew_service = CrewService()
             "description": "Crew already exists",
             "content": {
                 "application/json": {
-                    "example": {"detail": f"Crew 'document_search_crew' already exists"}
+                    "example": {"detail": f"Crew 'aiq_search_crew' already exists"}
                 }
             },
         },
@@ -83,7 +83,7 @@ crew_service = CrewService()
 async def create_crew_config(
     config: CrewConfig = Body(
         example={
-            "name": "document_search_crew",
+            "name": "aiq_search_crew",
             "description": "Crew for RAG-based document retrieval and response generation",
             "process": "sequential",
             "verbose": False,
@@ -121,7 +121,7 @@ async def create_crew_config(
 
 @router.get(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get All Available Crew Configurations",
     description="Retrieve all available crew configurations in the system with their details",
     responses={
@@ -134,8 +134,8 @@ async def create_crew_config(
                         "message": "Crew configs fetched successfully",
                         "data": {
                             "configs": {
-                                "document_search_crew": {
-                                    "name": "document_search_crew",
+                                "aiq_search_crew": {
+                                    "name": "aiq_search_crew",
                                     "description": "Crew for RAG-based document retrieval and response generation",
                                     "process": "sequential",
                                     "verbose": False,
@@ -184,7 +184,7 @@ async def get_crews_config():
 
 @router.get(
     "/{crew}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get Specific Crew Configuration",
     description="Retrieve configuration details for a specific crew",
     responses={
@@ -197,7 +197,7 @@ async def get_crews_config():
                         "message": "Crew config fetched successfully",
                         "data": {
                             "config": {
-                                "name": "document_search_crew",
+                                "name": "aiq_search_crew",
                                 "description": "Crew for RAG-based document retrieval and response generation",
                                 "process": "sequential",
                                 "verbose": False,
@@ -240,7 +240,7 @@ async def get_crews_config():
             "description": "Crew not found",
             "content": {
                 "application/json": {
-                    "example": {"detail": f"Crew 'document_search_crew' not found"}
+                    "example": {"detail": f"Crew 'aiq_search_crew' not found"}
                 }
             },
         },
@@ -250,7 +250,7 @@ async def get_crew_config(
     crew: str = Path(
         ...,
         description="Name of the crew to retrieve configuration for",
-        example="document_search_crew",
+        example="aiq_search_crew",
         min_length=1,
         max_length=50,
     )
@@ -260,7 +260,7 @@ async def get_crew_config(
 
 @router.put(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Update Crew Configuration",
     description="Update configuration for an existing crew using name from request body",
     responses={
@@ -273,7 +273,7 @@ async def get_crew_config(
                         "message": "Crew config updated successfully",
                         "data": {
                             "config": {
-                                "name": "document_search_crew",
+                                "name": "aiq_search_crew",
                                 "description": "Enhanced crew for RAG-based document retrieval and response generation",
                                 "process": "sequential",
                                 "verbose": True,
@@ -324,7 +324,7 @@ async def get_crew_config(
             "description": "Crew not found",
             "content": {
                 "application/json": {
-                    "example": {"detail": f"Crew 'document_search_crew' not found"}
+                    "example": {"detail": f"Crew 'aiq_search_crew' not found"}
                 }
             },
         },
@@ -333,7 +333,7 @@ async def get_crew_config(
 async def update_crew_config(
     config: CrewConfig = Body(
         example={
-            "name": "document_search_crew",
+            "name": "aiq_search_crew",
             "description": "Enhanced crew for RAG-based document retrieval and response generation",
             "process": "sequential",
             "verbose": True,
@@ -371,7 +371,7 @@ async def update_crew_config(
 
 @router.delete(
     "/{crew}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Delete Crew Configuration",
     description="Delete an existing crew configuration",
     responses={
@@ -382,7 +382,7 @@ async def update_crew_config(
                     "example": {
                         "success": True,
                         "message": "Crew config deleted successfully",
-                        "data": {"crew": "document_search_crew"},
+                        "data": {"crew": "aiq_search_crew"},
                     }
                 }
             },
@@ -399,7 +399,7 @@ async def update_crew_config(
             "description": "Crew not found",
             "content": {
                 "application/json": {
-                    "example": {"detail": f"Crew 'document_search_crew' not found"}
+                    "example": {"detail": f"Crew 'aiq_search_crew' not found"}
                 }
             },
         },
@@ -409,7 +409,7 @@ async def delete_crew_config(
     crew: str = Path(
         ...,
         description="Name of the crew to delete",
-        example="document_search_crew",
+        example="aiq_search_crew",
         min_length=1,
         max_length=50,
     )

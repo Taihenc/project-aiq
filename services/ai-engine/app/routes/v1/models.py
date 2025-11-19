@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Path
 from app.services.models import ModelService
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 
 router = APIRouter(prefix="/models", tags=["models"])
 
@@ -9,7 +9,7 @@ model_service = ModelService()
 
 @router.get(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get All Available Models",
     description="Retrieve all available models in the system with their configuration details",
     responses={
@@ -44,7 +44,7 @@ async def get_models_config():
 
 @router.get(
     "/{model}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get Specific Model Configuration",
     description="Retrieve configuration details for a specific model",
     responses={
