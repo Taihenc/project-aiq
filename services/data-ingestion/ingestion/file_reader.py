@@ -3,7 +3,12 @@ from pathlib import Path
 
 class FileReader:
     def __init__(self):
-        pass
+        # Docling-supported formats (common ones)
+        self.supported_formats = {
+            "pdf", "pptx", "docx", "xlsx",
+            "html", "htm", "txt", "md",
+            "png", "jpg", "jpeg"
+        }
 
     def detect_file_type(self, file_path: str) -> str:
         """
@@ -17,10 +22,19 @@ class FileReader:
         Return basic info (path, type) — does NOT process the content.
         """
         file_path = Path(file_path)
+
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
         file_type = self.detect_file_type(file_path)
+
+        # ---- NEW: Validate Docling-supported formats ----
+        if file_type not in self.supported_formats:
+            raise ValueError(
+                f"Unsupported file type '{file_type}'. "
+                f"Docling can only process: {sorted(self.supported_formats)}"
+            )
+
         return {
             "path": str(file_path.resolve()),
             "file_type": file_type,
