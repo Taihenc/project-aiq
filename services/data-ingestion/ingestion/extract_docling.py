@@ -8,9 +8,6 @@ from pathlib import Path
 from pprint import pprint
 
 class DoclingExtractor:
-    """
-    Light wrapper around Docling — no extra features, just your original config.
-    """
 
     def __init__(self):
         pdf_pipeline_options = PdfPipelineOptions()
@@ -61,12 +58,6 @@ class DoclingExtractor:
             }
         )
     def post_process_tables(self, result):
-        """
-        Add HTML summary for each table using export_to_html().
-
-        Injects:
-            table.meta.description = DescriptionMetaField(text=<HTML>)
-        """
         doc = result.document
         if not hasattr(doc, "tables"):
             return result  # No tables detected
@@ -90,15 +81,29 @@ class DoclingExtractor:
     # --------------------------------------------------------
     # Conversion wrapper
     # --------------------------------------------------------
-    def convert(self, file_path: str):
+    def convert(self, file_path: str,export: str = "dict"):
         """Convert file and run table post-processing."""
         file_path = Path(file_path)
         if not file_path.exists():
             raise FileNotFoundError(file_path)
 
         result = self.converter.convert(str(file_path))
-        result = self.post_process_tables(result)
-        return result
+        result = self.post_process_tables(result).document
+            # ---- choose output format ----
+        if export == "dict":
+            return result.export_to_dict()
+        elif export == "markdown":
+            return result.export_to_markdown()
+        elif export == "html":
+            return result.export_to_html()
+        elif export == "text":
+            return result.export_to_text()
+        elif export == "element_tree":
+            return result.export_to_element_tree()
+        elif export == "doctags":
+            return result.export_to_doctags()
+        else:
+            raise ValueError(f"Unsupported export format: {export}")
     
 
 # --------------------------------------------------------
@@ -109,12 +114,4 @@ if __name__ == "__main__":
 
     source = "pdf/somat.pdf"
     result = extractor.convert(source)
-
-    data = result.document.export_to_dict()
-    # md = result.document.export_to_element_tree()
-    # md = result.document.export_to_text()
-    # md = result.document.export_to_dict()
-    # md = result.document.export_to_doctags()
-    # md = result.document.export_to_markdown()
-    # md = result.document.export_to_html()
-    pprint(data,width=120)
+    pprint(result,width=120)
