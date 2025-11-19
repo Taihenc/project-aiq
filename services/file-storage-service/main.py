@@ -138,7 +138,7 @@ async def get_download_url(file_id: str):
     if not url:
         raise HTTPException(status_code=500, detail="Could not generate download URL")
 
-    return {"download_url": url}
+    return {"download_url": url, "file_name": record['file_name']}
 
 @app.delete("/files/source/{source_id}")
 async def delete_by_source_id(source_id: str):

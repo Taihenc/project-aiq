@@ -19,7 +19,7 @@ class EventConsumer:
         retries = 5
         while retries > 0:
             try:
-                self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host))
+                self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host, heartbeat=0))
                 self.channel = self.connection.channel()
                 self.channel.exchange_declare(exchange=self.exchange_name, exchange_type='topic')
                 self.channel.queue_declare(queue=self.queue_name, durable=True)

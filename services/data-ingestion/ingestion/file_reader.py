@@ -1,5 +1,13 @@
-# ingestion/file_reader.py
+import mimetypes
 from pathlib import Path
+
+def detect_mime(file_path: str) -> str:
+    """
+    Detect the mime type of a file using mimetypes library.
+    Returns 'application/octet-stream' if detection fails.
+    """
+    mime, _ = mimetypes.guess_type(file_path)
+    return mime or "application/octet-stream"
 
 class FileReader:
     def __init__(self):

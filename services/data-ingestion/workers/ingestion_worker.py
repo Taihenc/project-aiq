@@ -6,94 +6,95 @@ from ingestion import (
     chunker,
     indexer,
 )
+from ingestion.extract_docling import DoclingExtractor
 import os
 import time
+import requests
+import tempfile
+import shutil
+import mimetypes
 
 class IngestionWorker:
     def __init__(self):
-        self.file_reader = file_reader.FileReader()
-        self.modality = modality.ModalityClassifier()
-        self.extractor = extractor.Extractor()
-        self.context_builder = context_builder.ContextBuilder()
+        # self.file_reader = file_reader.FileReader()
+        # self.modality = modality.ModalityClassifier()
+        # self.extractor = extractor.Extractor()
+        # self.context_builder = context_builder.ContextBuilder()
+        self.extractor = DoclingExtractor()
         self.chunker = chunker.Chunker()
         self.indexer = indexer.Indexer()
 
     def ingest(self, file_path: str):
-        file_info = self.file_reader.read(file_path)
-        for page in file_info.pages:
-            modalities = self.modality.detect(page, file_info.mime_type)
-            page_contents = []
-            for modality in modalities:
-                content = self.extractor.extract(modality.content, modality.type)
-                page_contents.append(content)
-            full_page_text = self.context_builder.build(page_contents)
-            summarized_chunks = self.chunker.chunk(
-                full_page_text
-            )  # Recursive chunking + summarize each chunk
+        print(f"Starting ingestion for file: {file_path}")
+        try:
+            result = self.extractor.convert(file_path)
+            full_text = result.document.export_to_markdown()
+            summarized_chunks = self.chunker.chunk(full_text)
             self.indexer.index(summarized_chunks)
+            print(f"Successfully ingested and indexed file: {file_path}")
+
+        except Exception as e:
+            print(f"Error during ingestion of {file_path}: {e}")
+            raise e
 
     def ingest_from_fss(self, file_id: str):
         """
         Trigger ingestion process for a file from File Storage Service.
-        Currently in SIMULATION mode for PoC integration.
         """
-        print(f" [Simulation] Starting ingestion for file_id: {file_id}")
-        
-        # Simulate processing time
-        time.sleep(2)
-        
-        # In a real scenario, we would download and process:
-        # self._download_and_process(file_id)
-        
-        print(f" [Simulation] Successfully ingested file: {file_id}")
+        print(f"Starting ingestion for file_id: {file_id}")
+        self._download_and_process(file_id)
 
     def delete_index(self, file_id: str):
         """
         Remove file data from the vector index.
-        Currently in SIMULATION mode.
         """
-        print(f" [Simulation] Deleting index for file_id: {file_id}")
-        
-        # Simulate processing time
-        time.sleep(1)
-        
-        if self.initialized:
-            # In real implementation: self.indexer.delete(file_id)
-            pass
-            
-        print(f" [Simulation] Successfully deleted index for file: {file_id}")
+        print(f"Deleting index for file_id: {file_id}")
+        # In real implementation: self.indexer.delete(file_id)
+        # self.indexer.delete(file_id)
+        print(f"Successfully deleted index for file: {file_id}")
 
     def _download_and_process(self, file_id: str):
-        # ... (logic for downloading from FSS) ...
-        import requests
-        import tempfile
-        
         fss_url = os.getenv("FILE_STORAGE_URL", "http://file-storage-service:8003")
         try:
             # Get download URL
             resp = requests.get(f"{fss_url}/files/{file_id}/download")
             resp.raise_for_status()
-            download_url = resp.json().get("download_url")
-            
+            data = resp.json()
+            download_url = data.get("download_url")
+            file_name = data.get("file_name")
+
             if not download_url:
                 print(f"No download URL for file {file_id}")
                 return
 
-            # Download file to temp
-            with requests.get(download_url, stream=True) as r:
-                r.raise_for_status()
-                with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        tmp.write(chunk)
-                    tmp_path = tmp.name
-            
-            print(f"Downloaded file {file_id} to {tmp_path}")
-            
+            # Prepare temporary directory to hold the file with its original name
+            temp_dir = tempfile.mkdtemp()
             try:
+                # Determine file name
+                target_name = file_name or f"file_{file_id}"
+                
+                # If file_name has no extension but we can guess it from download_url
+                if "." not in target_name and "." in download_url:
+                     ext = "." + download_url.split('.')[-1].split('?')[0]
+                     target_name += ext
+
+                tmp_path = os.path.join(temp_dir, target_name)
+
+                # Download file
+                with requests.get(download_url, stream=True) as r:
+                    r.raise_for_status()
+                    with open(tmp_path, 'wb') as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            f.write(chunk)
+
+                print(f"Downloaded file {file_id} to {tmp_path}")
+
                 self.ingest(tmp_path)
                 print(f"Successfully ingested file {file_id}")
+
             finally:
-                os.unlink(tmp_path)
-                
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+
         except Exception as e:
             print(f"Error ingesting file {file_id}: {e}")

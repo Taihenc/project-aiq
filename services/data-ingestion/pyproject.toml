@@ -15,6 +15,7 @@ dependencies = [
     "unstructured[pdf]",
     "pdfminer.six>=20221105",
     "pi-heif>=0.1.0",
+    "docling>=2.0.0",
 ]
 
 [tool.setuptools]
