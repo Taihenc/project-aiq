@@ -97,12 +97,12 @@ class DoclingExtractor:
             raise FileNotFoundError(file_path)
 
         result = self.converter.convert(str(file_path))
-        result = self.post_process_tables(result)
+        # result = self.post_process_tables(result)
         return result
-    
+
 
 # --------------------------------------------------------
-# Example usage 
+# Example usage
 # --------------------------------------------------------
 if __name__ == "__main__":
     extractor = DoclingExtractor()

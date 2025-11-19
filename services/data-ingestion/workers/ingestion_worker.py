@@ -19,7 +19,7 @@ class IngestionWorker:
         # self.file_reader = file_reader.FileReader()
         # self.modality = modality.ModalityClassifier()
         # self.extractor = extractor.Extractor()
-        # self.context_builder = context_builder.ContextBuilder()
+        self.context_builder = context_builder.ContextBuilder()
         self.extractor = DoclingExtractor()
         self.chunker = chunker.Chunker()
         self.indexer = indexer.Indexer()
@@ -28,8 +28,26 @@ class IngestionWorker:
         print(f"Starting ingestion for file: {file_path}")
         try:
             result = self.extractor.convert(file_path)
-            full_text = result.document.export_to_markdown()
-            summarized_chunks = self.chunker.chunk(full_text)
+            doc_dict = result.document.export_to_dict()
+            # print(doc_dict)
+
+            elements = []
+            if "texts" in doc_dict:
+                for item in doc_dict["texts"]:
+                    page_no = 1
+                    if "prov" in item and item["prov"]:
+                        page_no = item["prov"][0].get("page_no", 1)
+
+                    elements.append({
+                        "text": item.get("text", ""),
+                        "page": page_no,
+                        "line": 0,  # Docling doesn't provide line numbers directly
+                        "section": None
+                    })
+            # print(elements)
+            contexts = self.context_builder.build_contexts(elements, file_path)
+
+            summarized_chunks = self.chunker.chunk(contexts)
             self.indexer.index(summarized_chunks)
             print(f"Successfully ingested and indexed file: {file_path}")
 
@@ -72,7 +90,7 @@ class IngestionWorker:
             try:
                 # Determine file name
                 target_name = file_name or f"file_{file_id}"
-                
+
                 # If file_name has no extension but we can guess it from download_url
                 if "." not in target_name and "." in download_url:
                      ext = "." + download_url.split('.')[-1].split('?')[0]
