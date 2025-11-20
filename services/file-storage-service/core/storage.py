@@ -6,9 +6,9 @@ class StorageService:
     def __init__(self):
         self.s3_client = boto3.client(
             's3',
-            endpoint_url=os.getenv('S3_ENDPOINT'),
-            aws_access_key_id=os.getenv('S3_ACCESS_KEY'),
-            aws_secret_access_key=os.getenv('S3_SECRET_KEY')
+            endpoint_url=os.getenv('S3_ENDPOINT', 'http://localhost:9000'),
+            aws_access_key_id=os.getenv('S3_ACCESS_KEY', 'minioadmin'),
+            aws_secret_access_key=os.getenv('S3_SECRET_KEY', 'minioadmin')
         )
         self.bucket_name = os.getenv('S3_BUCKET', 'ingestion-bucket')
         self._ensure_bucket_exists()
