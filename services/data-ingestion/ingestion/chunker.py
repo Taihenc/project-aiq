@@ -3,6 +3,7 @@ from .context_builder import ContextMetadata, ContextRecord
 from config import settings
 
 from typing import List, Sequence
+from ingestion.utils import sha1_bytes
 
 
 class Chunker:
@@ -83,14 +84,22 @@ class Chunker:
         part2 = text[split_idx:].strip()
 
         rec1 = {
-            "id": f"{record['id']}_a",
+            "id": self._generate_id(part1, 1),
             "text": part1,
             "metadata": record["metadata"],
         }
         rec2 = {
-            "id": f"{record['id']}_b",
+            "id": self._generate_id(part2, 2),
             "text": part2,
             "metadata": record["metadata"],
         }
 
         return self._recursion(rec1) + self._recursion(rec2)
+
+    def _generate_id(self, text: str, idx: int) -> str:
+        """
+        Deterministic ID so re-ingesting the same source produces the same ID.
+        Includes source_id to avoid collisions across different sources.
+        """
+        base = f"{text}|{idx}"
+        return f"sha1:{sha1_bytes(base.encode('utf-8'))}"
