@@ -1,5 +1,5 @@
-from summarizer import Summarizer
-from context_builder import ContextMetadata, ContextRecord
+from .summarizer import Summarizer
+from .context_builder import ContextMetadata, ContextRecord
 from config import settings
 
 from typing import List, Sequence

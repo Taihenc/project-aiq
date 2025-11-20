@@ -48,7 +48,55 @@ class ContextBuilder:
     def build(self, page_contents: list) -> list:
         """Deprecated alias for build_contexts. Use build_contexts instead."""
         return self.text_filter_selection(page_contents) + self.picture_filter_selection(page_contents) + self.table_filter_selection(page_contents)
-    
+
+    def safe_get(self, data, *keys, default=None, pnt=False):
+        """
+        Safely access nested dict keys.
+        Returns `default` if any key is missing.
+        """
+        for k in keys:
+            if not isinstance(data, dict):
+                return default
+            data = data.get(k, default)
+        return data
+
+
+    def safe_get(self, data, *keys, default=None, pnt=False):
+        """
+        Safely access nested dict keys.
+        Returns `default` if any key is missing.
+        """
+        for k in keys:
+            if not isinstance(data, dict):
+                return default
+            data = data.get(k, default)
+        return data
+
+
+    def safe_get(self, data, *keys, default=None, pnt=False):
+        """
+        Safely access nested dict keys.
+        Returns `default` if any key is missing.
+        """
+        for k in keys:
+            if not isinstance(data, dict):
+                return default
+            data = data.get(k, default)
+        return data
+
+
+    def safe_get(self, data, *keys, default=None, pnt=False):
+        """
+        Safely access nested dict keys.
+        Returns `default` if any key is missing.
+        """
+        for k in keys:
+            if not isinstance(data, dict):
+                return default
+            data = data.get(k, default)
+        return data
+
+
     def safe_get(self, data, *keys, default=None, pnt=False):
         """
         Safely access nested dict keys.
@@ -107,7 +155,7 @@ class ContextBuilder:
 
         return contexts
 
-    
+
     def picture_filter_selection(self, page_contents: Any) -> List[ContextRecord]:
         pictures = page_contents.get("pictures", [])
         contexts: List[ContextRecord] = []

@@ -34,28 +34,16 @@ class IngestionWorker:
         try:
             result = self.extractor.convert(file_path)
             # print(doc_dict)
-
-            elements = []
-            if "texts" in result:
-                for item in result["texts"]:
-                    page_no = 1
-                    if "prov" in item and item["prov"]:
-                        page_no = item["prov"][0].get("page_no", 1)
-
-                    elements.append({
-                        "text": item.get("text", ""),
-                        "page": page_no,
-                        "line": 0,  # Docling doesn't provide line numbers directly
-                        "section": None
-                    })
             # print(elements)
-            contexts = self.context_builder.build_contexts(elements, file_path)
+            contexts = self.context_builder.build(result)
 
             summarized_chunks = self.chunker.chunk(contexts)
             # self.indexer.index(summarized_chunks)
             print(f"Successfully ingested and indexed file: {file_path}")
 
-            res = await self.upload(summarized_chunks)
+            res = await self.upload.upload(summarized_chunks)
+            print(f"Uploaded {len(summarized_chunks)} chunks for file: {file_path}")
+            print(f"Upload response: {res}")
             return res
 
         except Exception as e:
@@ -80,7 +68,7 @@ class IngestionWorker:
 
     def _download_and_process(self, file_id: str):
         fss_url = os.getenv("FILE_STORAGE_URL",
-                            "http://file-storage-service:8003")
+                            "http://127.0.0.1:8007")
         try:
             # Get download URL
             resp = requests.get(f"{fss_url}/files/{file_id}/download")
@@ -115,7 +103,7 @@ class IngestionWorker:
 
                 print(f"Downloaded file {file_id} to {tmp_path}")
 
-                self.ingest(tmp_path)
+                asyncio.run(self.ingest(tmp_path))
                 print(f"Successfully ingested file {file_id}")
 
             finally:

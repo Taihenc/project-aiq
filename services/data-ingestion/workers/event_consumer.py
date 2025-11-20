@@ -7,7 +7,7 @@ from workers.ingestion_worker import IngestionWorker
 
 class EventConsumer:
     def __init__(self):
-        self.host = os.getenv('RABBITMQ_HOST', 'rabbitmq')
+        self.host = os.getenv('RABBITMQ_HOST', 'localhost')
         self.queue_name = 'ingestion_queue'
         self.exchange_name = 'file_events_topic'
         self.ingestion_worker = IngestionWorker()

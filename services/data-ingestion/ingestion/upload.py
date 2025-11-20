@@ -1,4 +1,4 @@
-from context_builder import ContextMetadata, ContextRecord
+from .context_builder import ContextMetadata, ContextRecord
 
 import requests
 from config import settings
@@ -23,7 +23,7 @@ class Upload:
         payload = {
             "documents": documents
         }
-        
+
         res = requests.post(self.API_URL, json=payload)
         res.raise_for_status()
 
