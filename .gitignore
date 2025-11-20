@@ -72,4 +72,4 @@ wheels/
 *.db
 
 # Data Ingestion Service
-services/data-ingestion/upload-files/
+services/data-ingestion/uploaded-files/

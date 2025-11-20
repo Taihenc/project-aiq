@@ -2,8 +2,15 @@ from fastapi import FastAPI, UploadFile, File
 import os
 import uvicorn
 
+from workers.ingestion_worker import IngestionWorker
+from config import settings
+
 app = FastAPI(title="Data Ingestion Service", version="1.0.0")
 
+UPLOAD_DIR = settings.upload_dir
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+ingestion_workder = IngestionWorker()
 
 @app.get("/")
 async def root():
@@ -17,7 +24,15 @@ async def health_check():
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
-    return {"message": "Document uploaded successfully"}
+
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+
+    response = await ingestion_workder.ingest(file_path=file_path)
+
+    return response
 
 
 if __name__ == "__main__":

@@ -32,11 +32,14 @@ class IngestionWorker:
     async def ingest(self, file_path: str):
         print(f"Starting ingestion for file: {file_path}")
         try:
+            print(f"Extractor...")
             result = self.extractor.convert(file_path)
             # print(doc_dict)
             # print(elements)
+            print(f"Context Builder...")
             contexts = self.context_builder.build(result)
 
+            print(f"Chunker...")
             summarized_chunks = self.chunker.chunk(contexts)
             # self.indexer.index(summarized_chunks)
             print(f"Successfully ingested and indexed file: {file_path}")
