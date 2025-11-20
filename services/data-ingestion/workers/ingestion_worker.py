@@ -29,7 +29,7 @@ class IngestionWorker:
         self.indexer = indexer.Indexer()
         self.upload = upload.Upload()
 
-    async def ingest(self, file_path: str):
+    async def ingest(self, file_path: str, chunking: bool = True, qdrant_upload: bool = True):
         print(f"Starting ingestion for file: {file_path}")
         try:
             print(f"Extractor...")
@@ -39,10 +39,16 @@ class IngestionWorker:
             print(f"Context Builder...")
             contexts = self.context_builder.build(result)
 
+            if not chunking:
+                return contexts
+            
             print(f"Chunker...")
             summarized_chunks = self.chunker.chunk(contexts)
             # self.indexer.index(summarized_chunks)
             print(f"Successfully ingested and indexed file: {file_path}")
+
+            if not qdrant_upload:
+                return summarized_chunks
 
             res = await self.upload.upload(summarized_chunks)
             print(f"Uploaded {len(summarized_chunks)} chunks for file: {file_path}")

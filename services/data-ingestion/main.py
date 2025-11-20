@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 import os
 import uvicorn
+from typing import Optional
 
 from workers.ingestion_worker import IngestionWorker
 from config import settings
@@ -23,14 +24,14 @@ async def health_check():
 
 
 @app.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(file: UploadFile = File(...), chunking: bool = True, qdrant_upload: bool = True):
 
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
-    response = await ingestion_workder.ingest(file_path=file_path)
+    response = await ingestion_workder.ingest(file_path=file_path, chunking=chunking, qdrant_upload=qdrant_upload)
 
     return response
 
