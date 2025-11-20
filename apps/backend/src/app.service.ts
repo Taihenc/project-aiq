@@ -132,12 +132,18 @@ export class AppService {
       let language = 'en';
 
       try {
-        const parsedRaw = JSON.parse(data.json_dict);
-        if (parsedRaw.response) {
-          response = parsedRaw.response;
-          response_type = parsedRaw.response_type || 'DIRECT';
-          sources_used = parsedRaw.sources_used || [];
-          language = parsedRaw.language || 'en';
+        let parsedRaw = data.json_dict;
+        if (typeof data.json_dict === 'string') {
+          parsedRaw = JSON.parse(data.json_dict);
+        }
+
+        if (parsedRaw && typeof parsedRaw === 'object') {
+          if (parsedRaw.response) {
+            response = parsedRaw.response;
+            response_type = parsedRaw.response_type || 'DIRECT';
+            sources_used = parsedRaw.sources_used || [];
+            language = parsedRaw.language || 'en';
+          }
         }
       } catch (e) {
         // It's not a JSON string, so we use it as is.
