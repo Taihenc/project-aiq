@@ -1,8 +1,25 @@
-from ingestion.file_reader import FileReader
+# test.py
+from file_reader import FileReader
+from extract_docling import DoclingExtractor
+from pprint import pprint
+def main():
+    path = "pdf/title.pdf"   # pdf, pptx, docx, html, txt, png, jpg, etc.
 
-reader = FileReader()
-results = reader.read("/Users/t.puran.prasertthai/Documents/GitHub/AINGO/services/data-ingestion/ingestion/somat.pdf")  # ← replace with your PDF file path
+    reader = FileReader()
 
-print(f"\nExtracted {len(results)} elements.\n")
-for r in results:  # just print first few
-    print(r)
+    try:
+        info = reader.read(path)
+        print(f"[FileReader] Detected file type: {info['file_type']}")
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return
+
+    extractor = DoclingExtractor()
+    result = extractor.convert(info["path"])
+
+    data = result.document.export_to_dict()
+    # print(f"\nExtracted {len(data.get('elements', []))} elements.\n")
+    pprint(data,width=120)
+
+if __name__ == "__main__":
+    main()

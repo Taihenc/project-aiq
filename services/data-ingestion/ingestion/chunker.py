@@ -1,183 +1,96 @@
-from typing import List, Optional, TypedDict, Union
-from ingestion.context_builder import ContextRecord, ContextMetadata
+from summarizer import Summarizer
+from context_builder import ContextMetadata, ContextRecord
+from config import settings
 
-
-class ChunkedRecord(TypedDict):
-    """A chunked unit with chunk info added to metadata."""
-    id: str
-    text: str
-    metadata: ContextMetadata
+from typing import List, Sequence
 
 
 class Chunker:
-    """
-    Recursively splits text into smaller chunks with optional overlap.
-    Adds chunk metadata (chunk_index, chunk_total, chunk_size) to each record.
-    """
+    def __init__(self):
+        self.summarizer = Summarizer()
+        self.MAX_CHUNK_SIZE = settings.max_chunk_size
+        self.CHUNK_OVERLAP = settings.chunk_overlap
+        self.SPLITTERS: Sequence[str] = [
+            "\n\n",  # paragraph
+            "\n",    # line
+            ". ",    # sentence
+            " ",     # word
+        ]
 
-    def __init__(
-        self,
-        chunk_size: int = 512,
-        chunk_overlap: int = 128,
-        delimiters: Optional[List[str]] = None,
-    ):
-        """
-        Args:
-            chunk_size: Target size of each chunk in characters
-            chunk_overlap: Number of overlapping characters between chunks
-            delimiters: List of delimiters to try when splitting (in order of preference)
-        """
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
-        self.delimiters = delimiters or ["\n\n", "\n", ". ", " "]
+    def chunk(self, full_page_text: List[ContextRecord]) -> List[ContextRecord]:
+        return self._recursive_chunk(full_page_text)
 
-    def chunk(
-        self, contexts: Union[List[ContextRecord], str]
-    ) -> List[ChunkedRecord]:
-        """
-        Chunk a list of context records or a single text string.
+    def _recursive_chunk(self, full_page_text: List[ContextRecord]) -> List[ContextRecord]:
+        # First get raw chunks (no overlap)
+        base_chunks: List[ContextRecord] = []
+        for r in full_page_text:
+            base_chunks.extend(self._recursion(r))
 
-        Args:
-            contexts: Either a list of ContextRecord dicts or a single text string
+        # Add overlap between consecutive chunks
+        overlapped: List[ContextRecord] = []
 
-        Returns:
-            List of chunked records with updated metadata
-        """
-        # Handle single string input for backward compatibility
-        if isinstance(contexts, str):
-            return self._chunk_text(contexts, base_metadata={})
+        for i, rec in enumerate(base_chunks):
+            text = rec["text"]
 
-        # Process list of context records
-        chunked_records: List[ChunkedRecord] = []
-        for context in contexts:
-            text = context["text"]
-            metadata = context["metadata"]
+            # First chunk → no overlap backward
+            if i == 0:
+                overlapped.append(rec)
+                continue
 
-            text_chunks = self._chunk_text(text, base_metadata=metadata)
-            chunked_records.extend(text_chunks)
+            prev = overlapped[-1]
+            prev_text = prev["text"]
 
-        return chunked_records
+            # Compute backward overlap from previous chunk
+            overlap_text = prev_text[-self.CHUNK_OVERLAP:] if self.CHUNK_OVERLAP < len(
+                prev_text) else prev_text
 
-    def _chunk_text(
-        self, text: str, base_metadata: dict
-    ) -> List[ChunkedRecord]:
-        """
-        Recursively split a single text into chunks.
-
-        Args:
-            text: The text to chunk
-            base_metadata: Base metadata dict to attach to each chunk
-
-        Returns:
-            List of chunked records
-        """
-        if not text or len(text) <= self.chunk_size:
-            # Text fits in single chunk
-            return [
-                {
-                    "id": f"{base_metadata.get('source_id', 'unknown')}|chunk_0_0",
-                    "text": text,
-                    "metadata": {
-                        **base_metadata,
-                        "chunk_index": 0,
-                        "chunk_total": 1,
-                        "chunk_size": len(text),
-                    },
-                }
-            ]
-
-        # Split recursively using preferred delimiters
-        chunks = self._split_recursive(text, delimiter_idx=0)
-
-        # Add chunk metadata to each
-        records: List[ChunkedRecord] = []
-        for idx, chunk_text in enumerate(chunks):
-            record: ChunkedRecord = {
-                "id": f"{base_metadata.get('source_id', 'unknown')}|chunk_{idx}_{len(chunks)}",
-                "text": chunk_text,
-                "metadata": {
-                    **base_metadata,
-                    "chunk_index": idx,
-                    "chunk_total": len(chunks),
-                    "chunk_size": len(chunk_text),
-                },
+            new_text = overlap_text + text
+            new_rec = {
+                "id": f"{rec['id']}_ol",
+                "text": new_text,
+                "metadata": rec["metadata"],
             }
-            records.append(record)
 
-        return records
+            overlapped.append(new_rec)
 
-    def _split_recursive(self, text: str, delimiter_idx: int = 0) -> List[str]:
+        return overlapped
+
+    def find_split_index(self, text: str) -> int:
         """
-        Recursively split text using delimiters in order of preference.
-
-        Args:
-            text: Text to split
-            delimiter_idx: Current index in delimiters list
-
-        Returns:
-            List of text chunks
+        Return the best split index using splitters, or fallback to midpoint.
         """
-        if delimiter_idx >= len(self.delimiters):
-            # Fallback: split by fixed character count with overlap
-            return self._split_by_size(text)
+        midpoint = len(text) // 2
 
-        delimiter = self.delimiters[delimiter_idx]
-        splits = text.split(delimiter)
+        for splitter in self.SPLITTERS:
+            idx = text.rfind(splitter, 0, midpoint)
+            if idx != -1:
+                return idx + len(splitter)
 
-        # Rejoin splits until they reach target size
-        chunks = []
-        current_chunk = ""
+        return midpoint
 
-        for i, split in enumerate(splits):
-            test_chunk = (
-                current_chunk + delimiter + split
-                if current_chunk
-                else split
-            )
-
-            if len(test_chunk) <= self.chunk_size:
-                current_chunk = test_chunk
-            else:
-                # Current chunk would exceed size limit
-                if current_chunk:
-                    # Save current chunk and start new one
-                    chunks.append(current_chunk)
-                    # Apply overlap if possible
-                    if self.chunk_overlap > 0 and len(split) < self.chunk_size:
-                        overlap_text = current_chunk[-self.chunk_overlap:]
-                        current_chunk = overlap_text + delimiter + split
-                    else:
-                        current_chunk = split
-                else:
-                    # Single split is larger than chunk_size, recurse with next delimiter
-                    sub_chunks = self._split_recursive(split, delimiter_idx + 1)
-                    chunks.extend(sub_chunks)
-                    current_chunk = ""
-
-        if current_chunk:
-            chunks.append(current_chunk)
-
-        return chunks
-
-    def _split_by_size(self, text: str) -> List[str]:
+    def _recursion(self, record: ContextRecord) -> List[ContextRecord]:
         """
-        Split text by fixed character count with overlap (last resort).
-
-        Args:
-            text: Text to split
-
-        Returns:
-            List of fixed-size chunks
+        Recursively split a record until each chunk is <= MAX_CHUNK_SIZE.
         """
-        if not text:
-            return []
+        text = record["text"]
 
-        chunks = []
-        start = 0
+        if len(text) <= self.MAX_CHUNK_SIZE:
+            return [record]
 
-        while start < len(text):
-            end = min(start + self.chunk_size, len(text))
-            chunks.append(text[start:end])
-            start = end - self.chunk_overlap if self.chunk_overlap > 0 else end
+        split_idx = self.find_split_index(text)
 
-        return chunks
+        part1 = text[:split_idx].strip()
+        part2 = text[split_idx:].strip()
+
+        rec1 = {
+            "id": f"{record['id']}_a",
+            "text": part1,
+            "metadata": record["metadata"],
+        }
+        rec2 = {
+            "id": f"{record['id']}_b",
+            "text": part2,
+            "metadata": record["metadata"],
+        }
+
+        return self._recursion(rec1) + self._recursion(rec2)

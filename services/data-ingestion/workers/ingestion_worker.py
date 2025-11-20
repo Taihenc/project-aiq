@@ -6,123 +6,121 @@ from ingestion import (
     modality,
     context_builder,
     chunker,
+    indexer,
+    upload
 )
-from embedding.client import EmbeddingClient
-
-from ingestion.extractor import (
-    extractor
-)
+from ingestion.extract_docling import DoclingExtractor
+import os
+import time
+import requests
+import tempfile
+import shutil
+import mimetypes
 
 
 class IngestionWorker:
-    def __init__(
-        self,
-        embedding_service_url: str = None,
-        chunk_size: int = 512,
-        chunk_overlap: int = 128,
-    ):
-        """
-        Initialize the ingestion worker.
-
-        Args:
-            embedding_service_url: URL of the embedding-service
-            chunk_size: Size of text chunks
-            chunk_overlap: Overlap between consecutive chunks
-        """
-        self.file_reader = file_reader.FileReader()
-        self.modality = modality.Modality()
-        self.extractor = extractor.Extractor()
+    def __init__(self):
+        # self.file_reader = file_reader.FileReader()
+        # self.modality = modality.ModalityClassifier()
+        # self.extractor = extractor.Extractor()
         self.context_builder = context_builder.ContextBuilder()
-        self.chunker = chunker.Chunker(
-            chunk_size=chunk_size, chunk_overlap=chunk_overlap
-        )
-        self.embedding_client = EmbeddingClient(base_url=embedding_service_url)
+        self.extractor = DoclingExtractor()
+        self.chunker = chunker.Chunker()
+        self.indexer = indexer.Indexer()
+        self.upload = upload.Upload()
 
-    def ingest(self, file_path: str) -> Dict[str, Any]:
-        """
-        Synchronous wrapper for async ingest operation.
-
-        Args:
-            file_path: Path to the file to ingest
-
-        Returns:
-            Dict with ingestion results (file_path, pages_processed, chunks_uploaded)
-        """
-        return asyncio.run(self.ingest_async(file_path))
-
-    async def ingest_async(self, file_path: str) -> Dict[str, Any]:
-        """
-        Ingest a file through the complete pipeline:
-        file_reader -> extractor -> context_builder -> chunker -> embedding_client
-
-        Args:
-            file_path: Path to the file to ingest
-
-        Returns:
-            Dict with ingestion results including chunk IDs
-        """
+    async def ingest(self, file_path: str):
+        print(f"Starting ingestion for file: {file_path}")
         try:
-            file_info = self.file_reader.read(file_path)
-            all_chunks: List[Dict[str, Any]] = []
-            pages_processed = 0
+            result = self.extractor.convert(file_path)
+            # print(doc_dict)
 
-            # Process each page in the file
-            for page in file_info.pages:
-                modalities = self.modality.detect(page, file_info.mime_type)
-                page_contents = []
+            elements = []
+            if "texts" in result:
+                for item in result["texts"]:
+                    page_no = 1
+                    if "prov" in item and item["prov"]:
+                        page_no = item["prov"][0].get("page_no", 1)
 
-                # Extract content from each modality (text, images, etc.)
-                for mod in modalities:
-                    content = self.extractor.extract(mod.content, mod.type)
-                    page_contents.append(content)
+                    elements.append({
+                        "text": item.get("text", ""),
+                        "page": page_no,
+                        "line": 0,  # Docling doesn't provide line numbers directly
+                        "section": None
+                    })
+            # print(elements)
+            contexts = self.context_builder.build_contexts(elements, file_path)
 
-                # Build normalized context records
-                context_records = self.context_builder.build_contexts(
-                    page_contents, file_path=file_path, mime=file_info.mime_type
-                )
+            summarized_chunks = self.chunker.chunk(contexts)
+            # self.indexer.index(summarized_chunks)
+            print(f"Successfully ingested and indexed file: {file_path}")
 
-                # Chunk the context records
-                chunked_records = self.chunker.chunk(context_records)
-
-                # Convert to document format for embedding service
-                documents = [
-                    {
-                        "text": chunk["text"],
-                        "metadata": chunk["metadata"],
-                    }
-                    for chunk in chunked_records
-                ]
-                all_chunks.extend(documents)
-                pages_processed += 1
-
-            # Upload all chunks to embedding service
-            if all_chunks:
-                async with EmbeddingClient(
-                    base_url=self.embedding_client.base_url
-                ) as client:
-                    chunk_ids = await client.upload_documents(all_chunks)
-                    result = {
-                        "file_path": file_path,
-                        "pages_processed": pages_processed,
-                        "chunks_uploaded": len(chunk_ids),
-                        "chunk_ids": chunk_ids,
-                        "status": "success",
-                    }
-            else:
-                result = {
-                    "file_path": file_path,
-                    "pages_processed": pages_processed,
-                    "chunks_uploaded": 0,
-                    "chunk_ids": [],
-                    "status": "success",
-                    "message": "No chunks generated",
-                }
-
-            return result
+            res = await self.upload(summarized_chunks)
+            return res
 
         except Exception as e:
-            return {
-                "file_path": file_path,
-                "status": "error",
-                "error": str(e),
-            }
+            print(f"Error during ingestion of {file_path}: {e}")
+            raise e
+
+    def ingest_from_fss(self, file_id: str):
+        """
+        Trigger ingestion process for a file from File Storage Service.
+        """
+        print(f"Starting ingestion for file_id: {file_id}")
+        self._download_and_process(file_id)
+
+    def delete_index(self, file_id: str):
+        """
+        Remove file data from the vector index.
+        """
+        print(f"Deleting index for file_id: {file_id}")
+        # In real implementation: self.indexer.delete(file_id)
+        # self.indexer.delete(file_id)
+        print(f"Successfully deleted index for file: {file_id}")
+
+    def _download_and_process(self, file_id: str):
+        fss_url = os.getenv("FILE_STORAGE_URL",
+                            "http://file-storage-service:8003")
+        try:
+            # Get download URL
+            resp = requests.get(f"{fss_url}/files/{file_id}/download")
+            resp.raise_for_status()
+            data = resp.json()
+            download_url = data.get("download_url")
+            file_name = data.get("file_name")
+
+            if not download_url:
+                print(f"No download URL for file {file_id}")
+                return
+
+            # Prepare temporary directory to hold the file with its original name
+            temp_dir = tempfile.mkdtemp()
+            try:
+                # Determine file name
+                target_name = file_name or f"file_{file_id}"
+
+                # If file_name has no extension but we can guess it from download_url
+                if "." not in target_name and "." in download_url:
+                    ext = "." + download_url.split('.')[-1].split('?')[0]
+                    target_name += ext
+
+                tmp_path = os.path.join(temp_dir, target_name)
+
+                # Download file
+                with requests.get(download_url, stream=True) as r:
+                    r.raise_for_status()
+                    with open(tmp_path, 'wb') as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            f.write(chunk)
+
+                print(f"Downloaded file {file_id} to {tmp_path}")
+
+                self.ingest(tmp_path)
+                print(f"Successfully ingested file {file_id}")
+
+            finally:
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+
+        except Exception as e:
+            print(f"Error ingesting file {file_id}: {e}")

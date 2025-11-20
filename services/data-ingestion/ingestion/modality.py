@@ -4,6 +4,19 @@ from unstructured.partition.pdf import partition_pdf
 from ingestion.storage import StorageManager
 import base64
 
+def detect_modality(mime_type: str) -> str:
+    """
+    Simple helper to return modality string based on mime type.
+    Refactored from previous usage to support ContextBuilder.
+    """
+    if mime_type.startswith("image/"):
+        return "image"
+    if mime_type == "application/pdf":
+        return "pdf" # mixed
+    if mime_type.startswith("text/"):
+        return "text"
+    return "unknown"
+
 class ModalityClassifier:
     def __init__(self):
         self.storage = StorageManager(base_dir="ingestion/image_store")
