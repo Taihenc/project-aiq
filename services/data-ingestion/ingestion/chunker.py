@@ -102,4 +102,4 @@ class Chunker:
         Includes source_id to avoid collisions across different sources.
         """
         base = f"{text}|{idx}"
-        return f"sha1:{sha1_bytes(base.encode('utf-8'))}"
+        return f"{sha1_bytes(base.encode('utf-8'))}"

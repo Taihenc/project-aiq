@@ -183,7 +183,7 @@ class ContextBuilder:
         Includes source_id to avoid collisions across different sources.
         """
         base = f"{self.source_id}|{file_path}|{page}|{idx}"
-        return f"sha1:{sha1_bytes(base.encode('utf-8'))}"
+        return f"{sha1_bytes(base.encode('utf-8'))}"
 
     def text_filter_selection(self, page_contents: Any) -> List[ContextRecord]:
         texts = page_contents.get("texts", [])
