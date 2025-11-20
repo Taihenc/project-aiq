@@ -138,7 +138,7 @@ class ContextBuilder:
 
         for idx, table in enumerate(tables):
             raw_text = self.table_extractor(table["data"])
-            cleaned_text = clean_text(str(raw_text))
+            cleaned_text = clean_text(raw_text)
 
             if not cleaned_text:
                 continue
@@ -174,4 +174,7 @@ class ContextBuilder:
         """
             write table extractor
         """
+
+        table = str(table)
+
         return table
