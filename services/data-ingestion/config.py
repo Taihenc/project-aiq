@@ -5,6 +5,9 @@ class Settings(BaseSettings):
     # Chunking
     max_chunk_size: int = 800
     chunk_overlap: int = 120 
+
+    # Upload
+    api_url = "http://127.0.0.1:8003/v1/upload"
     
     class Config:
         env_file = ".env"
