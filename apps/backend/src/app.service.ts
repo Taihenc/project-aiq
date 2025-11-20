@@ -45,7 +45,7 @@ export class AppService {
   getDefaultCrew(): string {
     return (
       this.configService.get<string>('aiService.defaultCrew') ||
-      'document_search_crew'
+      'aiq_search_crew'
     );
   }
 
@@ -72,20 +72,37 @@ export class AppService {
       const aiEngineBaseUrl = this.getAiEngineBaseUrl();
       const crew = this.getDefaultCrew();
 
-      // Transform OpenAI format to AI Engine format
+      // Transform OpenAI format to AI Engine format (CrewRequest shape)
+      const chatHistory = chatRequest.messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      const lastUserMessage = [...chatRequest.messages]
+        .reverse()
+        .find((m) => m.role === 'user');
+
       const aiEngineRequest = {
-        messages: chatRequest.messages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
+        inputs: {
+          user_query: lastUserMessage
+            ? lastUserMessage.content
+            : chatRequest.messages.slice(-1)[0]?.content || '',
+          chat_history: chatHistory,
+          context: [],
+        },
       };
 
       const aiEngineUrl = `${aiEngineBaseUrl}/v1/completions/crews/${crew}`;
 
       return this.httpService.post<any>(aiEngineUrl, aiEngineRequest).pipe(
         map((axiosResponse: AxiosResponse<any>) => {
+          // The AI Engine response is nested under `data`
+          const aiEngineData = axiosResponse.data;
+
           // Parse the AI Engine response to handle different formats
-          const parsedResponse = this.parseAiEngineResponse(axiosResponse.data);
+          const parsedResponse = this.parseAiEngineResponse(aiEngineData.data);
+
+          console.log('[BACKEND] Parsed AI Engine response:', parsedResponse);
 
           const transformed = this.transformAiEngineToOpenAI(
             parsedResponse,
@@ -95,7 +112,7 @@ export class AppService {
         }),
       );
     } catch (error) {
-      console.error('Error in chatWithAiOpenAI:', error);
+      console.error('Error in chatWithAiEngine:', error);
       throw error;
     }
   }
@@ -107,7 +124,34 @@ export class AppService {
     sources_used: any[];
     language: string;
   } {
-    // If the response already has the expected format, return it
+    // Handle the new CompletionData format
+    if (data && data.raw !== undefined && data.tasks_output) {
+      let response = data.json_dict;
+      let response_type = 'DIRECT';
+      let sources_used: any[] = [];
+      let language = 'en';
+
+      try {
+        const parsedRaw = JSON.parse(data.json_dict);
+        if (parsedRaw.response) {
+          response = parsedRaw.response;
+          response_type = parsedRaw.response_type || 'DIRECT';
+          sources_used = parsedRaw.sources_used || [];
+          language = parsedRaw.language || 'en';
+        }
+      } catch (e) {
+        // It's not a JSON string, so we use it as is.
+      }
+
+      return {
+        response,
+        response_type,
+        sources_used,
+        language,
+      };
+    }
+
+    // Fallback for old formats
     if (data.response !== undefined && data.response_type !== undefined) {
       return {
         response: data.response,
@@ -117,12 +161,8 @@ export class AppService {
       };
     }
 
-    // If the response has a 'message' field with a stringified Pydantic model
-    // Format: response="..." or response='...' with response_type, sources_used, language
     if (data.message && typeof data.message === 'string') {
       try {
-        // Extract fields using regex - handle both single and double quotes
-        // For response field: match either "..." or '...'
         const responseMatch = data.message.match(
           /response=(["'])((?:(?!\1).|\\\1)*?)\1/,
         );
@@ -140,14 +180,12 @@ export class AppService {
           : 'DIRECT';
         const language = languageMatch ? languageMatch[2] : 'en';
 
-        // Parse sources_used array
         let sources_used: any[] = [];
         if (sourcesMatch && sourcesMatch[1]) {
           const sourcesStr = sourcesMatch[1];
-          // Extract quoted strings from the array (handle both quote types)
           const sourceMatches = sourcesStr.match(/(['"])([^'"]*)\1/g);
           if (sourceMatches) {
-            sources_used = sourceMatches.map((s) => s.slice(1, -1)); // Remove quotes
+            sources_used = sourceMatches.map((s) => s.slice(1, -1));
           }
         }
 
@@ -159,7 +197,6 @@ export class AppService {
         };
       } catch (error) {
         console.error('[BACKEND] Error parsing AI Engine message:', error);
-        // Fallback: use the entire message as response
         return {
           response: data.message,
           response_type: 'DIRECT',
@@ -169,7 +206,6 @@ export class AppService {
       }
     }
 
-    // Fallback: return a default structure
     console.warn('[BACKEND] Unknown AI Engine response format, using fallback');
     return {
       response: data.message || JSON.stringify(data),
@@ -220,7 +256,6 @@ export class AppService {
     const citations: CitationDto[] | undefined =
       aiEngineResponse.sources_used && aiEngineResponse.sources_used.length > 0
         ? aiEngineResponse.sources_used.map((source: any, index: number) => {
-            // If source is a string (source name), create a simple citation object
             if (typeof source === 'string') {
               return {
                 id: `citation-${index}`,
@@ -229,7 +264,6 @@ export class AppService {
                 content: '',
               };
             }
-            // If source is an object, use its properties
             return {
               id: source.id || `citation-${index}`,
               title: source.title || source.name || `Source ${index + 1}`,

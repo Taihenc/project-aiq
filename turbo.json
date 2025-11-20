@@ -32,6 +32,10 @@
             "dependsOn": [
                 "build"
             ]
+        },
+        "clean": {
+            "cache": false,
+            "outputs": []
         }
     }
 }

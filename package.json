@@ -20,7 +20,8 @@
     "start:data-ingestion": "turbo run start --filter=data-ingestion",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "prepare": "husky"
+    "prepare": "husky",
+    "clean": "turbo run clean"
   },
   "keywords": [],
   "author": "",
