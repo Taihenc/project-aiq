@@ -43,7 +43,7 @@ class IngestionWorker:
 
             res = await self.upload.upload(summarized_chunks)
             print(f"Uploaded {len(summarized_chunks)} chunks for file: {file_path}")
-            print(f"Upload response: {res}")
+            # print(f"Upload response: {res}")
             return res
 
         except Exception as e:
