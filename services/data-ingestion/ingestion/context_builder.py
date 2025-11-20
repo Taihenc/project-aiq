@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional, TypedDict
+from typing import List, Optional, TypedDict, Dict, Any
 from uuid import uuid4
 
 from ingestion.modality import detect_modality
@@ -17,16 +17,16 @@ class ExtractedElement(TypedDict, total=False):
 
 
 class ContextMetadata(TypedDict, total=False):
-    file: str
-    page: int
-    line: int
-    section: Optional[str]
-    mime: str
-    modality: str
-    source_id: str
-    checksum: str
-    created_at: str
-
+    file: str # have
+    page: int # have
+    section: Optional[str] # dont know !!
+    mime: str # have
+    modality: str # have (text, picture, table)
+    source_id: str # dont know !! // file path ... url where file from?
+    checksum: str # calculated
+    created_at: str # calculated
+    parent: str # have
+    children: List[str] # have
 
 class ContextRecord(TypedDict):
     id: str
@@ -45,64 +45,133 @@ class ContextBuilder:
 
     def build(self, page_contents: list) -> list:
         """Deprecated alias for build_contexts. Use build_contexts instead."""
-        return self.build_contexts(page_contents)
+        return self.text_filter_selection(page_contents) + self.picture_filter_selection(page_contents) + self.table_filter_selection(page_contents)
 
-    def build_contexts(
-        self,
-        elements: List[ExtractedElement],
-        file_path: str,
-        mime: Optional[str] = None,
-    ) -> List[ContextRecord]:
-        """
-        Convert a list of extracted elements into standardized contexts.
-
-        Args:
-            elements: List of extracted elements with text, page, section, line info
-            file_path: Path to the source file
-            mime: Optional MIME type; detected if not provided
-
-        Returns:
-            List of normalized context records ready for chunking
-        """
-        resolved_mime = mime or detect_mime(file_path)
-        modality = detect_modality(resolved_mime)
-
-        contexts: List[ContextRecord] = []
-        for idx, el in enumerate(elements):
-            raw_text = el.get("text", "") or ""
-            cleaned = clean_text(raw_text)
-            if not cleaned:
-                continue
-
-            page = int(el.get("page", 1) or 1)
-            line = int(el.get("line", 0) or 0)
-            section = el.get("section")
-
-            metadata: ContextMetadata = {
-                "file": file_path,
-                "page": page,
-                "line": line,
-                "section": section,
-                "mime": resolved_mime,
-                "modality": modality,
-                "source_id": self.source_id,
-                "checksum": sha1_bytes(cleaned.encode("utf-8")),
-                "created_at": utc_now_iso(),
-            }
-
-            record: ContextRecord = {
-                "id": self._generate_id(file_path=file_path, page=page, line=line, idx=idx),
-                "text": cleaned,
-                "metadata": metadata,
-            }
-            contexts.append(record)
-
-        return contexts
-
-    def _generate_id(self, *, file_path: str, page: int, line: int, idx: int) -> str:
+    def _generate_id(self, *, file_path: str, page: int, idx: int) -> str:
         """
         Deterministic ID so re-ingesting the same source produces the same ID.
         Includes source_id to avoid collisions across different sources.
         """
-        base = f"{self.source_id}|{file_path}|{page}|{line}|{idx}"
+        base = f"{self.source_id}|{file_path}|{page}|{idx}"
         return f"sha1:{sha1_bytes(base.encode('utf-8'))}"
+
+    def text_filter_selection(self, page_contents: Any) -> List[ContextRecord]:
+        texts = page_contents["texts"]
+
+        contexts: List[ContextRecord] = []
+
+        for idx, text in enumerate(texts):
+            raw_text = text["text"] or ""
+            cleaned_text = clean_text(raw_text)
+
+            if not cleaned_text:
+                continue
+
+            file = page_contents["origin"]["filename"]
+            page = text["prov"][0]["page_no"]
+
+            metadata: ContextMetadata = {
+                "file": file,
+                "page": page,
+                "section": text["label"],
+                "mime": page_contents["origin"]["mimetype"],
+                "modality": "text",
+                "source_id": self.source_id,
+                "checksum": sha1_bytes(cleaned_text.encode("utf-8")),
+                "created_at": utc_now_iso(),
+                "parent": "",
+                "children": [],
+            }
+
+            record: ContextRecord = {
+                "id": self._generate_id(file_path=file, page=page, idx=idx),
+                "text": cleaned_text,
+                "metadata": metadata,
+            }
+
+            contexts.append(record)
+
+        return contexts
+    
+    def picture_filter_selection(self, page_contents: Any) -> List[ContextRecord]:
+        pictures = page_contents["pictures"]
+
+        contexts: List[ContextRecord] = []
+
+        for idx, pic in enumerate(pictures):
+            raw_text = "".join([annotation["text"] for annotation in pic.get("annotations", [])])
+            cleaned_text = clean_text(raw_text)
+
+            if not cleaned_text:
+                continue
+
+            file = page_contents["origin"]["filename"]
+            page = pic["prov"][0]["page_no"]
+
+            metadata: ContextMetadata = {
+                "file": file,
+                "page": page,
+                "section": pic["label"],
+                "mime": page_contents["origin"]["mimetype"],
+                "modality": "picture",
+                "source_id": self.source_id,
+                "checksum": sha1_bytes(cleaned_text.encode("utf-8")),
+                "created_at": utc_now_iso(),
+                "parent": "",
+                "children": [],
+            }
+
+            record: ContextRecord = {
+                "id": self._generate_id(file_path=file, page=page, idx=idx),
+                "text": cleaned_text,
+                "metadata": metadata,
+            }
+
+            contexts.append(record)
+
+        return contexts
+
+    def table_filter_selection(self, page_contents: Any) -> List[ContextRecord]:
+        tables = page_contents["tables"]
+
+        contexts: List[ContextRecord] = []
+
+        for idx, table in enumerate(tables):
+            raw_text = self.table_extractor(table["data"])
+            cleaned_text = clean_text(str(raw_text))
+
+            if not cleaned_text:
+                continue
+
+            file = page_contents["origin"]["filename"]
+            page = table["prov"][0]["page_no"]
+
+            metadata: ContextMetadata = {
+                "file": file,
+                "page": page,
+                "section": table["label"],
+                "mime": page_contents["origin"]["mimetype"],
+                "modality": "picture",
+                "source_id": self.source_id,
+                "checksum": sha1_bytes(cleaned_text.encode("utf-8")),
+                "created_at": utc_now_iso(),
+                "parent": "",
+                "children": [],
+            }
+
+            record: ContextRecord = {
+                "id": self._generate_id(file_path=file, page=page, idx=idx),
+                "text": cleaned_text,
+                "metadata": metadata,
+            }
+
+            contexts.append(record)
+
+        return contexts
+
+
+    def table_extractor(self, table) -> str:
+        """
+            write table extractor
+        """
+        return table
