@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional, TypedDict, Dict, Any
 from uuid import uuid4
+import re
 
 from ingestion.modality import detect_modality
 from ingestion.file_reader import detect_mime
@@ -37,6 +38,7 @@ class ContextRecord(TypedDict):
 __all__ = ["ContextBuilder", "ContextRecord", "ExtractedElement"]
 
 
+
 class ContextBuilder:
     """Builds structured context objects from extracted text blocks or pages."""
 
@@ -46,6 +48,18 @@ class ContextBuilder:
     def build(self, page_contents: list) -> list:
         """Deprecated alias for build_contexts. Use build_contexts instead."""
         return self.text_filter_selection(page_contents) + self.picture_filter_selection(page_contents) + self.table_filter_selection(page_contents)
+    
+    def safe_get(self, data, *keys, default=None, pnt=False):
+        """
+        Safely access nested dict keys.
+        Returns `default` if any key is missing.
+        """
+        for k in keys:
+            if not isinstance(data, dict):
+                return default
+            data = data.get(k, default)
+        return data
+
 
     def _generate_id(self, *, file_path: str, page: int, idx: int) -> str:
         """
@@ -56,25 +70,25 @@ class ContextBuilder:
         return f"sha1:{sha1_bytes(base.encode('utf-8'))}"
 
     def text_filter_selection(self, page_contents: Any) -> List[ContextRecord]:
-        texts = page_contents["texts"]
-
+        texts = page_contents.get("texts", [])
         contexts: List[ContextRecord] = []
 
         for idx, text in enumerate(texts):
-            raw_text = text["text"] or ""
+            raw_text = text.get("text", "") or ""
             cleaned_text = clean_text(raw_text)
 
             if not cleaned_text:
                 continue
 
-            file = page_contents["origin"]["filename"]
-            page = text["prov"][0]["page_no"]
+            file = self.safe_get(page_contents, "origin", "filename", default="")
+            page = self.safe_get(text, "prov", 0, "page_no", default=0)
+            label = text.get("label", "")
 
             metadata: ContextMetadata = {
                 "file": file,
                 "page": page,
-                "section": text["label"],
-                "mime": page_contents["origin"]["mimetype"],
+                "section": label,
+                "mime": self.safe_get(page_contents, "origin", "mimetype", default=""),
                 "modality": "text",
                 "source_id": self.source_id,
                 "checksum": sha1_bytes(cleaned_text.encode("utf-8")),
@@ -92,27 +106,29 @@ class ContextBuilder:
             contexts.append(record)
 
         return contexts
+
     
     def picture_filter_selection(self, page_contents: Any) -> List[ContextRecord]:
-        pictures = page_contents["pictures"]
-
+        pictures = page_contents.get("pictures", [])
         contexts: List[ContextRecord] = []
 
         for idx, pic in enumerate(pictures):
-            raw_text = "".join([annotation["text"] for annotation in pic.get("annotations", [])])
+            annotations = pic.get("annotations", [])
+            raw_text = "".join([a.get("text", "") for a in annotations])
             cleaned_text = clean_text(raw_text)
 
             if not cleaned_text:
                 continue
 
-            file = page_contents["origin"]["filename"]
-            page = pic["prov"][0]["page_no"]
+            file = self.safe_get(page_contents, "origin", "filename", default="")
+            page = self.safe_get(pic, "prov", 0, "page_no", default=0)
+            label = pic.get("label", "")
 
             metadata: ContextMetadata = {
                 "file": file,
                 "page": page,
-                "section": pic["label"],
-                "mime": page_contents["origin"]["mimetype"],
+                "section": label,
+                "mime": self.safe_get(page_contents, "origin", "mimetype", default=""),
                 "modality": "picture",
                 "source_id": self.source_id,
                 "checksum": sha1_bytes(cleaned_text.encode("utf-8")),
@@ -131,27 +147,29 @@ class ContextBuilder:
 
         return contexts
 
-    def table_filter_selection(self, page_contents: Any) -> List[ContextRecord]:
-        tables = page_contents["tables"]
 
+    def table_filter_selection(self, page_contents: Any) -> List[ContextRecord]:
+        tables = page_contents.get("tables", [])
         contexts: List[ContextRecord] = []
 
         for idx, table in enumerate(tables):
-            raw_text = self.table_extractor(table["data"])
+            desc_text = self.safe_get(table, "meta", "description", "text", default="")
+            raw_text = self.table_extractor(desc_text)
             cleaned_text = clean_text(raw_text)
 
             if not cleaned_text:
                 continue
 
-            file = page_contents["origin"]["filename"]
-            page = table["prov"][0]["page_no"]
+            file = self.safe_get(page_contents, "origin", "filename", default="")
+            page = self.safe_get(table, "prov", 0, "page_no", default=0)
+            label = table.get("label", "")
 
             metadata: ContextMetadata = {
                 "file": file,
                 "page": page,
-                "section": table["label"],
-                "mime": page_contents["origin"]["mimetype"],
-                "modality": "picture",
+                "section": label,
+                "mime": self.safe_get(page_contents, "origin", "mimetype", default=""),
+                "modality": "table",
                 "source_id": self.source_id,
                 "checksum": sha1_bytes(cleaned_text.encode("utf-8")),
                 "created_at": utc_now_iso(),
@@ -170,11 +188,22 @@ class ContextBuilder:
         return contexts
 
 
-    def table_extractor(self, table) -> str:
-        """
-            write table extractor
-        """
+    def table_extractor(self, raw: str) -> str:
+        if not raw:
+            return ""
 
-        table = str(table)
+        text = raw
 
-        return table
+        # 1. Remove all <...> tags
+        text = re.sub(r"<[^>]+>", " ", text)
+
+        # 2. Replace newlines inside quotes or weird breaks
+        text = text.replace("\\n", " ").replace("\n", " ")
+
+        # 3. Fix hyphenated splits like "spa- tial" -> "spatial"
+        text = re.sub(r"(\w+)-\s+(\w+)", r"\1\2", text)
+
+        # 4. Remove extra spaces
+        text = re.sub(r"\s+", " ", text).strip()
+
+        return text
