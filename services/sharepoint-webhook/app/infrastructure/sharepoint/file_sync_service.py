@@ -24,8 +24,8 @@ class FileSyncService:
         self.sync_dir.mkdir(parents=True, exist_ok=True)
         self._file_id_map: dict[str, Path] = {}
         logger.info("Local sync directory: %s", self.sync_dir.absolute())
-        
-        self.file_storage_url = os.getenv("FILE_STORAGE_URL", "http://file-storage-service:8003")
+
+        self.file_storage_url = os.getenv("FILE_STORAGE_URL", "http://127.0.0.1:8007")
         logger.info("File Storage Service URL: %s", self.file_storage_url)
 
     def sync_changes(self, changes: list[dict], drive_id: str) -> None:
@@ -35,13 +35,13 @@ class FileSyncService:
         logger.info("Processing %s changes...", len(changes))
         for item in changes:
             name = item.get("name", "Unknown")
-            
+
             if "deleted" in item:
                 item_id = item.get("id", "")
                 logger.info("Processing deleted item: %s (ID: %s)", name, item_id)
                 self._delegate_delete(item_id, name)
                 continue
-            
+
             if "file" in item:
                 size = item.get("size", 0)
                 if size > 0:
@@ -58,7 +58,7 @@ class FileSyncService:
             return False
 
         source_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/content"
-        
+
         payload = {
             "source_url": source_url,
             "source_headers": {"Authorization": f"Bearer {token}"},
@@ -87,7 +87,7 @@ class FileSyncService:
             elif response.status_code == 404:
                 logger.info("Delegated deletion for %s: NOT FOUND (Already deleted?)", file_name)
                 return True
-            
+
             logger.warning("Failed to delegate deletion for %s: HTTP %s", file_name, response.status_code)
         except Exception as exc:
             logger.error("Error delegating deletion for %s: %s", file_name, exc)
