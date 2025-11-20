@@ -65,7 +65,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - RABBITMQ_HOST=rabbitmq
-      - FILE_STORAGE_URL=http://file-storage-service:8003
+      - FILE_STORAGE_URL=http://file-storage-service:8007
     command: uvicorn main:app --host 0.0.0.0 --port 8002
     depends_on:
       - rabbitmq
@@ -83,7 +83,7 @@ services:
       - ./turbo.json:/app/turbo.json
     environment:
       - PYTHONUNBUFFERED=1
-      - FILE_STORAGE_URL=http://file-storage-service:8003
+      - FILE_STORAGE_URL=http://file-storage-service:8007
     env_file:
       - ./services/sharepoint-webhook/.env
     command: python main.py
@@ -97,7 +97,7 @@ services:
       context: .
       dockerfile: services/file-storage-service/Dockerfile
     ports:
-      - '8003:8003'
+      - '8007:8007'
     volumes:
       - ./services/file-storage-service:/app/services/file-storage-service
       - ./turbo.json:/app/turbo.json
@@ -108,7 +108,7 @@ services:
       - S3_SECRET_KEY=minioadmin
       - S3_BUCKET=ingestion-bucket
       - RABBITMQ_HOST=rabbitmq
-    command: uvicorn main:app --host 0.0.0.0 --port 8003
+    command: uvicorn main:app --host 0.0.0.0 --port 8007
     depends_on:
       - minio
       - rabbitmq
@@ -118,8 +118,8 @@ services:
   minio:
     image: minio/minio
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
@@ -130,11 +130,23 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - '5672:5672'
+      - '15672:15672'
+    networks:
+      - aingo-net
+
+  qdrant:
+    image: qdrant/qdrant
+    ports:
+      - '6333:6333'
+    volumes:
+      - qdrant_data:/qdrant/storage
     networks:
       - aingo-net
 
 networks:
   aingo-net:
     driver: bridge
+
+volumes:
+  qdrant_data:

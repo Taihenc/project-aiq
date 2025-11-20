@@ -215,6 +215,10 @@ importers:
 
   services/embedding-service: {}
 
+  services/file-storage-service: {}
+
+  services/sharepoint-webhook: {}
+
 packages:
 
   /@alloc/quick-lru@5.2.0:
