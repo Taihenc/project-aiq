@@ -5,6 +5,7 @@ from ingestion import (
     context_builder,
     chunker,
     indexer,
+    upload
 )
 from ingestion.extract_docling import DoclingExtractor
 import os
@@ -23,8 +24,9 @@ class IngestionWorker:
         self.extractor = DoclingExtractor()
         self.chunker = chunker.Chunker()
         self.indexer = indexer.Indexer()
+        self.upload = upload.Upload()
 
-    def ingest(self, file_path: str):
+    async def ingest(self, file_path: str):
         print(f"Starting ingestion for file: {file_path}")
         try:
             result = self.extractor.convert(file_path)
@@ -47,8 +49,11 @@ class IngestionWorker:
             contexts = self.context_builder.build_contexts(elements, file_path)
 
             summarized_chunks = self.chunker.chunk(contexts)
-            self.indexer.index(summarized_chunks)
+            # self.indexer.index(summarized_chunks)
             print(f"Successfully ingested and indexed file: {file_path}")
+
+            res = await self.upload(summarized_chunks)
+            return res
 
         except Exception as e:
             print(f"Error during ingestion of {file_path}: {e}")
