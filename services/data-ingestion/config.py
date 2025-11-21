@@ -3,8 +3,8 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Chunking
-    max_chunk_size: int = 800
-    chunk_overlap: int = 120
+    max_chunk_size: int = 1600
+    chunk_overlap: int = 250
 
     # Upload
     api_url: str = "http://127.0.0.1:8003/v1/upload"

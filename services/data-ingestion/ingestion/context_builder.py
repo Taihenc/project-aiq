@@ -49,12 +49,17 @@ class ContextBuilder:
         self.table_contents: List[ContextRecord] = []
         self.roots: List[str] = []
 
-    def build(self, page_contents: list) -> List[ContextRecord]:
+    ## temp merge config
+    def build(self, page_contents: list, merge: bool = True) -> List[ContextRecord]:
         """Deprecated alias for build_contexts. Use build_contexts instead."""
         self.text_contents = self.text_filter_selection(page_contents)
         self.picture_contents = self.picture_filter_selection(page_contents)
         self.table_contents = self.table_filter_selection(page_contents)
-        return self.merge_contents()
+        
+        if merge:
+            return self.merge_contents()
+        else:
+            return self.text_contents + self.picture_contents + self.table_contents
 
 
     def format_reference(self, raw: str) -> str:
@@ -111,7 +116,7 @@ class ContextBuilder:
         return merge_contents
 
     def pre_order_merge(self, content: ContextRecord, text, contents: Dict[str, ContextRecord]):
-        text.append(content["text"])
+        text.append(content["text"] + "\n")
 
         for child in content["metadata"]["children"]:
             self.pre_order_merge(contents[child], text, contents)
