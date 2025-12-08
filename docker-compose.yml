@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     ports:
-      - '3000:3000'
+      - "3000:3000"
     volumes:
       - ./apps/backend:/app/apps/backend
       - ./package.json:/app/package.json
@@ -14,7 +14,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - AI_SERVICE_URL=http://ai:8000/chat
+      - AI_ENGINE_BASE_URL=http://ai:8000
     command: pnpm start
     networks:
       - aingo-net
@@ -24,28 +24,30 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     ports:
-      - '8501:8501'
+      - "3001:3001"
     volumes:
       - ./apps/web:/app/apps/web
+      - ./package.json:/app/package.json
+      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
       - ./turbo.json:/app/turbo.json
     environment:
-      - PYTHONUNBUFFERED=1
-      - BACKEND_URL=http://backend:3000/chat
-    command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+      - NODE_ENV=development
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:3000
+    command: pnpm dev
     depends_on:
       - backend
-      - ai
     networks:
       - aingo-net
 
   ai:
     build:
       context: .
-      dockerfile: services/ai/Dockerfile
+      dockerfile: services/ai-engine/Dockerfile
     ports:
-      - '8000:8000'
+      - "8000:8000"
     volumes:
-      - ./services/ai:/app/services/ai
+      - ./services/ai-engine:/app/services/ai-engine
       - ./turbo.json:/app/turbo.json
     environment:
       - PYTHONUNBUFFERED=1
@@ -58,7 +60,7 @@ services:
       context: .
       dockerfile: services/data-ingestion/Dockerfile
     ports:
-      - '8002:8002'
+      - "8002:8002"
     volumes:
       - ./services/data-ingestion:/app/services/data-ingestion
       - ./turbo.json:/app/turbo.json
@@ -77,7 +79,7 @@ services:
       context: .
       dockerfile: services/sharepoint-webhook/Dockerfile
     ports:
-      - '8004:8004'
+      - "8004:8004"
     volumes:
       - ./services/sharepoint-webhook:/app/services/sharepoint-webhook
       - ./turbo.json:/app/turbo.json
@@ -97,7 +99,7 @@ services:
       context: .
       dockerfile: services/file-storage-service/Dockerfile
     ports:
-      - '8007:8007'
+      - "8007:8007"
     volumes:
       - ./services/file-storage-service:/app/services/file-storage-service
       - ./turbo.json:/app/turbo.json
@@ -118,8 +120,8 @@ services:
   minio:
     image: minio/minio
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - "9000:9000"
+      - "9001:9001"
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
@@ -130,15 +132,15 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - aingo-net
 
   qdrant:
     image: qdrant/qdrant
     ports:
-      - '6333:6333'
+      - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
