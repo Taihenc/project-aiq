@@ -68,9 +68,30 @@ services:
       - PYTHONUNBUFFERED=1
       - RABBITMQ_HOST=rabbitmq
       - FILE_STORAGE_URL=http://file-storage-service:8007
+      - API_URL=http://embedding-service:8003/upload
     command: uvicorn main:app --host 0.0.0.0 --port 8002
     depends_on:
       - rabbitmq
+      - embedding-service
+    networks:
+      - aingo-net
+
+  embedding-service:
+    build:
+      context: .
+      dockerfile: services/embedding-service/Dockerfile
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./services/embedding-service:/app/services/embedding-service
+      - ./turbo.json:/app/turbo.json
+    environment:
+      - PYTHONUNBUFFERED=1
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+    command: uvicorn main:app --host 0.0.0.0 --port 8003
+    depends_on:
+      - qdrant
     networks:
       - aingo-net
 
