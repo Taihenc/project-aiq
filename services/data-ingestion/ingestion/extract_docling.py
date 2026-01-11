@@ -5,6 +5,7 @@ from docling.datamodel.base_models import *
 from docling.chunking import HybridChunker
 from docling_core.types.doc import *
 from chunker import *
+from context_builder import *
 from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 from pathlib import Path
 from pprint import pprint
@@ -121,7 +122,9 @@ if __name__ == "__main__":
     source = "/Users/t.puran.prasertthai/Documents/GitHub/AINGO/services/data-ingestion/ingestion/somat_23.pdf"
     result = extractor.convert(source)
     a = Chunker().chunk(result)
-    pprint(a,width=120)
+    builder = ContextBuilder() 
+    b = builder.build(a,source)
+    pprint(b,width=120)
     # for i in result:
     #      pprint(i)
     # pprint(result,width=120)

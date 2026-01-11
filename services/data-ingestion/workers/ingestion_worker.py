@@ -45,7 +45,7 @@ class IngestionWorker:
                 return summarized_chunks
             
             print(f"Context Builder...")
-            contexts = self.context_builder.build(summarized_chunks, merge=merge)
+            contexts = self.context_builder.build(summarized_chunks, file_path)
             if not qdrant_upload:
                 return contexts
             
