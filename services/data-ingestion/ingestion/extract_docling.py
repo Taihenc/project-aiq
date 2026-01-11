@@ -2,7 +2,9 @@
 from docling.document_converter import *
 from docling.datamodel.pipeline_options import *
 from docling.datamodel.base_models import *
+from docling.chunking import HybridChunker
 from docling_core.types.doc import *
+from chunker import *
 from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 from pathlib import Path
 from pprint import pprint
@@ -14,15 +16,15 @@ class DoclingExtractor:
         pdf_pipeline_options.do_ocr = True
         pdf_pipeline_options.do_table_structure = True
         pdf_pipeline_options.allow_external_plugins = True
-        pdf_pipeline_options.do_picture_description = False
+        pdf_pipeline_options.do_picture_description = False # AI VISION ON/OFF
         table_options = TableStructureOptions()
         table_options.do_cell_matching = True
         pdf_pipeline_options.table_structure_options = table_options
         pdf_pipeline_options.picture_description_options = (
-            granite_picture_description  # <-- the model choice
+            smolvlm_picture_description  # <-- the model choice
         )
         pdf_pipeline_options.picture_description_options.prompt = (
-            "Describe the image in three sentences. Be consise and accurate."
+            "give description in 5 words"
         )
         pdf_pipeline_options.accelerator_options = AcceleratorOptions(
             num_threads=8,               # or 8 if your CPU is 8-core
@@ -58,30 +60,30 @@ class DoclingExtractor:
             }
         )
     def post_process_tables(self, result):
-        doc = result.document
-        if not hasattr(doc, "tables"):
-            return result  # No tables detected
+        # doc = result.document
+        # if not hasattr(doc, "tables"):
+        #     return result  # No tables detected
 
-        for table in doc.tables:
-            try:
-                html = table.export_to_html(doc=doc)
+        # for table in doc.tables:
+        #     try:
+        #         html = table.export_to_html(doc=doc)
 
-                # Ensure meta exists
-                if table.meta is None:
-                    table.meta = FloatingMeta()
+        #         # Ensure meta exists
+        #         if table.meta is None:
+        #             table.meta = FloatingMeta()
 
-                # Add custom HTML description
-                table.meta.description = DescriptionMetaField(text=html)
+        #         # Add custom HTML description
+        #         table.meta.description = DescriptionMetaField(text=html)
 
-            except Exception as e:
-                print(f"[DoclingExtractor] Failed to annotate table: {e}")
+        #     except Exception as e:
+        #         print(f"[DoclingExtractor] Failed to annotate table: {e}")
 
         return result
-
+        # for context builder dont need to build its own table builder 
     # --------------------------------------------------------
     # Conversion wrapper
     # --------------------------------------------------------
-    def convert(self, file_path: str,export: str = "dict"):
+    def convert(self, file_path: str,export: str = "raw"):
         """Convert file and run table post-processing."""
         file_path = Path(file_path)
         if not file_path.exists():
@@ -90,12 +92,16 @@ class DoclingExtractor:
         result = self.converter.convert(str(file_path))
         result = self.post_process_tables(result).document
             # ---- choose output format ----
-        if export == "dict":
+        if export == "raw":
+            return result
+        elif export == "dict":
             return result.export_to_dict()
         elif export == "markdown":
             return result.export_to_markdown()
         elif export == "html":
             return result.export_to_html()
+        elif export == 'items':
+            return result.iterate_items()
         elif export == "text":
             return result.export_to_text()
         elif export == "element_tree":
@@ -112,6 +118,10 @@ class DoclingExtractor:
 if __name__ == "__main__":
     extractor = DoclingExtractor()
 
-    source = "pdf/somat.pdf"
-    result = extractor.convert(source)
+    source = "/Users/t.puran.prasertthai/Documents/GitHub/AINGO/services/data-ingestion/ingestion/somat.pdf"
+    result = extractor.convert(source,'dict')
+    # a = Chunker().chunk(result)
     pprint(result,width=120)
+    # for i in result:
+    #      pprint(i)
+    # pprint(result,width=120)

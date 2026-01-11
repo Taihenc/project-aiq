@@ -1,105 +1,59 @@
-from .summarizer import Summarizer
-from .context_builder import ContextMetadata, ContextRecord
+import sys , os
+from typing import List, Dict, Any
+from docling.chunking import HybridChunker
+from docling_core.types.doc import DoclingDocument
+from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
-
-from typing import List, Sequence
-from ingestion.utils import sha1_bytes
-
-
+from transformers import AutoTokenizer
 class Chunker:
     def __init__(self):
-        self.summarizer = Summarizer()
-        self.MAX_CHUNK_SIZE = settings.max_chunk_size
-        self.CHUNK_OVERLAP = settings.chunk_overlap
-        self.SPLITTERS: Sequence[str] = [
-            "\n\n",  # paragraph
-            "\n",    # line
-            ". ",    # sentence
-            " ",     # word
-        ]
+        # Pull configuration from settings
+        self.max_tokens = settings.max_chunk_size
+        self.EMBED_MODEL_ID = "BAAI/bge-m3"
+        self.tokenizer = HuggingFaceTokenizer(
+            tokenizer=AutoTokenizer.from_pretrained(self.EMBED_MODEL_ID),
+            max_tokens=self.max_tokens,  # optional, by default derived from `tokenizer` for HF case
+        )
+        # Initialize Docling's layout-aware chunker
+        self.chunker = HybridChunker(
+            tokenizer=self.tokenizer,
+            merge_peers=True
+        )
+    def chunk(self, doc: DoclingDocument) -> List[Dict[str, Any]]:
+        """
+        Chunks a Docling document and returns a list of dictionaries
+        containing the text and all associated metadata.
+        """
+        # Generate chunks from the Docling document
+        chunks_iter = self.chunker.chunk(doc)
+        serialized_chunks = []
 
-    def chunk(self, full_page_text: List[ContextRecord]) -> List[ContextRecord]:
-        return self._recursive_chunk(full_page_text)
+        for chunk in chunks_iter:
+            # Convert the docling chunk (Pydantic model) to a dictionary
+            chunk_dict = chunk.model_dump()
+            meta = chunk_dict.get("meta", {})
+            
+            # Extract page numbers by scanning the doc_items
+            pages = set()
+            doc_items = meta.get("doc_items", [])
+            for item in doc_items:
+                if "prov" in item:
+                    for p in item["prov"]:
+                        if "page_no" in p:
+                            pages.add(p["page_no"])
 
-    def _recursive_chunk(self, full_page_text: List[ContextRecord]) -> List[ContextRecord]:
-        # First get raw chunks (no overlap)
-        base_chunks: List[ContextRecord] = []
-        for r in full_page_text:
-            base_chunks.extend(self._recursion(r))
-
-        # Add overlap between consecutive chunks
-        overlapped: List[ContextRecord] = []
-
-        for i, rec in enumerate(base_chunks):
-            text = rec["text"]
-
-            # First chunk → no overlap backward
-            if i == 0:
-                overlapped.append(rec)
-                continue
-
-            prev = overlapped[-1]
-            prev_text = prev["text"]
-
-            # Compute backward overlap from previous chunk
-            overlap_text = prev_text[-self.CHUNK_OVERLAP:] if self.CHUNK_OVERLAP < len(
-                prev_text) else prev_text
-
-            new_text = overlap_text + text
-            new_rec = {
-                "id": f"{rec['id']}_ol",
-                "text": new_text,
-                "metadata": rec["metadata"],
+            # Construct the flat dictionary output
+            chunk_output = {
+                "text": chunk.text,
+                "metadata": {
+                    "page_nos": sorted(list(pages)),
+                    "doc_items": doc_items,  # Keeping all original doc_items metadata
+                    "char_span": chunk_dict.get("char_span"), # Optional: helps track exact location
+                    "token_cnt": self.tokenizer.count_tokens(chunk.text)
+                }
             }
+            
+            serialized_chunks.append(chunk_output)
 
-            overlapped.append(new_rec)
-
-        return overlapped
-
-    def find_split_index(self, text: str) -> int:
-        """
-        Return the best split index using splitters, or fallback to midpoint.
-        """
-        midpoint = len(text) // 2
-
-        for splitter in self.SPLITTERS:
-            idx = text.rfind(splitter, 0, midpoint)
-            if idx != -1:
-                return idx + len(splitter)
-
-        return midpoint
-
-    def _recursion(self, record: ContextRecord) -> List[ContextRecord]:
-        """
-        Recursively split a record until each chunk is <= MAX_CHUNK_SIZE.
-        """
-        text = record["text"]
-
-        if len(text) <= self.MAX_CHUNK_SIZE:
-            return [record]
-
-        split_idx = self.find_split_index(text)
-
-        part1 = text[:split_idx].strip()
-        part2 = text[split_idx:].strip()
-
-        rec1 = {
-            "id": self._generate_id(part1, 1),
-            "text": part1,
-            "metadata": record["metadata"],
-        }
-        rec2 = {
-            "id": self._generate_id(part2, 2),
-            "text": part2,
-            "metadata": record["metadata"],
-        }
-
-        return self._recursion(rec1) + self._recursion(rec2)
-
-    def _generate_id(self, text: str, idx: int) -> str:
-        """
-        Deterministic ID so re-ingesting the same source produces the same ID.
-        Includes source_id to avoid collisions across different sources.
-        """
-        base = f"{text}|{idx}"
-        return f"{sha1_bytes(base.encode('utf-8'))}"
+        return serialized_chunks
