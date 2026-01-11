@@ -17,7 +17,9 @@ class Upload:
                 "id": context.get("id", ""),
                 "text": context.get("text", ""),
                 "metadata": {
-                    "path": context.get("metadata", {}).get("file_path", "")
+                    "path": context.get("metadata", {}).get("file_path", ""),
+                    "created_at": context.get("metadata", {}).get("created_at", ""),
+                    "pages": context.get("metadata", {}).get("pages", "")
                 }
             })
 

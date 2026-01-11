@@ -29,19 +29,20 @@ class IngestionWorker:
         self.indexer = indexer.Indexer()
         self.upload = upload.Upload()
 
-    async def ingest(self, file_path: str, chunking: bool = True, merge: bool = True, qdrant_upload: bool = True):
+    async def ingest(self, file_path: str, chunking: bool = True, format: bool = True, qdrant_upload: bool = True):
         print(f"Starting ingestion for file: {file_path}")
         try:
             print(f"Extractor...")
             result = self.extractor.convert(file_path)
             # print(doc_dict)
             # print(elements)
+            raw = self.extractor.convert(file_path,'text')
             if not chunking:
-                return result
+                return raw
 
             print(f"Chunker...")
             summarized_chunks = self.chunker.chunk(result)
-            if not merge:
+            if not format:
                 return summarized_chunks
             
             print(f"Context Builder...")
