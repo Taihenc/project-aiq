@@ -118,10 +118,10 @@ class DoclingExtractor:
 if __name__ == "__main__":
     extractor = DoclingExtractor()
 
-    source = "/Users/t.puran.prasertthai/Documents/GitHub/AINGO/services/data-ingestion/ingestion/somat.pdf"
-    result = extractor.convert(source,'dict')
-    # a = Chunker().chunk(result)
-    pprint(result,width=120)
+    source = "/Users/t.puran.prasertthai/Documents/GitHub/AINGO/services/data-ingestion/ingestion/somat_23.pdf"
+    result = extractor.convert(source)
+    a = Chunker().chunk(result)
+    pprint(a,width=120)
     # for i in result:
     #      pprint(i)
     # pprint(result,width=120)

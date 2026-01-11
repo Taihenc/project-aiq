@@ -42,15 +42,13 @@ class Chunker:
                     for p in item["prov"]:
                         if "page_no" in p:
                             pages.add(p["page_no"])
-
             # Construct the flat dictionary output
             chunk_output = {
                 "text": chunk.text,
+                "page_nos": sorted(list(pages)),
+                "token_cnt": self.tokenizer.count_tokens(chunk.text),
                 "metadata": {
-                    "page_nos": sorted(list(pages)),
                     "doc_items": doc_items,  # Keeping all original doc_items metadata
-                    "char_span": chunk_dict.get("char_span"), # Optional: helps track exact location
-                    "token_cnt": self.tokenizer.count_tokens(chunk.text)
                 }
             }
             
