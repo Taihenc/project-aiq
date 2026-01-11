@@ -4,8 +4,8 @@ from docling.datamodel.pipeline_options import *
 from docling.datamodel.base_models import *
 from docling.chunking import HybridChunker
 from docling_core.types.doc import *
-from chunker import *
-from context_builder import *
+from .chunker import Chunker
+from .context_builder import ContextBuilder
 from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 from pathlib import Path
 from pprint import pprint

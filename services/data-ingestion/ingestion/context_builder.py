@@ -66,7 +66,7 @@ class ContextBuilder:
                 "file_path": file_path,
                 "file_type": file_extension,
                 "pages": pages,
-                "section": primary_label,
+                # "section": primary_label,
                 "created_at": timestamp,
                 "checksum": checksum,
                 # "doc_metadata": chunk.get("metadata", {}) # Keeping original metadata too
