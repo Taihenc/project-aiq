@@ -4,7 +4,7 @@ from fastapi import HTTPException
 import json
 from pathlib import Path
 from app.models.agents import AgentConfig
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 from app.services.models import ModelService
 from app.services.tools import ToolService
 
@@ -37,14 +37,14 @@ class AgentService:
     # Agent Config CRUD Operations
     # ============================================================================
 
-    def create_agent_config(self, config: AgentConfig) -> BaseResponse:
+    def create_agent_config(self, config: AgentConfig) -> Response:
         try:
             if config.name in self._agent_configs:
                 raise HTTPException(
                     status_code=409, detail=f"Agent '{config.name}' already exists"
                 )
             self._agent_configs[config.name] = config
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Agent config created successfully",
                 data={"config": config},
@@ -56,9 +56,9 @@ class AgentService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_agents_config(self) -> BaseResponse:
+    def get_agents_config(self) -> Response:
         try:
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Agent configs fetched successfully",
                 data={
@@ -69,14 +69,14 @@ class AgentService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def get_agent_config(self, agent: str) -> BaseResponse:
+    def get_agent_config(self, agent: str) -> Response:
         try:
             config = self._agent_configs.get(agent)
             if not config:
                 raise HTTPException(
                     status_code=404, detail=f"Agent '{agent}' not found"
                 )
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Agent config fetched successfully",
                 data={"config": config},
@@ -86,14 +86,14 @@ class AgentService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def update_agent_config(self, config: AgentConfig) -> BaseResponse:
+    def update_agent_config(self, config: AgentConfig) -> Response:
         try:
             if config.name not in self._agent_configs:
                 raise HTTPException(
                     status_code=404, detail=f"Agent '{config.name}' not found"
                 )
             self._agent_configs[config.name] = config
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Agent config updated successfully",
                 data={"config": config},
@@ -105,14 +105,14 @@ class AgentService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-    def delete_agent_config(self, agent: str) -> BaseResponse:
+    def delete_agent_config(self, agent: str) -> Response:
         try:
             if agent not in self._agent_configs:
                 raise HTTPException(
                     status_code=404, detail=f"Agent '{agent}' not found"
                 )
             del self._agent_configs[agent]
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Agent config deleted successfully",
                 data={"agent": agent},

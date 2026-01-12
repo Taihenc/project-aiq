@@ -69,3 +69,7 @@ wheels/
 
 # Virtual environments
 .venv
+*.db
+
+# Data Ingestion Service
+services/data-ingestion/uploaded-files/

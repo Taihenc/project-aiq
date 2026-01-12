@@ -1,0 +1,20 @@
+from pydantic_settings import BaseSettings
+from typing import Optional
+
+class Settings(BaseSettings):
+    # Chunking
+    max_chunk_size: int = 1600
+    chunk_overlap: int = 250
+
+    # Upload
+    api_url: str = "http://127.0.0.1:8003/v1/upload"
+
+    # API
+    upload_dir: str = "uploaded-files"
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+
+settings = Settings()

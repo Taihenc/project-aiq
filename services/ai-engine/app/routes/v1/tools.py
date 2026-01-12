@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Path
 from app.services.tools import ToolService
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
@@ -9,7 +9,7 @@ tool_service = ToolService()
 
 @router.get(
     "/",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get All Available Tool Configurations",
     description="Retrieve all available tool configurations in the system with their details",
     responses={
@@ -26,8 +26,8 @@ tool_service = ToolService()
                                     "name": "web_search",
                                     "description": "Search the web for information",
                                 },
-                                "document_search": {
-                                    "name": "document_search",
+                                "aiq_search_tool": {
+                                    "name": "aiq_search_tool",
                                     "description": "Search internal documents and knowledge base",
                                 },
                             },
@@ -45,7 +45,7 @@ async def get_tools_config():
 
 @router.get(
     "/{tool}",
-    response_model=BaseResponse,
+    response_model=Response,
     summary="Get Specific Tool Configuration",
     description="Retrieve configuration details for a specific tool",
     responses={
@@ -80,7 +80,7 @@ async def get_tool_config(
     tool: str = Path(
         ...,
         description="Name of the tool to retrieve configuration for",
-        example="document_search",
+        example="aiq_search_tool",
         min_length=1,
         max_length=50,
     )

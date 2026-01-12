@@ -1,0 +1,27 @@
+# Use the official Node.js image as the base image
+FROM node:20.19.5-alpine
+
+# Set the working directory
+WORKDIR /app
+
+# Copy pnpm related files from root
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+
+# Install pnpm globally and then install dependencies for the monorepo
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
+
+# Set the working directory for the web app
+WORKDIR /app/apps/web
+
+# Copy the rest of the application code
+COPY apps/web .
+
+# Build the Next.js application
+RUN pnpm --filter web build
+
+# Expose the port the app runs on
+EXPOSE 3001
+
+# Command to run the application
+CMD ["pnpm", "start"]

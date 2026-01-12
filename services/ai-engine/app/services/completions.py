@@ -1,69 +1,53 @@
 from typing import List
 from fastapi import HTTPException
 from app.services.crews import CrewService
-from app.models.completions import Message
-import json
-from app.schemas.base import BaseResponse
+from app.utils.response import Response
+from app.schemas.completions import CrewRequest
+from app.models.completions import CompletionData, TaskOutputSummary, TokenUsage
 
 
 class CompletionService:
     def __init__(self):
         self.crew_service = CrewService()
 
-    async def create_crew_completion(self, crew: str, messages: List[Message]):
+    async def create_crew_completion(self, crew: str, request: CrewRequest):
         try:
             crew_instance = self.crew_service.get_crew(crew)
             if not crew_instance:
                 raise HTTPException(status_code=404, detail=f"Crew '{crew}' not found")
 
-            if not messages or not isinstance(messages, list):
-                raise HTTPException(status_code=400, detail="Invalid messages")
+            result = crew_instance.kickoff(inputs=request.inputs)
 
-            last_message = messages[-1]
-            if not hasattr(last_message, "role") or not hasattr(
-                last_message, "content"
-            ):
-                raise HTTPException(status_code=400, detail="Invalid message format")
-
-            if last_message.role != "user":
-                raise HTTPException(
-                    status_code=400, detail="Last message must be from user"
-                )
-
-            user_query = last_message.content
-            if not user_query or not isinstance(user_query, str):
-                raise HTTPException(
-                    status_code=400, detail="User query cannot be empty"
-                )
-
-            chat_history = []
-            for msg in messages[:-1]:
-                if not hasattr(msg, "role") or not hasattr(msg, "content"):
-                    raise HTTPException(
-                        status_code=400, detail="Invalid message format in chat history"
+            # Extract only necessary data
+            completion_data = CompletionData(
+                raw=getattr(result, "raw", ""),
+                json_dict=getattr(result, "json_dict", None),
+                token_usage=TokenUsage(
+                    total_tokens=getattr(result.token_usage, "total_tokens", 0),
+                    prompt_tokens=getattr(result.token_usage, "prompt_tokens", 0),
+                    cached_prompt_tokens=getattr(
+                        result.token_usage, "cached_prompt_tokens", 0
+                    ),
+                    completion_tokens=getattr(
+                        result.token_usage, "completion_tokens", 0
+                    ),
+                    successful_requests=getattr(
+                        result.token_usage, "successful_requests", 0
+                    ),
+                ),
+                tasks_output=[
+                    TaskOutputSummary(
+                        name=task.name,
+                        raw=task.raw,
                     )
-                chat_history.append({"role": msg.role, "content": msg.content})
+                    for task in result.tasks_output
+                ],
+            )
 
-            inputs = {
-                "user_query": user_query,
-                "chat_history": chat_history,
-                "context": "",
-            }
-
-            result = crew_instance.kickoff(inputs=inputs)
-
-            if hasattr(result, "tasks_output") and result.tasks_output:
-                last_task = result.tasks_output[-1]
-                if hasattr(last_task, "raw") and last_task.raw:
-                    try:
-                        return json.loads(last_task.raw)
-                    except json.JSONDecodeError:
-                        pass
-
-            return BaseResponse(
+            return Response(
                 success=True,
                 message="Crew completion created successfully",
-                data=result,
+                data=completion_data,
             )
         except HTTPException:
             raise
