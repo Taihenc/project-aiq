@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # API
     upload_dir: str = "uploaded-files"
 
+    # SharePoint Integration
+    enable_sharepoint_integration: bool = False
+
     class Config:
         env_file = ".env"
         case_sensitive = False
