@@ -7,6 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "turbo run dev --parallel",
+    "dev:app": "turbo run dev --filter=web --filter=backend --filter=ai-engine --filter=data-ingestion --filter=embedding-service --parallel",
     "dev:web": "turbo run dev --filter=web",
     "dev:backend": "turbo run dev --filter=backend",
     "dev:ai-engine": "turbo run dev --filter=ai-engine",

@@ -19,7 +19,7 @@ class DocumentUploadResponse(BaseModel):
 
 
 class SearchFilter(BaseModel):
-    path: Optional[str] = Field(default="/", description="Path filter")
+    path: Optional[str] = Field(default="", description="Path filter")
     # Add other filters here #
 
 

@@ -4,9 +4,12 @@ import os
 import threading
 import time
 from workers.ingestion_worker import IngestionWorker
+from config import settings
+
 
 class EventConsumer:
     def __init__(self):
+        self.enabled = settings.enable_sharepoint_integration
         self.host = os.getenv('RABBITMQ_HOST', 'localhost')
         self.queue_name = 'ingestion_queue'
         self.exchange_name = 'file_events_topic'
@@ -19,21 +22,29 @@ class EventConsumer:
         retries = 5
         while retries > 0:
             try:
-                self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host, heartbeat=0))
+                self.connection = pika.BlockingConnection(
+                    pika.ConnectionParameters(host=self.host, heartbeat=0))
                 self.channel = self.connection.channel()
-                self.channel.exchange_declare(exchange=self.exchange_name, exchange_type='topic')
+                self.channel.exchange_declare(
+                    exchange=self.exchange_name, exchange_type='topic')
                 self.channel.queue_declare(queue=self.queue_name, durable=True)
-                self.channel.queue_bind(exchange=self.exchange_name, queue=self.queue_name, routing_key='file.#')
+                self.channel.queue_bind(
+                    exchange=self.exchange_name, queue=self.queue_name, routing_key='file.#')
                 self.channel.basic_qos(prefetch_count=1)
                 print("Connected to RabbitMQ (Topic Exchange)")
                 return
             except pika.exceptions.AMQPConnectionError:
-                print(f"Failed to connect to RabbitMQ. Retrying in 5 seconds... ({retries} retries left)")
+                print(
+                    f"Failed to connect to RabbitMQ. Retrying in 5 seconds... ({retries} retries left)")
                 time.sleep(5)
                 retries -= 1
         print("Could not connect to RabbitMQ after multiple retries.")
 
     def start(self):
+        if not self.enabled:
+            print("SharePoint integration is disabled - event consumer not started")
+            return
+
         if not self.connection or self.connection.is_closed:
             self.connect()
 
@@ -41,7 +52,8 @@ class EventConsumer:
             return
 
         print("Waiting for messages...")
-        self.channel.basic_consume(queue=self.queue_name, on_message_callback=self.callback)
+        self.channel.basic_consume(
+            queue=self.queue_name, on_message_callback=self.callback)
         try:
             self.channel.start_consuming()
         except Exception as e:
