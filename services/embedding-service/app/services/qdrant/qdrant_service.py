@@ -20,10 +20,9 @@ class QdrantService:
     def connect(self):
         if self.client is None:
             if settings.use_local_qdrant:
-                # Use local Qdrant with web UI instead of pure in-memory
-                self.client = QdrantClient(path="./qdrant_data")
-                print(
-                    "Created local Qdrant with web UI at http://localhost:6333/dashboard")
+                # Connect to local Docker Qdrant instance
+                self.client = QdrantClient(url="http://localhost:6333")
+                print("Connected to local Qdrant at http://localhost:6333/dashboard")
             else:
                 self.client = QdrantClient(
                     url=settings.qdrant_url,
