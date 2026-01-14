@@ -28,6 +28,7 @@ export interface ChatInputAreaProps {
 export interface ChatMessagesAreaProps {
   messages: UIMessage[];
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  isLoading?: boolean;
 }
 
 export interface ChatHeaderProps {
