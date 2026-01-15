@@ -4,8 +4,8 @@ from docling.datamodel.pipeline_options import *
 from docling.datamodel.base_models import *
 from docling.chunking import HybridChunker
 from docling_core.types.doc import *
-from .chunker import Chunker
-from .context_builder import ContextBuilder
+# from chunker import Chunker
+# from context_builder import ContextBuilder
 from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 from pathlib import Path
 from pprint import pprint
@@ -25,7 +25,7 @@ class DoclingExtractor:
             smolvlm_picture_description  # <-- the model choice
         )
         pdf_pipeline_options.picture_description_options.prompt = (
-            "give description in 5 words"
+            "give description in 5 sentence"
         )
         pdf_pipeline_options.accelerator_options = AcceleratorOptions(
             num_threads=8,               # or 8 if your CPU is 8-core
@@ -119,12 +119,13 @@ class DoclingExtractor:
 if __name__ == "__main__":
     extractor = DoclingExtractor()
 
-    source = "/Users/t.puran.prasertthai/Documents/GitHub/AINGO/services/data-ingestion/ingestion/somat_23.pdf"
+    source = "services/data-ingestion/ingestion/scbx_page14.pdf"
     result = extractor.convert(source)
-    a = Chunker().chunk(result)
-    builder = ContextBuilder() 
-    b = builder.build(a,source)
-    pprint(b,width=120)
+    # pprint(extractor.convert(source,'dict'))
+    # a = Chunker().chunk(result)
+    # builder = ContextBuilder() 
+    # b = builder.build(a,source)
+    # pprint(a,width=120)
     # for i in result:
     #      pprint(i)
     # pprint(result,width=120)
