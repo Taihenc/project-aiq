@@ -1,3 +1,3 @@
-from ingestion.context_builder import ContextBuilder, ContextRecord, ExtractedElement
+from ingestion.context_builder import ContextBuilder, ContextRecord
 
-__all__ = ["ContextBuilder", "ContextRecord", "ExtractedElement"]
+__all__ = ["ContextBuilder", "ContextRecord"]

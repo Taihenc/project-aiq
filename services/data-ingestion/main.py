@@ -24,14 +24,14 @@ async def health_check():
 
 
 @app.post("/upload")
-async def upload_document(file: UploadFile = File(...), merge: bool = True, chunking: bool = True, qdrant_upload: bool = True):
+async def upload_document(file: UploadFile = File(...),chunking: bool = True,format: bool = True, qdrant_upload: bool = True):
 
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
-    response = await ingestion_workder.ingest(file_path=file_path, merge=merge, chunking=chunking, qdrant_upload=qdrant_upload)
+    response = await ingestion_workder.ingest(file_path=file_path, chunking=chunking, format=format, qdrant_upload=qdrant_upload)
 
     return response
 
@@ -48,8 +48,8 @@ if __name__ == "__main__":
 
     uvicorn.run(app, host=host, port=port, reload=reload_flag)
 
-@app.on_event("startup")
-async def startup_event():
-    from workers.event_consumer import EventConsumer
-    consumer = EventConsumer()
-    consumer.start_in_thread()
+# @app.on_event("startup")
+# async def startup_event():
+#     from workers.event_consumer import EventConsumer
+#     consumer = EventConsumer()
+#     consumer.start_in_thread()

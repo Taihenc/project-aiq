@@ -2,21 +2,24 @@ from .context_builder import ContextMetadata, ContextRecord
 
 import requests
 from config import settings
-from typing import List
+from typing import Any, Dict, List
 
 class Upload:
     def __init__(self):
         self.API_URL = settings.api_url
 
-    async def upload(self, contexts: List[ContextRecord]):
+    async def upload(self, contexts: List[Dict[str, Any]]):
 
         documents = []
 
         for context in contexts:
             documents.append({
-                "text": context["text"],
+                "id": context.get("id", ""),
+                "text": context.get("text", ""),
                 "metadata": {
-                    "path": context["metadata"]["file"]
+                    "path": context.get("metadata", {}).get("file_path", ""),
+                    "created_at": context.get("metadata", {}).get("created_at", ""),
+                    "pages": context.get("metadata", {}).get("pages", "")
                 }
             })
 

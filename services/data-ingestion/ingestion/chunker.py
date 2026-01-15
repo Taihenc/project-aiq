@@ -1,105 +1,57 @@
-from .summarizer import Summarizer
-from .context_builder import ContextMetadata, ContextRecord
+import sys, os
+from typing import List, Dict, Any
+from docling.chunking import HybridChunker
+from docling_core.types.doc import DoclingDocument
+from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
+from transformers import AutoTokenizer
+
+# Path configuration
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
-
-from typing import List, Sequence
-from ingestion.utils import sha1_bytes
-
 
 class Chunker:
     def __init__(self):
-        self.summarizer = Summarizer()
-        self.MAX_CHUNK_SIZE = settings.max_chunk_size
-        self.CHUNK_OVERLAP = settings.chunk_overlap
-        self.SPLITTERS: Sequence[str] = [
-            "\n\n",  # paragraph
-            "\n",    # line
-            ". ",    # sentence
-            " ",     # word
-        ]
+        self.max_tokens = settings.max_chunk_size
+        self.EMBED_MODEL_ID = "BAAI/bge-m3"
+        self.tokenizer = HuggingFaceTokenizer(
+            tokenizer=AutoTokenizer.from_pretrained(self.EMBED_MODEL_ID),
+            max_tokens=self.max_tokens,
+        )
+        self.chunker = HybridChunker(
+            tokenizer=self.tokenizer,
+            merge_peers=True
+        )
 
-    def chunk(self, full_page_text: List[ContextRecord]) -> List[ContextRecord]:
-        return self._recursive_chunk(full_page_text)
+    def chunk(self, doc: DoclingDocument) -> List[Dict[str, Any]]:
+        """
+        Chunks a Docling document using native contextualized text serialization.
+        """
+        chunks_iter = self.chunker.chunk(doc)
+        serialized_chunks = []
 
-    def _recursive_chunk(self, full_page_text: List[ContextRecord]) -> List[ContextRecord]:
-        # First get raw chunks (no overlap)
-        base_chunks: List[ContextRecord] = []
-        for r in full_page_text:
-            base_chunks.extend(self._recursion(r))
+        for chunk in chunks_iter:
+            # 1. Use Docling's native contextualization
+            # This prepends headings/context and converts the chunk to a string
+            contextualized_text = self.chunker.contextualize(chunk)
+            
+            # 2. Extract page numbers from provenance
+            pages = set()
+            for item in chunk.meta.doc_items:
+                for prov in item.prov:
+                    if hasattr(prov, "page_no"):
+                        pages.add(prov.page_no)
 
-        # Add overlap between consecutive chunks
-        overlapped: List[ContextRecord] = []
-
-        for i, rec in enumerate(base_chunks):
-            text = rec["text"]
-
-            # First chunk → no overlap backward
-            if i == 0:
-                overlapped.append(rec)
-                continue
-
-            prev = overlapped[-1]
-            prev_text = prev["text"]
-
-            # Compute backward overlap from previous chunk
-            overlap_text = prev_text[-self.CHUNK_OVERLAP:] if self.CHUNK_OVERLAP < len(
-                prev_text) else prev_text
-
-            new_text = overlap_text + text
-            new_rec = {
-                "id": f"{rec['id']}_ol",
-                "text": new_text,
-                "metadata": rec["metadata"],
+            chunk_output = {
+                "text": contextualized_text,  # Context-enriched text for embedding
+                # "raw_text": self.chunker.serialize(chunk), # Clean text without context
+                "page_nos": sorted(list(pages)),
+                "token_cnt": self.tokenizer.count_tokens(contextualized_text),
+                "metadata": {
+                    "headings": chunk.meta.headings,
+                    "doc_items": [item.model_dump() for item in chunk.meta.doc_items],
+                }
             }
+            
+            serialized_chunks.append(chunk_output)
 
-            overlapped.append(new_rec)
-
-        return overlapped
-
-    def find_split_index(self, text: str) -> int:
-        """
-        Return the best split index using splitters, or fallback to midpoint.
-        """
-        midpoint = len(text) // 2
-
-        for splitter in self.SPLITTERS:
-            idx = text.rfind(splitter, 0, midpoint)
-            if idx != -1:
-                return idx + len(splitter)
-
-        return midpoint
-
-    def _recursion(self, record: ContextRecord) -> List[ContextRecord]:
-        """
-        Recursively split a record until each chunk is <= MAX_CHUNK_SIZE.
-        """
-        text = record["text"]
-
-        if len(text) <= self.MAX_CHUNK_SIZE:
-            return [record]
-
-        split_idx = self.find_split_index(text)
-
-        part1 = text[:split_idx].strip()
-        part2 = text[split_idx:].strip()
-
-        rec1 = {
-            "id": self._generate_id(part1, 1),
-            "text": part1,
-            "metadata": record["metadata"],
-        }
-        rec2 = {
-            "id": self._generate_id(part2, 2),
-            "text": part2,
-            "metadata": record["metadata"],
-        }
-
-        return self._recursion(rec1) + self._recursion(rec2)
-
-    def _generate_id(self, text: str, idx: int) -> str:
-        """
-        Deterministic ID so re-ingesting the same source produces the same ID.
-        Includes source_id to avoid collisions across different sources.
-        """
-        base = f"{text}|{idx}"
-        return f"{sha1_bytes(base.encode('utf-8'))}"
+        return serialized_chunks
