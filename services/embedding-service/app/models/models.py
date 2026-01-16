@@ -2,10 +2,17 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
 
+class MetaData(BaseModel):
+    file: Optional[str] = Field(default="", description="file name")
+    file_path: Optional[str] = Field(default="", description="file path")
+    file_type: Optional[str] = Field(default="", description="file type")
+    page: Optional[int] = Field(default=-1, description="file page")
+    created_at: Optional[str] = Field(default="", description="created time")
+    checksum: Optional[str] = Field(default="", description="checksum of byte")
 
 class DocumentUpload(BaseModel):
     text: str = Field(default="Ecotourism and nature conservation in tourist destinations across the country", description="Text content to embed")
-    metadata: Optional[Dict[str, Any]] = Field(default={"path":"/documents/tourism/eco/nature_conservation.md"}, description="Additional metadata")
+    metadata: MetaData = Field(..., description="Additional metadata")
 
 
 class DocumentUploadRequest(BaseModel):
@@ -34,8 +41,9 @@ class SearchRequest(BaseModel):
 class DocumentResponse(BaseModel):
     id: str = Field(..., description="Document ID")
     text: str = Field(..., description="Document text")
-    metadata: Dict[str, Any] = Field(default={}, description="Document metadata")
-    score: Optional[float] = Field(None, description="Similarity score (for search results)")
+    metadata: MetaData = Field(..., description="Additional metadata")
+    similarity_score: Optional[float] = Field(None, description="Similarity score (for search results)")
+    reranking_score: Optional[float] = Field(None, description="Reranking score (for search results)")
 
 
 class SearchResponse(BaseModel):
@@ -65,7 +73,7 @@ class QueryResponse(BaseModel):
 
 class DocumentUpdateRequest(BaseModel):
     text: Optional[str] = Field(default="Update document", description="Updated text content")
-    metadata: Optional[Dict[str, Any]] = Field(default={"path": "/update/update_document.txt"}, description="Updated metadata")
+    metadata: MetaData = Field(..., description="Additional metadata")
 
 
 class DocumentUpdateResponse(BaseModel):

@@ -48,6 +48,7 @@ class QdrantService:
             print(f"Collection {self.collection_name} created")
 
     def upload_documents(self, documents: List[Dict[str, Any]]) -> List[str]:
+        self._ensure_collection()
         texts = [doc['text'] for doc in documents]
 
         embeddings = embedding_service.encode_batch(texts)
@@ -86,6 +87,7 @@ class QdrantService:
         score_threshold: Optional[float] = None,
         query_filter: Optional[SearchFilter] = None
     ) -> List[Dict[str, Any]]:
+        self._ensure_collection()
 
         query_embedding = embedding_service.encode_single(query)
 
@@ -102,7 +104,7 @@ class QdrantService:
                     )
                 )
 
-            print('finish format filter')
+            # print('finish format filter')
             if conditions:
                 qdrant_filter = Filter(must=conditions)
 
@@ -126,6 +128,7 @@ class QdrantService:
         return formatted_results
 
     def get_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
+        self._ensure_collection()
         try:
             result = self.client.retrieve(
                 collection_name=self.collection_name,
@@ -144,6 +147,7 @@ class QdrantService:
             return None
 
     def get_documents(self, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
+        self._ensure_collection()
         results, _ = self.client.scroll(
             collection_name=self.collection_name,
             limit=limit or 100,
@@ -163,6 +167,7 @@ class QdrantService:
         return documents
 
     def update_document(self, doc_id: str, text: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> bool:
+        self._ensure_collection()
         existing = self.get_document(doc_id)
         if not existing:
             return False
@@ -199,6 +204,7 @@ class QdrantService:
         return True
 
     def delete_document(self, doc_id: str) -> bool:
+        self._ensure_collection()
         try:
             self.client.delete(
                 collection_name=self.collection_name,
@@ -209,6 +215,7 @@ class QdrantService:
             return False
 
     def get_collection_info(self) -> Dict[str, Any]:
+        self._ensure_collection()
         info = self.client.get_collection(collection_name=self.collection_name)
         return {
             "name": self.collection_name,
