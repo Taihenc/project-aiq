@@ -1,5 +1,6 @@
-'use client';
+import { motion, AnimatePresence } from 'motion/react';
 
+import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Sidebar as SidebarPrimitive,
@@ -14,9 +15,36 @@ import {
   SidebarMenuItem,
   SidebarMenuAction,
 } from '@/components/ui/sidebar';
-import { MessageSquare, FileText, Sparkles, MoreVertical } from 'lucide-react';
+import {
+  MessageSquare,
+  FileText,
+  Sparkles,
+  LogOut,
+  Trash2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { SidebarProps, ChatHistoryItem } from '@/types';
+import type { SidebarProps } from '@/types';
+import { useAuth } from '@/lib/auth/auth-context';
+import { useChatStore } from '@/lib/store/chat-store';
+import { useState } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import { MoreVertical } from 'lucide-react';
 
 export function Sidebar({
   chatHistory = [],
@@ -24,26 +52,10 @@ export function Sidebar({
   onChatSelect,
   onNewChat,
 }: SidebarProps) {
-  const defaultHistory: ChatHistoryItem[] =
-    chatHistory.length > 0
-      ? chatHistory
-      : [
-          {
-            id: '1',
-            title: 'Product Roadmap Discuss...',
-            timestamp: '2 seconds ago',
-          },
-          {
-            id: '2',
-            title: 'Market Research Insights',
-            timestamp: '13 hours ago',
-          },
-          {
-            id: '3',
-            title: 'Competitive Analysis Report',
-            timestamp: '2 days ago',
-          },
-        ];
+  const router = useRouter();
+  const { user, login, logout, register } = useAuth();
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
+  const displayHistory = chatHistory;
 
   return (
     <SidebarPrimitive
@@ -110,59 +122,173 @@ export function Sidebar({
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
-              {defaultHistory.map((chat) => {
-                const isActive = currentChatId === chat.id;
-                return (
-                  <SidebarMenuItem key={chat.id}>
-                    <SidebarMenuButton
-                      tooltip={chat.title}
-                      isActive={isActive}
-                      onClick={() => onChatSelect?.(chat.id)}
-                      className={cn(
-                        'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[#dcd3ff] hover:bg-white/70',
-                        isActive &&
-                          'shadow-elevated border-[#d4c9ff] bg-white text-primary-medium',
-                      )}
+              <AnimatePresence initial={false}>
+                {displayHistory.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="bg-purple-50 rounded-full p-3 mb-3">
+                      <MessageSquare className="h-5 w-5 text-purple-300" />
+                    </div>
+                    <span className="text-xs font-medium text-gray-500 mb-1">
+                      No history yet
+                    </span>
+                    <button
+                      onClick={onNewChat}
+                      className="text-[10px] text-purple-500 hover:text-purple-600 transition-colors cursor-pointer"
                     >
-                      <MessageSquare className="h-4 w-4 text-[#8175d4]" />
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="text-primary-medium truncate font-medium">
-                          {chat.title}
-                        </span>
-                        <span className="text-xs text-[#a19ad9]">
-                          {chat.timestamp}
-                        </span>
-                      </div>
-                    </SidebarMenuButton>
-                    <SidebarMenuAction
-                      showOnHover
-                      className="text-[#b1a8e9] hover:text-[#8a77eb]"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </SidebarMenuAction>
-                  </SidebarMenuItem>
-                );
-              })}
+                      Start a new chat
+                    </button>
+                  </div>
+                ) : (
+                  displayHistory.map((chat) => {
+                    const isActive = currentChatId === chat.id;
+                    return (
+                      <motion.li
+                        key={chat.id}
+                        layout
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="group/menu-item relative"
+                      >
+                        <SidebarMenuButton
+                          tooltip={chat.title}
+                          isActive={isActive}
+                          onClick={() => onChatSelect?.(chat.id)}
+                          className={cn(
+                            'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[#dcd3ff] hover:bg-white/70',
+                            isActive &&
+                              'shadow-elevated border-[#d4c9ff] bg-white text-primary-medium',
+                          )}
+                        >
+                          <MessageSquare className="h-4 w-4 text-[#8175d4]" />
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <span className="text-primary-medium truncate font-medium">
+                              {chat.title}
+                            </span>
+                            <span className="text-xs text-[#a19ad9]">
+                              {chat.timestamp}
+                            </span>
+                          </div>
+                        </SidebarMenuButton>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <SidebarMenuAction
+                              showOnHover
+                              className="text-[#b1a8e9] hover:text-[#8a77eb]"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </SidebarMenuAction>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                              className="text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/20 cursor-pointer"
+                              onClick={(_e) => {
+                                _e.stopPropagation();
+                                setChatToDelete(chat.id);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </motion.li>
+                    );
+                  })
+                )}
+              </AnimatePresence>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
+      <AlertDialog
+        open={!!chatToDelete}
+        onOpenChange={(open) => !open && setChatToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your
+              chat history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600 text-white"
+              onClick={() => {
+                if (chatToDelete) {
+                  useChatStore
+                    .getState()
+                    .deleteSession(chatToDelete)
+                    .then((wasCurrentChat) => {
+                      toast.success('Chat deleted successfully');
+                      if (wasCurrentChat) {
+                        router.push('/');
+                      }
+                    })
+                    .catch(() => toast.error('Failed to delete chat'));
+                  setChatToDelete(null);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <SidebarFooter className="px-6 pb-6">
-        <div className="shadow-profile rounded-card flex items-center gap-3 bg-white/70 p-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback className="bg-gradient-to-br from-[#9b88ff] to-[#6f5deb] text-white">
-              XF
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-[#363161]">
-              XunFlowerrr
-            </span>
-            <span className="text-xs text-[#a19ad9]">Tanit.Yad@gmail.com</span>
+        {user ? (
+          <div className="shadow-profile rounded-card flex items-center gap-3 bg-white/70 p-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage
+                src={`https://ui-avatars.com/api/?name=${user.displayName}`}
+              />
+              <AvatarFallback className="bg-gradient-to-br from-[#9b88ff] to-[#6f5deb] text-white">
+                {user.displayName.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="text-sm font-semibold text-[#363161] truncate">
+                {user.displayName}
+              </span>
+              <span className="text-xs text-[#a19ad9] truncate">
+                {user.email}
+              </span>
+            </div>
+            <button
+              onClick={logout}
+              className="text-gray-400 hover:text-red-500"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  await login('demo@example.com', 'password');
+                } catch {
+                  // If login fails, try registering
+                  try {
+                    await register('demo@example.com', 'password', 'Demo User');
+                  } catch (e2) {
+                    console.error('Login/Register failed', e2);
+                    alert('Failed to login/register demo user');
+                  }
+                }
+              }}
+              className="w-full rounded-md bg-[#8c7ee1] py-2 text-sm font-medium text-white hover:bg-[#7c68e1]"
+            >
+              Login / Register (Demo)
+            </button>
+          </div>
+        )}
       </SidebarFooter>
     </SidebarPrimitive>
   );

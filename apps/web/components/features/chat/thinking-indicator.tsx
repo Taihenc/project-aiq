@@ -18,7 +18,7 @@ export const ThinkingIndicator: React.FC = () => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [messages.length]);
 
   const currentMessage = messages[messageIndex];
 

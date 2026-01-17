@@ -15,6 +15,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import type { ChatMessageProps, Citation } from '@/types';
+import Image from 'next/image';
 
 export function ChatMessage({
   role,
@@ -155,7 +156,7 @@ export function ChatMessage({
                     h3: ({ children }) => (
                       <h3 className="mb-2 text-base font-bold">{children}</h3>
                     ),
-                    code: ({ className, children, ...props }: any) => {
+                    code: ({ className, children, ...props }: React.ComponentPropsWithoutRef<'code'>) => {
                       const match = /language-(\w+)/.exec(className || '');
                       const isInline = !match;
                       return !isInline ? (
@@ -220,10 +221,12 @@ export function ChatMessage({
                       </td>
                     ),
                     hr: () => <hr className="my-6 border-t border-[#e6e0ff]" />,
-                    img: ({ src, alt }: any) => (
-                      <img
-                        src={src}
-                        alt={alt}
+                    img: ({ src, alt }: React.ComponentPropsWithoutRef<'img'>) => (
+                      <Image
+                        src={src as string || ''}
+                        alt={alt || ''}
+                        width={500}
+                        height={300}
                         className="my-4 max-w-full rounded-lg border border-[#e6e0ff] shadow-sm"
                       />
                     ),
@@ -330,10 +333,12 @@ function SourceCard({ source }: { source: Citation }) {
                       </td>
                     ),
                     hr: () => <hr className="my-4 border-t border-[#e6e0ff]" />,
-                    img: ({ src, alt }: any) => (
-                      <img
-                        src={src}
-                        alt={alt}
+                    img: ({ src, alt }: React.ComponentPropsWithoutRef<'img'>) => (
+                      <Image
+                        src={src as string || ''}
+                        alt={alt || ''}
+                        width={500}
+                        height={300}
                         className="my-3 max-w-full rounded-md border border-[#e6e0ff]"
                       />
                     ),
