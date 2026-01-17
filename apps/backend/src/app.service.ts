@@ -16,13 +16,15 @@ import {
   CitationDto,
 } from './dto/chat-response.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { ChatHistoryService } from './chat-history/chat-history.service';
 
 @Injectable()
 export class AppService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) {}
+    private readonly chatHistoryService: ChatHistoryService,
+  ) { }
 
   getHello(): string {
     return 'Hello World!';
@@ -50,7 +52,7 @@ export class AppService {
   }
 
   // Legacy method for backward compatibility
-  chatWithAi(chatRequest: ChatRequestDto): Observable<ChatResponseDto> {
+  chatWithAi(chatRequest: ChatRequestDto, userId: string): Observable<ChatResponseDto> {
     const aiServiceBaseUrl =
       this.configService.get<string>('aiService.baseUrl') ||
       'http://127.0.0.1:8000';
@@ -67,6 +69,7 @@ export class AppService {
   // OpenAI-compatible method with adapter logic using AI Engine
   chatWithAiEngine(
     chatRequest: ChatCompletionsRequestDto,
+    userId: string,
   ): Observable<ChatCompletionsResponseDto> {
     try {
       const aiEngineBaseUrl = this.getAiEngineBaseUrl();
@@ -108,6 +111,23 @@ export class AppService {
             parsedResponse,
             chatRequest,
           );
+
+          if (chatRequest.session_id) {
+            this.chatHistoryService.addMessage(
+              chatRequest.session_id,
+              userId,
+              'user',
+              aiEngineRequest.inputs.user_query
+            );
+            this.chatHistoryService.addMessage(
+              chatRequest.session_id,
+              userId,
+              'assistant',
+              transformed.choices[0].message.content,
+              transformed.citations
+            );
+          }
+
           return transformed;
         }),
       );
@@ -262,21 +282,21 @@ export class AppService {
     const citations: CitationDto[] | undefined =
       aiEngineResponse.sources_used && aiEngineResponse.sources_used.length > 0
         ? aiEngineResponse.sources_used.map((source: any, index: number) => {
-            if (typeof source === 'string') {
-              return {
-                id: `citation-${index}`,
-                title: source,
-                platform: 'AI Engine',
-                content: '',
-              };
-            }
+          if (typeof source === 'string') {
             return {
-              id: source.id || `citation-${index}`,
-              title: source.title || source.name || `Source ${index + 1}`,
-              platform: source.platform || source.source || 'AI Engine',
-              content: source.content || source.description || '',
+              id: `citation-${index}`,
+              title: source,
+              platform: 'AI Engine',
+              content: '',
             };
-          })
+          }
+          return {
+            id: source.id || `citation-${index}`,
+            title: source.title || source.name || `Source ${index + 1}`,
+            platform: source.platform || source.source || 'AI Engine',
+            content: source.content || source.description || '',
+          };
+        })
         : undefined;
 
     return {
@@ -364,27 +384,27 @@ export class AppService {
     const citations: CitationDto[] | undefined =
       citationsData.length > 0
         ? citationsData.map((citation: any, index: number) => {
-            // If citation is a string, convert to object
-            if (typeof citation === 'string') {
-              return {
-                id: `citation-${index}`,
-                title: citation,
-                platform: originalRequest.request_source || 'AI Service',
-                content: '',
-              };
-            }
-            // If citation is already an object, use it
+          // If citation is a string, convert to object
+          if (typeof citation === 'string') {
             return {
-              id: citation.id || `citation-${index}`,
-              title: citation.title || citation.name || citation,
-              platform:
-                citation.platform ||
-                citation.source ||
-                originalRequest.request_source ||
-                'AI Service',
-              content: citation.content || citation.description || '',
+              id: `citation-${index}`,
+              title: citation,
+              platform: originalRequest.request_source || 'AI Service',
+              content: '',
             };
-          })
+          }
+          // If citation is already an object, use it
+          return {
+            id: citation.id || `citation-${index}`,
+            title: citation.title || citation.name || citation,
+            platform:
+              citation.platform ||
+              citation.source ||
+              originalRequest.request_source ||
+              'AI Service',
+            content: citation.content || citation.description || '',
+          };
+        })
         : undefined;
 
     return {

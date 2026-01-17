@@ -5,7 +5,10 @@ import {
   Body,
   HttpException,
   HttpStatus,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AppService } from './app.service';
 import {
   ChatRequestDto,
@@ -18,7 +21,7 @@ import {
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly appService: AppService) { }
 
   @Get()
   getHello(): string {
@@ -34,11 +37,13 @@ export class AppController {
 
   // OpenAI-compatible endpoint
   @Post('v1/chat/completions')
+  @UseGuards(AuthGuard('jwt'))
   async chatCompletions(
+    @Request() req,
     @Body() chatRequest: ChatCompletionsRequestDto,
   ): Promise<ChatCompletionsResponseDto> {
     const aiResponse = await this.appService
-      .chatWithAiEngine(chatRequest)
+      .chatWithAiEngine(chatRequest, req.user.userId)
       .toPromise();
 
     if (!aiResponse) {
@@ -52,9 +57,13 @@ export class AppController {
 
   // Legacy endpoint for backward compatibility
   @Post('chat')
-  async chat(@Body() chatRequest: ChatRequestDto): Promise<ChatResponseDto> {
+  @UseGuards(AuthGuard('jwt'))
+  async chat(
+    @Request() req,
+    @Body() chatRequest: ChatRequestDto
+  ): Promise<ChatResponseDto> {
     const aiResponse = await this.appService
-      .chatWithAi(chatRequest)
+      .chatWithAi(chatRequest, req.user.userId)
       .toPromise();
 
     if (!aiResponse) {
