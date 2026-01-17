@@ -4,7 +4,7 @@ import type { Citation } from './api';
  * UI Message interface that reflects the ChatCompletionsResponseDto from backend
  * This is used for storing and displaying messages in the UI
  *
- * Note: This is different from Message (APIMessage) in @/lib/api/types
+ * Note: This is different from Message (APIMessage) in @/types
  * - UIMessage: For UI state management (includes all response fields)
  * - Message: For API requests (minimal required fields)
  */
