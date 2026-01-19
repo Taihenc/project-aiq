@@ -16,7 +16,9 @@ dependencies = [
     "httpx>=0.25.0",
     "pydantic>=2.5.0",
     "python-dotenv>=1.0.0",
-    "crewai[tools,azure-ai-inference]>=0.203.1",
+    "crewai[azure-ai-inference,tools]>=0.203.1",
+    "langfuse",
+    "openinference-instrumentation-crewai>=0.1.17",
 ]
 
 [project.optional-dependencies]
