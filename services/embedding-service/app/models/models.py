@@ -33,7 +33,7 @@ class SearchFilter(BaseModel):
 class SearchRequest(BaseModel):
     query: str = Field("artificial intelligence", description="Search query text")
     top_k: int = Field(default=10, ge=1, le=100, description="Number of results from sematic search")
-    top_n: Optional[int] = Field(default=10, ge=1, le=100, description="Number of results from rerank")
+    top_n: Optional[int] = Field(default=10, ge=1, le=100, description="Number of results from rerank (Leave null for no reranking)")
     score_threshold: Optional[float] = Field(default=0, ge=0.0, le=1.0, description="Minimum similarity score")
     filter: Optional[SearchFilter] = Field(default=None, description="Metadata filter")
 
