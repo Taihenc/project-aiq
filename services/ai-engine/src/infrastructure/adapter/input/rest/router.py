@@ -1,0 +1,18 @@
+from fastapi import APIRouter
+from src.infrastructure.adapter.input.rest.v1 import (
+    agents,
+    models,
+    tools,
+    jobs,
+    workflows,
+    executions,
+)
+
+api_router = APIRouter()
+
+api_router.include_router(models.router, prefix="/models", tags=["Models"])
+api_router.include_router(tools.router, prefix="/tools", tags=["Tools"])
+api_router.include_router(agents.router, prefix="/agents", tags=["Agents"])
+api_router.include_router(jobs.router, prefix="/jobs", tags=["Jobs"])
+api_router.include_router(workflows.router, prefix="/workflows", tags=["Workflows"])
+api_router.include_router(executions.router, prefix="/executions", tags=["Executions"])

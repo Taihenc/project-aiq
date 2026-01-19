@@ -1,5 +1,5 @@
 {
-  "name": "ai-engine",
+  "name": "ai-engine-archive",
   "version": "1.0.0",
   "description": "AI Engine service with CrewAI reasoning and autonomous RAG retrieval",
   "main": "index.js",
