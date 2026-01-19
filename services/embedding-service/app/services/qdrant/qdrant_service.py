@@ -1,7 +1,7 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance, VectorParams, PointStruct,
-    Filter, FieldCondition, MatchText, SearchRequest as QdrantSearchRequest
+    Filter, FieldCondition, MatchValue, MatchText, SearchRequest as QdrantSearchRequest
 )
 from typing import List, Dict, Any, Optional
 import uuid
@@ -47,8 +47,70 @@ class QdrantService:
             )
             print(f"Collection {self.collection_name} created")
 
-    def upload_documents(self, documents: List[Dict[str, Any]]) -> List[str]:
+    def _ensure_duplicate(self, path: str) -> bool:
         self._ensure_collection()
+
+        try:
+            results, _ = self.client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="file_path",
+                            match=MatchValue(value=path)
+                        )
+                    ]
+                ),
+                limit=1
+            )
+
+            return len(results) > 0
+
+        except Exception:
+            return False
+        
+    def _delete_by_metadata(self, metadata: Dict[str, Any]) -> None:
+        self._ensure_collection()
+
+        try:
+            conditions = []
+
+            for key, value in metadata.items():
+                # Case 1: (MatchClass, match_value)
+                if isinstance(value, tuple):
+                    match_cls, match_value = value
+                    match = match_cls(value=match_value)
+
+                # Case 2: raw value → MatchValue
+                else:
+                    match = MatchValue(value=value)
+
+                conditions.append(
+                    FieldCondition(
+                        key=key,
+                        match=match
+                    )
+                )
+
+            self.client.delete(
+                collection_name=self.collection_name,
+                points_selector=Filter(must=conditions)
+            )
+
+        except Exception as e:
+            raise RuntimeError("Failed to delete by metadata") from e
+
+    def upload_documents(self, documents: List[Dict[str, Any]], duplicate: bool = False) -> List[str]:
+        self._ensure_collection()
+
+        if len(documents) == 0:
+            return []
+
+        if not duplicate and self._ensure_duplicate(documents[0]["metadata"]["file_path"]):
+            self._delete_by_metadata(metadata={
+                "file_path": (MatchValue, documents[0]["metadata"]["file_path"])
+            })
+
         texts = [doc['text'] for doc in documents]
 
         embeddings = embedding_service.encode_batch(texts)

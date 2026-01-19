@@ -58,7 +58,7 @@ async def upload_documents(batch: DocumentUploadRequest):
 
 
 @router.post("/search", response_model=SearchResponse)
-async def search_documents(search_request: SearchRequest, rerank: bool = True):
+async def search_documents(search_request: SearchRequest):
     try:
         documents = qdrant_service.search(
             query=search_request.query,
@@ -90,7 +90,7 @@ async def search_documents(search_request: SearchRequest, rerank: bool = True):
 
         logger.info("Similarity search completed:\n%s", json.dumps(log_payload, indent=2, ensure_ascii=False))
 
-        if rerank:
+        if search_request.top_n is not None:
             document = reranking_service.rerank(
                 query=search_request.query,
                 documents=document,
