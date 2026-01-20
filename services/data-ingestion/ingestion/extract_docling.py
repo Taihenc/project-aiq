@@ -19,6 +19,7 @@ class DoclingExtractor:
             ".html", ".xhtml", ".csv", ".vtt",  # Web & Data
             ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".webp" # Images
         }
+        self.image_extensions = {".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".webp"}
         accel_options = AcceleratorOptions(num_threads=8, device=AcceleratorDevice.AUTO)
         # --- 1. SHARED VISION PROMPT ---
         # Set the prompt on the model object first
@@ -40,8 +41,11 @@ class DoclingExtractor:
                 InputFormat.PPTX: PowerpointFormatOption(pipeline_options=other_opts_fast),
                 InputFormat.XLSX: ExcelFormatOption(pipeline_options=other_opts_fast),
                 InputFormat.IMAGE: ImageFormatOption(
-                    pipeline_options=VlmPipelineOptions(do_picture_description=False), 
-                    pipeline_cls=VlmPipeline
+                    pipeline_options=PdfPipelineOptions( # or pdf
+                        do_picture_description=True,
+                        generate_page_images = True,
+                        do_ocr = False,
+                    )
                 )
             }
         )
@@ -61,16 +65,70 @@ class DoclingExtractor:
                 InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts_smart),
                 InputFormat.DOCX: WordFormatOption(pipeline_options=other_opts_smart),
                 InputFormat.PPTX: PowerpointFormatOption(pipeline_options=other_opts_smart),
-                InputFormat.XLSX: ExcelFormatOption(pipeline_options=other_opts_smart),
-                InputFormat.IMAGE: ImageFormatOption(
-                    pipeline_options=VlmPipelineOptions(
-                        do_picture_description=True, 
-                        picture_description_options=smolvlm_picture_description
-                    ),
-                    pipeline_cls=VlmPipeline
-                )
+                InputFormat.XLSX: ExcelFormatOption(pipeline_options=other_opts_smart)
+                # InputFormat.IMAGE: ImageFormatOption(
+                #     pipeline_options=PdfPipelineOptions( # or pdf
+                #         do_picture_description=True,
+                #         generate_page_images = False,
+                #         do_ocr = True,
+                #     )
+                # )
             }
         )
+
+    def _mock_external_model(self, base64_string):
+        import requests
+        import json
+        url = "http://localhost:1234/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json"
+        }
+        # 2. Construct the Payload (OpenAI Vision Format)
+        # Note: We must add the data URI header back because LM Studio expects it.
+        # We assume jpeg/png; generic 'image/jpeg' usually works for most vision models.
+        payload = {
+            "model": "local-model", # The name doesn't matter for LM Studio usually
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text", 
+                            "text": (
+                                "explain the picture be clear and precise"
+                            )
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_string}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": -1,
+            "stream": False
+        }
+
+        print("Sending to LM Studio...")
+        try:
+            # 3. Send POST Request
+            response = requests.post(url, headers=headers, data=json.dumps(payload))
+            
+            # 4. Handle Response
+            if response.status_code == 200:
+                result_json = response.json()
+                # Extract the text content
+                content = result_json['choices'][0]['message']['content']
+                return f"**[IMAGE CONTENT]**: {content}"
+            else:
+                return f"LM Studio Error {response.status_code}: {response.text}"
+                
+        except Exception as e:
+            return f"Connection Error: {e}. Is LM Studio running?"
+    
     def convert(self, file_path: str, export: str = "raw"):
         file_path = Path(file_path)
         if file_path.suffix.lower() not in self.supported_extensions:
@@ -80,11 +138,34 @@ class DoclingExtractor:
 
         # To handle images as PDFs (for better table/text extraction), we convert only if it's an image
         source = str(file_path)
+        is_image = file_path.suffix.lower() in self.image_extensions
+
         # PASS 1: Try with Fast Converter
         result = self.fast_converter.convert(source).document
-        
+        if is_image:
+            try:
+                # 1. Get Dictionary to access URI
+                n = result.export_to_dict()
+                
+                # 2. Get Base64 using your specific path
+                # Note: We use '1' because Docling pages are 1-indexed strings in the dict
+                base64_str = n['pages']['1']['image']['uri'].split(",")[1]
+                
+                # 3. Get String from External Model
+                external_text = self._mock_external_model(base64_str)
+                
+                # 4. Update the document with ONLY this result (and stop processing)
+                result.add_text(
+                    label=DocItemLabel.TEXT,
+                    text = external_text
+                )  
+            except KeyError as e:
+                print(f"Error extracting base64: {e}")
+            except Exception as e:
+                print(f"Error in external model processing: {e}")
+
         # PASS 2: If pictures detected, rerun with Smart Converter
-        if len(result.pictures) > 0:
+        elif (len(result.pictures) > 0 and (not (is_image))):
             pprint("detect image")
             result = self.smart_converter.convert(source).document
 
@@ -113,9 +194,12 @@ class DoclingExtractor:
 # --------------------------------------------------------
 if __name__ == "__main__":
     extractor = DoclingExtractor()
-    source = "services/data-ingestion/ingestion/ex1.xlsx"
+    source = "services/data-ingestion/ingestion/scbx.pdf"
     result = extractor.convert(source)
     # pprint(extractor.convert(source,'dict'))
+    # n = extractor.convert(source,'dict')
+    # n = n['pages']['1']['image']['uri'].split(",")[1]
+    # pprint(n)
     # a = Chunker().chunk(result)
     # builder = ContextBuilder() 
     # b = builder.build(a,source)
