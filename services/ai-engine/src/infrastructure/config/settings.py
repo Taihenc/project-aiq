@@ -1,3 +1,4 @@
+from typing import Optional, List
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,19 +13,26 @@ class Settings(BaseSettings):
     redis_url: str = Field("redis://localhost:6379/0", validation_alias="REDIS_URL")
 
     # Azure
-    azure_api_key: str = Field(validation_alias="AZURE_API_KEY")
-    azure_api_base: str = Field(validation_alias="AZURE_API_BASE")
-    azure_api_version: str = Field(validation_alias="AZURE_API_VERSION")
+    azure_api_key: str = Field(..., validation_alias="AZURE_API_KEY")
+    azure_api_base: str = Field(..., validation_alias="AZURE_API_BASE")
+    azure_api_version: str = Field(..., validation_alias="AZURE_API_VERSION")
 
     # OpenAI
-    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    openai_api_key: Optional[str] = Field(None, validation_alias="OPENAI_API_KEY")
 
     # Anthropic
-    anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
+    anthropic_api_key: Optional[str] = Field(None, validation_alias="ANTHROPIC_API_KEY")
 
     # LLM Defaults
-    llm_temperature: float = 0.7
-    llm_max_tokens: int = 4096
+    llm_temperature: Optional[float] = Field(None, validation_alias="LLM_TEMPERATURE")
+    llm_max_tokens: Optional[int] = Field(None, validation_alias="LLM_MAX_TOKENS")
+    llm_top_p: Optional[float] = Field(None, validation_alias="LLM_TOP_P")
+    llm_frequency_penalty: Optional[float] = Field(
+        None, validation_alias="LLM_FREQUENCY_PENALTY"
+    )
+    llm_presence_penalty: Optional[float] = Field(
+        None, validation_alias="LLM_PRESENCE_PENALTY"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from src.core.domain.model.agent import Agent
-from src.core.domain.value_object.config import ModelConfig
+from src.core.domain.model.model_config import ModelConfig
 
 
 class AgentPort(ABC):

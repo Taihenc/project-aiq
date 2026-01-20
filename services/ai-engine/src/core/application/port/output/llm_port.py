@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, AsyncIterator
-from src.core.domain.value_object.config import ModelConfig
+from src.core.domain.model.model_config import ModelConfig
 
 
 class LLMProvider(ABC):

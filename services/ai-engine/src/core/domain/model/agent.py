@@ -1,6 +1,6 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from src.core.domain.model.base import Entity
-from src.core.domain.value_object.config import ModelConfig
+from src.core.domain.value_object.llm import ModelConfig
 
 
 class Agent(Entity):
@@ -10,4 +10,4 @@ class Agent(Entity):
     backstory: Optional[str] = None
     model_id: str
     tools: List[str] = []
-    default_config: Optional[ModelConfig] = None
+    default_config: ModelConfig

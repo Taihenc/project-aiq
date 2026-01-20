@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AI Engine Service",
-    description="Stateless Microservice for AI Agents",
+    description="Stateless Microservice for AI Workflows",
     version="0.1.0",
     debug=settings.debug,
     lifespan=lifespan,
