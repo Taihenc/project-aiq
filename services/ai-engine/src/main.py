@@ -5,6 +5,8 @@ from src.infrastructure.config.logging import setup_logging
 from src.infrastructure.adapter.output.persistence.mongodb import mongodb_client
 from src.infrastructure.adapter.output.messaging.redis import redis_client
 from src.infrastructure.adapter.input.rest.router import api_router
+from src.infrastructure.adapter.input.rest.exceptions import common_exception_handler
+from fastapi import HTTPException
 
 
 @asynccontextmanager
@@ -31,6 +33,9 @@ app = FastAPI(
 )
 
 app.include_router(api_router, prefix="/api/v1")
+
+# Register Exception Handlers
+app.add_exception_handler(HTTPException, common_exception_handler)
 
 
 @app.get("/")
