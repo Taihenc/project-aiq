@@ -7,5 +7,5 @@ class Model(Entity):
     name: str
     provider: str
     description: Optional[str] = None
-    default_config: ModelConfig
+    default_config: Optional[ModelConfig] = None
     is_active: bool = True

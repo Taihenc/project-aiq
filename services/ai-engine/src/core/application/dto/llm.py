@@ -7,7 +7,7 @@ class CreateModelRequest(BaseModel):
     name: str
     provider: str
     description: Optional[str] = None
-    default_config: ModelConfig
+    default_config: Optional[ModelConfig] = None
     is_active: bool = True
 
     model_config = ConfigDict(
@@ -37,9 +37,6 @@ class UpdateModelConfig(BaseModel):
     top_p: Optional[float] = None
     frequency_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
-    stop: Optional[List[str]] = None
-    base_url: Optional[str] = None
-    api_key: Optional[str] = None
 
 
 class UpdateModelRequest(BaseModel):
@@ -53,8 +50,16 @@ class UpdateModelRequest(BaseModel):
         json_schema_extra={
             "example": {
                 "name": "gpt-4-turbo-updated",
+                "provider": "openai",
                 "description": "Updated description",
-                "default_config": {"temperature": 0.8, "max_tokens": 8192},
+                "default_config": {
+                    "context_window": 128000,
+                    "temperature": 0.8,
+                    "max_tokens": 8192,
+                    "top_p": 1.0,
+                    "frequency_penalty": 0.0,
+                    "presence_penalty": 0.0,
+                },
                 "is_active": False,
             }
         }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, Query, Depends
 from typing import List, Optional
 from src.core.domain.model.llm import Model
 from src.core.application.usecase.llm import ModelService
@@ -30,7 +30,7 @@ async def list_models(
 ):
     """List all available models, optionally filtered by provider."""
     models = await service.list_models(provider=provider)
-    return BaseResponse(data=models)
+    return BaseResponse(data=models, message="Models retrieved successfully")
 
 
 @router.get(
@@ -43,11 +43,8 @@ async def get_model(
     service: ModelService = Depends(get_model_service),
 ):
     """Get a specific model by ID."""
-    try:
-        model = await service.get_model(model_id)
-        return BaseResponse(data=model)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    model = await service.get_model(model_id)
+    return BaseResponse(data=model, message="Model retrieved successfully")
 
 
 @router.post(
@@ -61,7 +58,7 @@ async def create_model(
 ):
     """Create a new model."""
     created_model = await service.create_model(request)
-    return BaseResponse(data=created_model)
+    return BaseResponse(data=created_model, message="Model created successfully")
 
 
 @router.put(
@@ -75,11 +72,8 @@ async def update_model(
     service: ModelService = Depends(get_model_service),
 ):
     """Update an existing model."""
-    try:
-        result = await service.update_model(model_id, request)
-        return BaseResponse(data=result)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    result = await service.update_model(model_id, request)
+    return BaseResponse(data=result, message="Model updated successfully")
 
 
 @router.delete(
@@ -92,8 +86,5 @@ async def delete_model(
     service: ModelService = Depends(get_model_service),
 ):
     """Delete a model."""
-    try:
-        result = await service.delete_model(model_id)
-        return BaseResponse(data=result)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    result = await service.delete_model(model_id)
+    return BaseResponse(data=result, message="Model deleted successfully")

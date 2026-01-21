@@ -34,6 +34,7 @@ class Repository(ABC, Generic[T]):
 
 
 class ModelRepository(Repository[Model]):
+    @abstractmethod
     async def list(self, provider: Optional[str] = None) -> List[Model]:
         pass
 

@@ -11,7 +11,7 @@ LIST_MODELS_RESPONSES = {
                             "name": "gpt-4-turbo",
                             "provider": "openai",
                             "description": "Powerful model",
-                            "config": {
+                            "default_config": {
                                 "context_window": 128000,
                                 "temperature": 0.7,
                                 "max_tokens": 4096,
@@ -24,7 +24,7 @@ LIST_MODELS_RESPONSES = {
                             "updated_at": "2024-01-20T10:00:00Z",
                         }
                     ],
-                    "message": None,
+                    "message": "Models retrieved successfully",
                     "meta": None,
                 }
             }
@@ -44,7 +44,7 @@ GET_MODEL_RESPONSES = {
                         "name": "gpt-4-turbo",
                         "provider": "openai",
                         "description": "Powerful model",
-                        "config": {
+                        "default_config": {
                             "context_window": 128000,
                             "temperature": 0.7,
                             "max_tokens": 4096,
@@ -56,7 +56,7 @@ GET_MODEL_RESPONSES = {
                         "created_at": "2024-01-20T10:00:00Z",
                         "updated_at": "2024-01-20T10:00:00Z",
                     },
-                    "message": None,
+                    "message": "Model retrieved successfully",
                     "meta": None,
                 }
             }
@@ -64,12 +64,22 @@ GET_MODEL_RESPONSES = {
     },
     404: {
         "description": "Model not found",
-        "content": {"application/json": {"example": {"detail": "Model not found"}}},
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "data": None,
+                    "message": "Model not found: model_123",
+                    "error_code": "NOT_FOUND",
+                    "meta": None,
+                }
+            }
+        },
     },
 }
 
 CREATE_MODEL_RESPONSES = {
-    200: {
+    201: {
         "description": "Model created successfully",
         "content": {
             "application/json": {
@@ -80,7 +90,7 @@ CREATE_MODEL_RESPONSES = {
                         "name": "gpt-4-turbo",
                         "provider": "openai",
                         "description": "Powerful model",
-                        "config": {
+                        "default_config": {
                             "context_window": 128000,
                             "temperature": 0.7,
                             "max_tokens": 4096,
@@ -92,12 +102,26 @@ CREATE_MODEL_RESPONSES = {
                         "created_at": "2024-01-20T10:00:00Z",
                         "updated_at": "2024-01-20T10:00:00Z",
                     },
-                    "message": None,
+                    "message": "Model created successfully",
                     "meta": None,
                 }
             }
         },
-    }
+    },
+    409: {
+        "description": "Duplicate Entity",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "data": None,
+                    "message": "Model 'gpt-4-turbo' already exists for provider 'openai'",
+                    "error_code": "DUPLICATE_ENTITY",
+                    "meta": None,
+                }
+            }
+        },
+    },
 }
 
 UPDATE_MODEL_RESPONSES = {
@@ -112,7 +136,7 @@ UPDATE_MODEL_RESPONSES = {
                         "name": "gpt-4-turbo",
                         "provider": "openai",
                         "description": "Updated description",
-                        "config": {
+                        "default_config": {
                             "context_window": 128000,
                             "temperature": 0.8,
                             "max_tokens": 8192,
@@ -124,7 +148,7 @@ UPDATE_MODEL_RESPONSES = {
                         "created_at": "2024-01-20T10:00:00Z",
                         "updated_at": "2024-01-20T10:05:00Z",
                     },
-                    "message": None,
+                    "message": "Model updated successfully",
                     "meta": None,
                 }
             }
@@ -132,7 +156,31 @@ UPDATE_MODEL_RESPONSES = {
     },
     404: {
         "description": "Model not found",
-        "content": {"application/json": {"example": {"detail": "Model not found"}}},
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "data": None,
+                    "message": "Model not found: model_123",
+                    "error_code": "NOT_FOUND",
+                    "meta": None,
+                }
+            }
+        },
+    },
+    409: {
+        "description": "Duplicate Entity",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "data": None,
+                    "message": "Model 'gpt-4-turbo' already exists for provider 'openai'",
+                    "error_code": "DUPLICATE_ENTITY",
+                    "meta": None,
+                }
+            }
+        },
     },
 }
 
@@ -144,7 +192,7 @@ DELETE_MODEL_RESPONSES = {
                 "example": {
                     "success": True,
                     "data": True,
-                    "message": None,
+                    "message": "Model deleted successfully",
                     "meta": None,
                 }
             }
@@ -152,6 +200,16 @@ DELETE_MODEL_RESPONSES = {
     },
     404: {
         "description": "Model not found",
-        "content": {"application/json": {"example": {"detail": "Model not found"}}},
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "data": None,
+                    "message": "Model not found: model_123",
+                    "error_code": "NOT_FOUND",
+                    "meta": None,
+                }
+            }
+        },
     },
 }
