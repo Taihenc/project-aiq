@@ -8,6 +8,7 @@ from src.core.domain.exceptions import (
     DuplicateEntityException,
     BusinessRuleViolation,
     ExternalServiceError,
+    InactiveEntityException,
 )
 
 
@@ -59,7 +60,9 @@ async def domain_exception_handler(request: Request, exc: DomainException):
         status_code = 404
     elif isinstance(exc, DuplicateEntityException):
         status_code = 409
-    elif isinstance(exc, BusinessRuleViolation):
+    elif isinstance(exc, BusinessRuleViolation) or isinstance(
+        exc, InactiveEntityException
+    ):
         status_code = 400
     elif isinstance(exc, ExternalServiceError):
         status_code = 502  # Bad Gateway for external service failures

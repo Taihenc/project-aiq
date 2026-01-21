@@ -11,7 +11,11 @@ from src.core.application.dto.llm import (
     CompletionResponse,
 )
 from src.core.domain.value_object.llm import ModelConfig
-from src.core.domain.exceptions import EntityNotFoundException, DuplicateEntityException
+from src.core.domain.exceptions import (
+    EntityNotFoundException,
+    DuplicateEntityException,
+    InactiveEntityException,
+)
 
 
 class ModelService(ModelPort):
@@ -123,6 +127,9 @@ class ModelService(ModelPort):
         Generate a completion for the given model and messages.
         """
         model = await self.get_model(model_id)
+
+        if not model.is_active:
+            raise InactiveEntityException(f"Model is not active: {model_id}")
 
         # Prepare config override if any values are set
         config_override = request.config if request.config else None

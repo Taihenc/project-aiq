@@ -40,3 +40,10 @@ class LLMProviderError(ExternalServiceError):
 
     def __init__(self, message: str):
         super().__init__(message, code="LLM_PROVIDER_ERROR")
+
+
+class InactiveEntityException(DomainException):
+    """Raised when an entity is inactive."""
+
+    def __init__(self, message: str):
+        super().__init__(message, code="INACTIVE_ENTITY")
