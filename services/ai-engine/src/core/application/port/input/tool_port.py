@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-from src.core.domain.model.tool import Tool, ExecutionConfig
+from src.core.domain.model.tool import Tool
+from src.core.application.dto.tool import CreateToolRequest, UpdateToolRequest
 
 
 class ToolPort(ABC):
@@ -10,13 +11,8 @@ class ToolPort(ABC):
     """
 
     @abstractmethod
-    async def create_tool(
-        self,
-        name: str,
-        execution_config: ExecutionConfig,
-        description: Optional[str] = None,
-    ) -> Tool:
-        """Register a new tool with MCP execution configuration."""
+    async def create_tool(self, request: CreateToolRequest) -> Tool:
+        """Register a new tool."""
         pass
 
     @abstractmethod
@@ -33,9 +29,7 @@ class ToolPort(ABC):
     async def update_tool(
         self,
         tool_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        execution_config: Optional[ExecutionConfig] = None,
+        request: UpdateToolRequest,
     ) -> Tool:
         """Update an existing tool configuration."""
         pass
@@ -43,12 +37,4 @@ class ToolPort(ABC):
     @abstractmethod
     async def delete_tool(self, tool_id: str) -> bool:
         """Delete a tool by ID. Returns True if successful."""
-        pass
-
-    @abstractmethod
-    async def check_tool_health(self, tool_id: str) -> Dict[str, Any]:
-        """
-        Check tool connectivity and health status.
-        Returns status, last_checked timestamp, and discovered functions.
-        """
         pass
