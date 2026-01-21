@@ -8,7 +8,7 @@ class ContextMetadata(TypedDict, total=False):
     file: str
     file_path: str
     file_type: str
-    pages: List[int]
+    page: int
     section: Optional[str]
     created_at: str
     checksum: str
@@ -51,13 +51,14 @@ class ContextBuilder:
             raw_text = chunk.get("text", "")
             
             # 2. Extract basic metadata for indexing
-            pages = chunk.get("page_nos", [])
+            pages= chunk.get("page_nos", [])
+            page = pages[0] if pages else -1
             doc_items = chunk.get("metadata", {}).get("doc_items", [])
             primary_label = str(doc_items[0].get("label")) if doc_items else "text"
             
             # 3. Generate deterministic ID
             checksum = hashlib.sha1(raw_text.encode("utf-8")).hexdigest()
-            base_id = f"{file_path}|{pages[0] if pages else 0}|{checksum[:8]}"
+            base_id = f"{file_path}|{page}|{checksum[:8]}"
             record_id = hashlib.sha1(base_id.encode("utf-8")).hexdigest()
 
             # 4. Construct the record
@@ -65,7 +66,7 @@ class ContextBuilder:
                 "file": filename,
                 "file_path": file_path,
                 "file_type": file_extension,
-                "pages": pages,
+                "page": page,
                 # "section": primary_label,
                 "created_at": timestamp,
                 "checksum": checksum,
