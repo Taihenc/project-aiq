@@ -24,9 +24,6 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = Field(None, validation_alias="ANTHROPIC_API_KEY")
 
     # LLM Defaults
-    llm_context_window: Optional[int] = Field(
-        None, validation_alias="LLM_CONTEXT_WINDOW"
-    )
     llm_temperature: Optional[float] = Field(None, validation_alias="LLM_TEMPERATURE")
     llm_max_tokens: Optional[int] = Field(None, validation_alias="LLM_MAX_TOKENS")
     llm_top_p: Optional[float] = Field(None, validation_alias="LLM_TOP_P")

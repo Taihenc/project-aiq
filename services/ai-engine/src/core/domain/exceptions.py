@@ -26,3 +26,17 @@ class BusinessRuleViolation(DomainException):
 
     def __init__(self, message: str):
         super().__init__(message, code="BUSINESS_RULE_VIOLATION")
+
+
+class ExternalServiceError(DomainException):
+    """Raised when an external service fails."""
+
+    def __init__(self, message: str, code: str = "EXTERNAL_SERVICE_ERROR"):
+        super().__init__(message, code=code)
+
+
+class LLMProviderError(ExternalServiceError):
+    """Raised when the LLM provider fails."""
+
+    def __init__(self, message: str):
+        super().__init__(message, code="LLM_PROVIDER_ERROR")

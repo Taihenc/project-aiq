@@ -8,4 +8,5 @@ class BaseResponse(BaseModel, Generic[T]):
     success: bool = True
     data: Optional[T] = None
     message: Optional[str] = None
+    error_code: Optional[str] = None
     meta: Optional[Dict[str, Any]] = None

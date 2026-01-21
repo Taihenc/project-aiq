@@ -12,7 +12,6 @@ LIST_MODELS_RESPONSES = {
                             "provider": "openai",
                             "description": "Powerful model",
                             "default_config": {
-                                "context_window": 128000,
                                 "temperature": 0.7,
                                 "max_tokens": 4096,
                                 "top_p": 1.0,
@@ -45,7 +44,6 @@ GET_MODEL_RESPONSES = {
                         "provider": "openai",
                         "description": "Powerful model",
                         "default_config": {
-                            "context_window": 128000,
                             "temperature": 0.7,
                             "max_tokens": 4096,
                             "top_p": 1.0,
@@ -91,7 +89,6 @@ CREATE_MODEL_RESPONSES = {
                         "provider": "openai",
                         "description": "Powerful model",
                         "default_config": {
-                            "context_window": 128000,
                             "temperature": 0.7,
                             "max_tokens": 4096,
                             "top_p": 1.0,
@@ -137,7 +134,6 @@ UPDATE_MODEL_RESPONSES = {
                         "provider": "openai",
                         "description": "Updated description",
                         "default_config": {
-                            "context_window": 128000,
                             "temperature": 0.8,
                             "max_tokens": 8192,
                             "top_p": 1.0,
@@ -193,6 +189,36 @@ DELETE_MODEL_RESPONSES = {
                     "success": True,
                     "data": True,
                     "message": "Model deleted successfully",
+                    "meta": None,
+                }
+            }
+        },
+    },
+    404: {
+        "description": "Model not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "data": None,
+                    "message": "Model not found: model_123",
+                    "error_code": "NOT_FOUND",
+                    "meta": None,
+                }
+            }
+        },
+    },
+}
+
+COMPLETION_RESPONSES = {
+    200: {
+        "description": "Completion generated successfully",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": True,
+                    "data": {"content": "Hello! How can I help you today?"},
+                    "message": "Completion generated successfully",
                     "meta": None,
                 }
             }

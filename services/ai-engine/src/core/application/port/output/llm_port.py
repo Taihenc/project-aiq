@@ -60,6 +60,6 @@ class LLMProvider(ABC):
         Get list of available models from this provider.
 
         Returns:
-            List of dicts containing model metadata (id, name, context_window, etc.)
+            List of dicts containing model metadata (id, name, etc.)
         """
         pass

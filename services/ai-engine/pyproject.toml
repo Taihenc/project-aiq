@@ -19,14 +19,15 @@ dependencies = [
     "python-multipart>=0.0.9",
     "orjson>=3.9.14",
     "loguru>=0.7.3",
+    "crewai[azure-ai-inference]>=1.8.1",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
     "black>=23.0.0",

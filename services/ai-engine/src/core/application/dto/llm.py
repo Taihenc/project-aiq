@@ -1,6 +1,6 @@
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
-from src.core.domain.value_object.llm import ModelConfig
+from src.core.domain.value_object.llm import ModelConfig, Message
 
 
 class CreateModelRequest(BaseModel):
@@ -17,7 +17,6 @@ class CreateModelRequest(BaseModel):
                 "provider": "openai",
                 "description": "Powerful model for complex tasks",
                 "default_config": {
-                    "context_window": 128000,
                     "temperature": 0.7,
                     "max_tokens": 4096,
                     "top_p": 1.0,
@@ -30,20 +29,11 @@ class CreateModelRequest(BaseModel):
     )
 
 
-class UpdateModelConfig(BaseModel):
-    context_window: Optional[int] = None
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    top_p: Optional[float] = None
-    frequency_penalty: Optional[float] = None
-    presence_penalty: Optional[float] = None
-
-
 class UpdateModelRequest(BaseModel):
     name: Optional[str] = None
     provider: Optional[str] = None
     description: Optional[str] = None
-    default_config: Optional[UpdateModelConfig] = None
+    default_config: Optional[ModelConfig] = None
     is_active: Optional[bool] = None
 
     model_config = ConfigDict(
@@ -53,7 +43,6 @@ class UpdateModelRequest(BaseModel):
                 "provider": "openai",
                 "description": "Updated description",
                 "default_config": {
-                    "context_window": 128000,
                     "temperature": 0.8,
                     "max_tokens": 8192,
                     "top_p": 1.0,
@@ -64,3 +53,30 @@ class UpdateModelRequest(BaseModel):
             }
         }
     )
+
+
+class CompletionRequest(BaseModel):
+    messages: List[Message]
+    config: Optional[ModelConfig] = None
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "Hello!"},
+                ],
+                "config": {
+                    "temperature": 0.8,
+                    "max_tokens": 8192,
+                    "top_p": 1.0,
+                    "frequency_penalty": 0.0,
+                    "presence_penalty": 0.0,
+                },
+            }
+        }
+    )
+
+
+class CompletionResponse(BaseModel):
+    content: str

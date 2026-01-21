@@ -7,6 +7,8 @@ from src.infrastructure.config.dependencies import get_model_service
 from src.core.application.dto.llm import (
     CreateModelRequest,
     UpdateModelRequest,
+    CompletionRequest,
+    CompletionResponse,
 )
 from src.infrastructure.adapter.input.rest.v1.examples.llm_examples import (
     LIST_MODELS_RESPONSES,
@@ -14,6 +16,7 @@ from src.infrastructure.adapter.input.rest.v1.examples.llm_examples import (
     CREATE_MODEL_RESPONSES,
     UPDATE_MODEL_RESPONSES,
     DELETE_MODEL_RESPONSES,
+    COMPLETION_RESPONSES,
 )
 
 router = APIRouter()
@@ -88,3 +91,18 @@ async def delete_model(
     """Delete a model."""
     result = await service.delete_model(model_id)
     return BaseResponse(data=result, message="Model deleted successfully")
+
+
+@router.post(
+    "/{model_id}/completion",
+    response_model=BaseResponse[CompletionResponse],
+    responses=COMPLETION_RESPONSES,
+)
+async def generate_completion(
+    model_id: str,
+    request: CompletionRequest,
+    service: ModelService = Depends(get_model_service),
+):
+    """Generate a completion for the specified model."""
+    result = await service.completion(model_id, request)
+    return BaseResponse(data=result, message="Completion generated successfully")

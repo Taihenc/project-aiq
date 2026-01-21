@@ -7,6 +7,7 @@ from src.core.domain.exceptions import (
     EntityNotFoundException,
     DuplicateEntityException,
     BusinessRuleViolation,
+    ExternalServiceError,
 )
 
 
@@ -43,9 +44,8 @@ async def central_exception_handler(request: Request, exc: Exception):
         success=False,
         data=details,
         message=message,
+        error_code=error_code,
     ).model_dump()
-
-    response_data["error_code"] = error_code
 
     return JSONResponse(status_code=status_code, content=response_data)
 
@@ -61,14 +61,15 @@ async def domain_exception_handler(request: Request, exc: DomainException):
         status_code = 409
     elif isinstance(exc, BusinessRuleViolation):
         status_code = 400
+    elif isinstance(exc, ExternalServiceError):
+        status_code = 502  # Bad Gateway for external service failures
 
     response_data = BaseResponse(
         success=False,
         data=None,
         message=exc.message,
+        error_code=exc.code,
     ).model_dump()
-
-    response_data["error_code"] = exc.code
 
     return JSONResponse(status_code=status_code, content=response_data)
 

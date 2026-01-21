@@ -1,9 +1,15 @@
 from typing import List, Optional
 from datetime import datetime
 from src.core.application.port.output.repository import ModelRepository
+from src.core.application.port.output.llm_provider import LLMProviderPort
 from src.core.application.port.input.llm_port import ModelPort
 from src.core.domain.model.llm import Model
-from src.core.application.dto.llm import CreateModelRequest, UpdateModelRequest
+from src.core.application.dto.llm import (
+    CreateModelRequest,
+    UpdateModelRequest,
+    CompletionRequest,
+    CompletionResponse,
+)
 from src.core.domain.value_object.llm import ModelConfig
 from src.core.domain.exceptions import EntityNotFoundException, DuplicateEntityException
 
@@ -13,8 +19,11 @@ class ModelService(ModelPort):
     Service for managing LLM models.
     """
 
-    def __init__(self, model_repository: ModelRepository):
+    def __init__(
+        self, model_repository: ModelRepository, llm_provider: LLMProviderPort
+    ):
         self.model_repository = model_repository
+        self.llm_provider = llm_provider
 
     async def list_models(self, provider: Optional[str] = None) -> List[Model]:
         """
@@ -106,3 +115,20 @@ class ModelService(ModelPort):
         if not existing:
             raise EntityNotFoundException(f"Model not found: {model_id}")
         return await self.model_repository.delete(model_id)
+
+    async def completion(
+        self, model_id: str, request: CompletionRequest
+    ) -> CompletionResponse:
+        """
+        Generate a completion for the given model and messages.
+        """
+        model = await self.get_model(model_id)
+
+        # Prepare config override if any values are set
+        config_override = request.config if request.config else None
+
+        content = await self.llm_provider.generate_completion(
+            model=model, messages=request.messages, config_override=config_override
+        )
+
+        return CompletionResponse(content=content)
