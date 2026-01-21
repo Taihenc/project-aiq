@@ -5,13 +5,7 @@ from src.infrastructure.config.logging import setup_logging
 from src.infrastructure.adapter.output.persistence.mongodb import mongodb_client
 from src.infrastructure.adapter.output.messaging.redis import redis_client
 from src.infrastructure.adapter.input.rest.router import api_router
-from src.infrastructure.adapter.input.rest.exceptions import (
-    central_exception_handler,
-    domain_exception_handler,
-)
-from fastapi import HTTPException
-from fastapi.exceptions import RequestValidationError
-from src.core.domain.exceptions import DomainException
+from src.infrastructure.adapter.input.rest.exceptions import setup_exception_handlers
 
 
 @asynccontextmanager
@@ -40,8 +34,7 @@ app = FastAPI(
 app.include_router(api_router, prefix="/api/v1")
 
 # Register Exception Handlers
-app.add_exception_handler(Exception, central_exception_handler)
-app.add_exception_handler(DomainException, domain_exception_handler)
+setup_exception_handlers(app)
 
 
 @app.get("/")

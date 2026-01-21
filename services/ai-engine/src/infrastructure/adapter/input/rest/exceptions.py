@@ -71,3 +71,13 @@ async def domain_exception_handler(request: Request, exc: DomainException):
     response_data["error_code"] = exc.code
 
     return JSONResponse(status_code=status_code, content=response_data)
+
+
+def setup_exception_handlers(app):
+    """
+    Register all exception handlers to the FastAPI application.
+    """
+    app.add_exception_handler(Exception, central_exception_handler)
+    app.add_exception_handler(HTTPException, central_exception_handler)
+    app.add_exception_handler(RequestValidationError, central_exception_handler)
+    app.add_exception_handler(DomainException, domain_exception_handler)
