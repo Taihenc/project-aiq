@@ -50,7 +50,7 @@ GET_TOOL_RESPONSES: Dict[int, Dict[str, Any]] = {
             "application/json": {
                 "example": {
                     "success": False,
-                    "error_code": "RESOURCE_NOT_FOUND",
+                    "error_code": "NOT_FOUND",
                     "message": "Tool not found: tool_01",
                 }
             }
@@ -98,7 +98,19 @@ UPDATE_TOOL_RESPONSES: Dict[int, Dict[str, Any]] = {
                 }
             }
         },
-    }
+    },
+    404: {
+        "description": "Tool not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "error_code": "NOT_FOUND",
+                    "message": "Tool not found: tool_01",
+                }
+            }
+        },
+    },
 }
 
 DELETE_TOOL_RESPONSES: Dict[int, Dict[str, Any]] = {
@@ -113,5 +125,17 @@ DELETE_TOOL_RESPONSES: Dict[int, Dict[str, Any]] = {
                 }
             }
         },
-    }
+    },
+    404: {
+        "description": "Tool not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "error_code": "NOT_FOUND",
+                    "message": "Tool not found: tool_01",
+                }
+            }
+        },
+    },
 }

@@ -1,6 +1,10 @@
 from typing import List
 from datetime import datetime
-from src.core.application.port.output.repository import AgentRepository
+from src.core.application.port.output.repository import (
+    AgentRepository,
+    ModelRepository,
+    ToolRepository,
+)
 from src.core.application.port.input.agent_port import AgentPort
 from src.core.domain.model.agent import Agent
 from src.core.application.dto.agent import CreateAgentRequest, UpdateAgentRequest
@@ -15,8 +19,15 @@ class AgentService(AgentPort):
     Service for managing Agents.
     """
 
-    def __init__(self, agent_repository: AgentRepository):
+    def __init__(
+        self,
+        agent_repository: AgentRepository,
+        model_repository: ModelRepository,
+        tool_repository: ToolRepository,
+    ):
         self.agent_repository = agent_repository
+        self.model_repository = model_repository
+        self.tool_repository = tool_repository
 
     async def list_agents(self) -> List[Agent]:
         """
@@ -45,6 +56,18 @@ class AgentService(AgentPort):
                     f"Agent with name '{request.name}' already exists"
                 )
 
+        # Validate model existence
+        model = await self.model_repository.get(request.model_id)
+        if not model:
+            raise EntityNotFoundException(f"Model not found: {request.model_id}")
+
+        # Validate tools existence
+        if request.tools:
+            for tool_id in request.tools:
+                tool = await self.tool_repository.get(tool_id)
+                if not tool:
+                    raise EntityNotFoundException(f"Tool not found: {tool_id}")
+
         agent = Agent(**request.model_dump())
         return await self.agent_repository.create(agent)
 
@@ -64,6 +87,19 @@ class AgentService(AgentPort):
                     raise DuplicateEntityException(
                         f"Agent with name '{request.name}' already exists"
                     )
+
+        # Validate model existence if changed
+        if request.model_id is not None:
+            model = await self.model_repository.get(request.model_id)
+            if not model:
+                raise EntityNotFoundException(f"Model not found: {request.model_id}")
+
+        # Validate tools existence if changed
+        if request.tools is not None:
+            for tool_id in request.tools:
+                tool = await self.tool_repository.get(tool_id)
+                if not tool:
+                    raise EntityNotFoundException(f"Tool not found: {tool_id}")
 
         update_data = request.model_dump(exclude_unset=True)
         updated_agent = existing.model_copy(update=update_data)

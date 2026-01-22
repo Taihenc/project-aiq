@@ -56,7 +56,7 @@ GET_AGENT_RESPONSES: Dict[int, Dict[str, Any]] = {
             "application/json": {
                 "example": {
                     "success": False,
-                    "error_code": "RESOURCE_NOT_FOUND",
+                    "error_code": "NOT_FOUND",
                     "message": "Agent not found: agent_01",
                 }
             }
@@ -86,7 +86,19 @@ CREATE_AGENT_RESPONSES: Dict[int, Dict[str, Any]] = {
                 }
             }
         },
-    }
+    },
+    404: {
+        "description": "Model or Tool not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "error_code": "NOT_FOUND",
+                    "message": "Model not found: model_01",
+                }
+            }
+        },
+    },
 }
 
 UPDATE_AGENT_RESPONSES: Dict[int, Dict[str, Any]] = {
@@ -109,7 +121,19 @@ UPDATE_AGENT_RESPONSES: Dict[int, Dict[str, Any]] = {
                 }
             }
         },
-    }
+    },
+    404: {
+        "description": "Agent, Model, or Tool not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "error_code": "NOT_FOUND",
+                    "message": "Agent not found: agent_01",
+                }
+            }
+        },
+    },
 }
 
 DELETE_AGENT_RESPONSES: Dict[int, Dict[str, Any]] = {
@@ -124,5 +148,17 @@ DELETE_AGENT_RESPONSES: Dict[int, Dict[str, Any]] = {
                 }
             }
         },
-    }
+    },
+    404: {
+        "description": "Agent not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "error_code": "NOT_FOUND",
+                    "message": "Agent not found: agent_01",
+                }
+            }
+        },
+    },
 }

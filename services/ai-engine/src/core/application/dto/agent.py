@@ -36,8 +36,12 @@ class UpdateAgentRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "role": "Principal Researcher",
-                "goal": "Lead the research team to success",
+                "name": "senior_research_agent",
+                "role": "Principal AI Researcher",
+                "goal": "Drive innovation in autonomous agent architectures",
+                "backstory": "With over a decade of experience in neural networks, this agent specializes in recursive reasoning systems.",
+                "model_id": "azure/gpt-4o",
+                "tools": ["web_search", "python_interpreter"],
             }
         }
     )
