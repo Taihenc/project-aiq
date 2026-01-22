@@ -52,7 +52,9 @@ class ToolService(ToolPort):
         """
         Update an existing tool configuration.
         """
-        existing = await self.get_tool(tool_id)
+        existing = await self.tool_repository.get(tool_id)
+        if not existing:
+            raise EntityNotFoundException(f"Tool not found: {tool_id}")
 
         # Check for duplicates if name is changing
         if request.name is not None and request.name != existing.name:

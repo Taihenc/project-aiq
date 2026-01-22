@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from src.core.domain.model.agent import Agent
-from src.core.domain.model.model_config import ModelConfig
+from src.core.application.dto.agent import CreateAgentRequest, UpdateAgentRequest
 
 
 class AgentPort(ABC):
@@ -11,16 +11,7 @@ class AgentPort(ABC):
     """
 
     @abstractmethod
-    async def create_agent(
-        self,
-        name: str,
-        role: str,
-        model_id: str,
-        goal: Optional[str] = None,
-        backstory: Optional[str] = None,
-        tools: List[str] = None,
-        default_config: Optional[ModelConfig] = None,
-    ) -> Agent:
+    async def create_agent(self, request: CreateAgentRequest) -> Agent:
         """Create a new agent with the specified configuration."""
         pass
 
@@ -38,8 +29,7 @@ class AgentPort(ABC):
     async def update_agent(
         self,
         agent_id: str,
-        backstory: Optional[str] = None,
-        tools: Optional[List[str]] = None,
+        request: UpdateAgentRequest,
     ) -> Agent:
         """Update an existing agent's configuration."""
         pass
@@ -47,19 +37,4 @@ class AgentPort(ABC):
     @abstractmethod
     async def delete_agent(self, agent_id: str) -> bool:
         """Delete an agent by ID. Returns True if successful."""
-        pass
-
-    @abstractmethod
-    async def run_agent(
-        self,
-        agent_id: str,
-        prompt: str,
-        history: List[Dict[str, str]],
-        config_override: Optional[ModelConfig] = None,
-        stream: bool = False,
-    ) -> Dict[str, Any]:
-        """
-        Execute an agent with a prompt and conversation history.
-        Returns response content, role, and usage statistics.
-        """
         pass
