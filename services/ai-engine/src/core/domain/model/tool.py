@@ -10,4 +10,4 @@ class Tool(Entity):
     endpoint: str
     auth_config: Dict[str, Any]
     # if type is REST
-    parameters: Optional[Dict[str, Literal["INTEGER", "STRING", "BOOLEAN"]]]
+    parameters: Optional[Dict[str, str]]

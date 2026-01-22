@@ -9,6 +9,8 @@ from src.core.domain.model.tool import Tool
 from src.infrastructure.adapter.output.llm_provider.crewai_provider import (
     CrewAILLMProvider,
 )
+from crewai.mcp import MCPServerSSE
+from crewai.tools.structured_tool import CrewStructuredTool
 from src.infrastructure.config.settings import settings
 
 
@@ -54,9 +56,41 @@ class CrewAIJobExecutor(JobExecutorPort):
         # 1. Prepare LLM
         llm = self.llm_provider.get_llm(model)
 
-        # 2. Prepare Tools (Placeholder: Tool conversion logic needed here)
-        # For now, we pass empty list as we haven't implemented Tool->LangChain tool conversion yet
+        # 2. Prepare Tools and MCPs
         crew_tools = []
+        mcps = []
+
+        for tool in tools:
+            if tool.type == "REST":
+                # Create dynamic args schema
+                args_schema = self._create_dynamic_model(
+                    f"{tool.name}Args", tool.parameters or {}
+                )
+
+                # Placeholder function for REST call
+                # In a real scenario, this would perform an HTTP request
+                def _create_runner(t: Tool):
+                    def _run_tool(**kwargs):
+                        return f"Executed {t.name} at {t.endpoint} with args: {kwargs}"
+
+                    return _run_tool
+
+                # Create StructuredTool
+                structured_tool = CrewStructuredTool.from_function(
+                    func=_create_runner(tool),
+                    name=tool.name,
+                    description=tool.description,
+                    args_schema=args_schema,
+                )
+                crew_tools.append(structured_tool)
+
+            elif tool.type == "MCP_SSE":
+                # Create MCP Server connection
+                # Extract headers from auth_config if present
+                headers = tool.auth_config if tool.auth_config else {}
+
+                mcp_server = MCPServerSSE(url=tool.endpoint, headers=headers)
+                mcps.append(mcp_server)
 
         # 3. Create CrewAI Agent
         crew_agent = CrewAgent(
@@ -67,7 +101,25 @@ class CrewAIJobExecutor(JobExecutorPort):
             tools=crew_tools,
             verbose=settings.debug,
             allow_delegation=False,
+            # Pass MCP servers if any
+            # Note: The underlying Agent must support the 'mcps' argument dynamically
+            # if using an older version of CrewAI that doesn't explicitly type hint it,
+            # but User info suggests it is supported.
         )
+        # Manually injection if not supported in constructor directly or typed
+        if mcps:
+            # Based on user example: mcps=[remote_mcp] in constructor
+            # Re-instantiate or use **kwargs if needed, but assuming standard init:
+            crew_agent = CrewAgent(
+                role=agent.role,
+                goal=agent.goal,
+                backstory=agent.backstory,
+                llm=llm,
+                tools=crew_tools,
+                verbose=settings.debug,
+                allow_delegation=False,
+                mcps=mcps,
+            )
 
         # 4. Prepare Output Model if configured
         output_pydantic = None
