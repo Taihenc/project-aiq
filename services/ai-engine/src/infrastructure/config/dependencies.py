@@ -14,6 +14,10 @@ from src.infrastructure.adapter.output.persistence.repository.mongo_agent_reposi
 from src.infrastructure.adapter.output.persistence.repository.mongo_job_repository import (
     MongoJobRepository,
 )
+from src.infrastructure.adapter.output.persistence.repository.mongo_workflow_repository import (
+    MongoWorkflowRepository,
+)
+from src.core.application.usecase.workflow_service import WorkflowService
 from src.infrastructure.adapter.output.llm_provider.crewai_provider import (
     CrewAILLMProvider,
 )
@@ -68,6 +72,29 @@ def get_job_service() -> JobService:
     job_executor = CrewAIJobExecutor(llm_provider=llm_provider)
 
     return JobService(
+        job_repository=job_repository,
+        agent_repository=agent_repository,
+        model_repository=model_repository,
+        tool_repository=tool_repository,
+        job_executor=job_executor,
+    )
+
+
+def get_workflow_service() -> WorkflowService:
+    """
+    Dependency injection for WorkflowService.
+    """
+    workflow_repository = MongoWorkflowRepository()
+    job_repository = MongoJobRepository()
+    agent_repository = MongoAgentRepository()
+    model_repository = MongoModelRepository()
+    tool_repository = MongoToolRepository()
+
+    llm_provider = CrewAILLMProvider()
+    job_executor = CrewAIJobExecutor(llm_provider=llm_provider)
+
+    return WorkflowService(
+        workflow_repository=workflow_repository,
         job_repository=job_repository,
         agent_repository=agent_repository,
         model_repository=model_repository,

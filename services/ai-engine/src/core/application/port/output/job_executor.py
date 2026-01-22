@@ -4,6 +4,8 @@ from src.core.domain.model.job import Job
 from src.core.domain.model.agent import Agent
 from src.core.domain.model.llm import Model
 from src.core.domain.model.tool import Tool
+from src.core.domain.model.workflow import Workflow
+from typing import Optional
 
 
 class JobExecutorPort(ABC):
@@ -22,5 +24,22 @@ class JobExecutorPort(ABC):
     ) -> Any:
         """
         Execute a job using the specified agent and tools.
+        """
+        pass
+
+    @abstractmethod
+    async def execute_workflow(
+        self,
+        workflow: Workflow,
+        jobs: List[Job],
+        agents: Dict[str, Agent],
+        models: Dict[str, Model],
+        tools: Dict[str, Tool],
+        input_variables: Dict[str, Any],
+        manager_agent: Optional[Agent] = None,
+        manager_model: Optional[Model] = None,
+    ) -> Any:
+        """
+        Execute a workflow (multiple jobs) using CrewAI.
         """
         pass

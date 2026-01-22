@@ -11,3 +11,7 @@ class Tool(Entity):
     auth_config: Dict[str, Any]
     # if type is REST
     parameters: Optional[Dict[str, str]]
+    default_parameters: Optional[Dict[str, Any]] = None
+
+    # TODO: This REST tool implementation is temporary.
+    # Eventually, we will migrate everything to use MCP SSE.

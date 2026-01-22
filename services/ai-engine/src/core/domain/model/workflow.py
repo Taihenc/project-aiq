@@ -1,16 +1,10 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Literal
 from src.core.domain.model.base import Entity
-from pydantic import BaseModel
-
-
-class WorkflowStep(BaseModel):
-    step_id: str
-    job_id: str
-    dependencies: List[str] = []
-    input_mapping: Dict[str, str] = {}
 
 
 class Workflow(Entity):
     name: str
     description: Optional[str] = None
-    steps: List[WorkflowStep] = []
+    process: Literal["sequential", "hierarchical"] = "sequential"
+    tasks: List[str] = []  # List of Job IDs
+    manager_agent_id: Optional[str] = None

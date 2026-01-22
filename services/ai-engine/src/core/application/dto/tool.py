@@ -12,6 +12,7 @@ class CreateToolRequest(BaseModel):
     endpoint: str
     auth_config: Dict[str, Any] = {}
     parameters: Optional[Dict[str, str]] = None
+    default_parameters: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -22,6 +23,7 @@ class CreateToolRequest(BaseModel):
                 "endpoint": "https://api.weather.com/v1/forecast",
                 "auth_config": {"api_key": "YOUR_SECRET_KEY"},
                 "parameters": {"city": "str", "days": "int"},
+                "default_parameters": {"days": 1},
             }
         }
     )
@@ -34,6 +36,7 @@ class UpdateToolRequest(BaseModel):
     endpoint: Optional[str] = None
     auth_config: Optional[Dict[str, Any]] = None
     parameters: Optional[Dict[str, str]] = None
+    default_parameters: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -44,6 +47,7 @@ class UpdateToolRequest(BaseModel):
                 "endpoint": "https://api.weather.com/v1/forecast",
                 "auth_config": {"api_key": "YOUR_SECRET_KEY"},
                 "parameters": {"city": "str", "days": "int"},
+                "default_parameters": {"days": 1},
             }
         }
     )
