@@ -48,6 +48,7 @@ class DocumentResponse(BaseModel):
 
 class SearchResponse(BaseModel):
     documents: List[DocumentResponse] = Field(..., description="Search Documents")
+    counts: int = Field(None, description="Number of Document")
 
 
 class DocumentsRequest(BaseModel):

@@ -15,7 +15,7 @@ ingestion_workder = IngestionWorker()
 
 @app.get("/")
 async def root():
-    return {"message": "AI Engine Service is running"}
+    return {"message": "Data Ingestion Service is running"}
 
 
 @app.get("/health")
