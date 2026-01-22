@@ -113,7 +113,7 @@ async def search_documents(search_request: SearchRequest):
 
             logger.info("Reranking completed:\n%s", json.dumps(log_payload, indent=2, ensure_ascii=False))
         
-        return SearchResponse(documents=document)
+        return SearchResponse(documents=document, counts=len(document))
     except Exception as e:
         logger.exception("Search failed", extra={"query": search_request.query})
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")

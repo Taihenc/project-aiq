@@ -7,7 +7,7 @@ from ingestion import (
     context_builder,
     chunker,
     indexer,
-    upload
+    upload,
 )
 from ingestion.extract_docling import DoclingExtractor
 import os
