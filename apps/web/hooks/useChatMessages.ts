@@ -30,7 +30,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         const demoResponse = createDemoResponse(hasCitations);
         setMessages((prev) => [...prev, demoResponse]);
         setIsLoading(false);
-      }, 1000);
+      }, 3000);
       return;
     }
 

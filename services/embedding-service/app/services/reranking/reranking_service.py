@@ -44,18 +44,15 @@ class RerankingService:
         if not isinstance(scores, list):
             scores = [scores]
         
-        results = []
         for doc, score in zip(documents, scores):
-            doc_copy = doc.copy()
-            doc_copy.score = float(score)
-            results.append(doc_copy)
+            doc.reranking_score = float(score)
         
-        results.sort(key=lambda x: x.score, reverse=True)
+        documents.sort(key=lambda x: x.reranking_score, reverse=True)
         
         if top_n is not None:
-            results = results[:top_n]
+            documents = documents[:top_n]
         
-        return results
+        return documents
 
 
 

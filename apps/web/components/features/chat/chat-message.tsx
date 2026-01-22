@@ -11,6 +11,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import type { ChatMessageProps, Citation } from '@/types';
 
@@ -124,9 +126,112 @@ export function ChatMessage({
               ref={cardRef}
               className="shadow-card-md rounded-bubble border-[#e6e0ff] bg-white/95 p-5 text-sm leading-relaxed text-[#3d366b]"
             >
-              <p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
-                {content}
-              </p>
+              <div className="markdown-content">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ children }) => (
+                      <p className="mb-3 last:mb-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                        {children}
+                      </p>
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="mb-3 ml-4 list-disc space-y-1">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="mb-3 ml-4 list-decimal space-y-1">
+                        {children}
+                      </ol>
+                    ),
+                    li: ({ children }) => <li className="pl-1">{children}</li>,
+                    h1: ({ children }) => (
+                      <h1 className="mb-4 text-xl font-bold">{children}</h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="mb-3 text-lg font-bold">{children}</h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="mb-2 text-base font-bold">{children}</h3>
+                    ),
+                    code: ({ className, children, ...props }: any) => {
+                      const match = /language-(\w+)/.exec(className || '');
+                      const isInline = !match;
+                      return !isInline ? (
+                        <div className="my-3 overflow-hidden rounded-md border border-[#e6e0ff]">
+                          <div className="flex items-center justify-between bg-[#f8f7ff] px-4 py-1.5 text-[10px] font-medium text-[#8a77eb]">
+                            <span>{match![1].toUpperCase()}</span>
+                          </div>
+                          <pre className="overflow-x-auto bg-[#fafaff] p-4 text-xs leading-relaxed text-[#3d366b]">
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          </pre>
+                        </div>
+                      ) : (
+                        <code
+                          className={cn(
+                            'rounded bg-[#f0efff] px-1.5 py-0.5 text-xs font-semibold text-[#6b5ae0]',
+                            className,
+                          )}
+                          {...props}
+                        >
+                          {children}
+                        </code>
+                      );
+                    },
+                    blockquote: ({ children }) => (
+                      <blockquote className="mb-3 border-l-4 border-[#dcd3ff] pl-4 italic text-[#7c73b7]">
+                        {children}
+                      </blockquote>
+                    ),
+                    a: ({ children, href }) => (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 font-medium text-[#6b5ae0] hover:underline"
+                      >
+                        {children}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ),
+                    table: ({ children }) => (
+                      <div className="my-4 overflow-x-auto rounded-lg border border-[#e6e0ff]">
+                        <table className="w-full border-collapse text-left text-xs">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    thead: ({ children }) => (
+                      <thead className="bg-[#f8f7ff] text-[#8a77eb]">
+                        {children}
+                      </thead>
+                    ),
+                    th: ({ children }) => (
+                      <th className="border-b border-[#e6e0ff] px-4 py-2 font-semibold">
+                        {children}
+                      </th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="border-b border-[#f0edff] px-4 py-2 text-[#5a528f]">
+                        {children}
+                      </td>
+                    ),
+                    hr: () => <hr className="my-6 border-t border-[#e6e0ff]" />,
+                    img: ({ src, alt }: any) => (
+                      <img
+                        src={src}
+                        alt={alt}
+                        className="my-4 max-w-full rounded-lg border border-[#e6e0ff] shadow-sm"
+                      />
+                    ),
+                  }}
+                >
+                  {content}
+                </ReactMarkdown>
+              </div>
             </Card>
 
             {citations.length > 0 && (
@@ -184,10 +289,59 @@ function SourceCard({ source }: { source: Citation }) {
 
         {source.content && (
           <CollapsibleContent className="data-[state=closed]:animate-[collapse-up_0.2s_ease-in-out] data-[state=open]:animate-[collapse-down_0.2s_ease-in-out]">
-            <div className=" px-4 py-3">
-              <p className="text-sm leading-relaxed text-[#7c73b7]">
-                {source.content}
-              </p>
+            <div className="px-4 py-3">
+              <div className="markdown-content text-sm leading-relaxed text-[#7c73b7]">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ children }) => (
+                      <p className="mb-2 last:mb-0">{children}</p>
+                    ),
+                    a: ({ children, href }) => (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#6b5ae0] hover:underline"
+                      >
+                        {children}
+                      </a>
+                    ),
+                    table: ({ children }) => (
+                      <div className="my-3 overflow-x-auto rounded-md border border-[#e6e0ff]">
+                        <table className="w-full border-collapse text-left text-xs">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    thead: ({ children }) => (
+                      <thead className="bg-[#f8f7ff] text-[#8a77eb]">
+                        {children}
+                      </thead>
+                    ),
+                    th: ({ children }) => (
+                      <th className="border-b border-[#e6e0ff] px-3 py-1.5 font-semibold">
+                        {children}
+                      </th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="border-b border-[#f0edff] px-3 py-1.5 text-[#5a528f]">
+                        {children}
+                      </td>
+                    ),
+                    hr: () => <hr className="my-4 border-t border-[#e6e0ff]" />,
+                    img: ({ src, alt }: any) => (
+                      <img
+                        src={src}
+                        alt={alt}
+                        className="my-3 max-w-full rounded-md border border-[#e6e0ff]"
+                      />
+                    ),
+                  }}
+                >
+                  {source.content}
+                </ReactMarkdown>
+              </div>
             </div>
           </CollapsibleContent>
         )}

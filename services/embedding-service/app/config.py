@@ -4,7 +4,8 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Qdrant Settings
-    qdrant_url: str
+    use_local_qdrant: bool = True
+    qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: Optional[str] = None
     collection_name: str = "documents"
     
