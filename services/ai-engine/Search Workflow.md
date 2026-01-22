@@ -9,8 +9,7 @@ workflowสำหรับRAGเอกสารภายในองค์กร
   "manager_agent_id": "workflow_manager_agent",
   "tasks": [
     "input_validation_task",
-    "document_search_task",
-    "response_synthesis_task"
+    "document_search_task"
   ]
 }
 ```
@@ -59,19 +58,19 @@ Receives the initial request and supervises the entire operation. It delegates t
 }
 ```
 
-## Jobs2 (Search)
-รับหน้าที่ในการค้นหาข้อมูล (Retrieval)
-- **Goal**: แปลงคำค้นหาและดึงข้อมูลจาก Knowledge Base
+## Jobs2 (Search & Synthesis)
+รับหน้าที่ในการค้นหาข้อมูล (Retrieval) และสรุปผล (Synthesis)
+- **Goal**: ดึงข้อมูลจาก Knowledge Base และสรุปคำตอบให้ผู้ใช้
 
 ```json
 {
   "agent_id": "agent_id_2",
   "name": "document_search_task",
-  "task_description": "Generate optimized search queries based on the validated user intent from '{user_query}'. Execute search tools to retrieve the most relevant document chunks from the internal knowledge base.",
-  "expected_output": "A collection of relevant document segments and metadata retrieved from the search system.",
+  "task_description": "Search for relevant documents using the retrieval tool based on the user's query '{user_query}'. Then, analyze the retrieved information to synthesize a clear and accurate final answer.",
+  "expected_output": "A final summary answer derived from the retrieved documents, along with their source file paths.",
   "output_pydantic": {
-    "results": "list[str]",
-    "citations": "list[str]",
+    "final_answer": "str",
+    "file_path": "list[str]",
   }
 }
 ```
@@ -79,43 +78,14 @@ Receives the initial request and supervises the entire operation. It delegates t
 ### Agent2
 ```json
 {
-  "backstory": "An expert in information retrieval and search algorithms. Skilled at finding precise information within large datasets.",
-  "goal": "Retrieve the most relevant documents based on the user's query: '{user_query}'.",
+  "backstory": "An expert in information retrieval and data synthesis. Skilled at finding precise information within large datasets and summarizing it into actionable answers.",
+  "goal": "Retrieve relevant documents and provide a synthesized answer for the user's query: '{user_query}'.",
   "model_id": "model_01",
   "name": "search_retrieval_agent",
   "role": "Search Specialist",
   "tools": [
     "retrieval_tool"
   ]
-}
-```
-
-(## Jobs3 (Synthesis)
-รับหน้าที่สรุปผลข้อมูล (Synthesis)
-- **Goal**: สรุปคำตอบจากข้อมูลที่หามาได้ พร้อมอ้างอิงแหล่งที่มา
-
-```json
-{
-  "agent_id": "agent_id_3",
-  "name": "response_synthesis_task",
-  "task_description": "Analyze the retrieved documents. Filter out irrelevant information and synthesize a clear, accurate answer to the user's query '{user_query}', citing specific sources.",
-  "expected_output": "A final summary answer with inline citations and a list of references.",
-  "output_pydantic": {
-    "final_answer": "str",
-    "citations": "list[str]"
-  }
-}
-```
-
-### Agent3
-```json
-{
-  "backstory": "A data analyst capable of synthesizing checks and balances. Ensures the final output is accurate, coherent, and supported by the retrieved data.",
-  "goal": "Synthesize search results into a comprehensive and accurate answer for the query: '{user_query}'.",
-  "model_id": "model_01",
-  "name": "content_synthesizer_agent",
-  "role": "Data Analyst",
-  "tools": []
 }
 ```
 
