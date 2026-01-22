@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any, Literal
+from typing import List
 from src.core.domain.model.job import Job
+from src.core.application.dto.job import CreateJobRequest, UpdateJobRequest
 
 
 class JobPort(ABC):
@@ -10,15 +11,7 @@ class JobPort(ABC):
     """
 
     @abstractmethod
-    async def create_job(
-        self,
-        name: str,
-        agent_id: str,
-        task_description: str,
-        expected_output_instruction: str,
-        output_type: Literal["structured", "text"] = "text",
-        output_schema: Optional[Dict[str, Any]] = None,
-    ) -> Job:
+    async def create_job(self, request: CreateJobRequest) -> Job:
         """Create a new job definition."""
         pass
 
@@ -36,11 +29,7 @@ class JobPort(ABC):
     async def update_job(
         self,
         job_id: str,
-        name: Optional[str] = None,
-        agent_id: Optional[str] = None,
-        task_description: Optional[str] = None,
-        expected_output_instruction: Optional[str] = None,
-        output_schema: Optional[Dict[str, Any]] = None,
+        request: UpdateJobRequest,
     ) -> Job:
         """Update an existing job definition."""
         pass

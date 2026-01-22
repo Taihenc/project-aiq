@@ -1,6 +1,7 @@
 from src.core.application.usecase.llm import ModelService
 from src.core.application.usecase.tool_service import ToolService
 from src.core.application.usecase.agent_service import AgentService
+from src.core.application.usecase.job_service import JobService
 from src.infrastructure.adapter.output.persistence.repository.mongo_llm_repository import (
     MongoModelRepository,
 )
@@ -9,6 +10,9 @@ from src.infrastructure.adapter.output.persistence.repository.mongo_tool_reposit
 )
 from src.infrastructure.adapter.output.persistence.repository.mongo_agent_repository import (
     MongoAgentRepository,
+)
+from src.infrastructure.adapter.output.persistence.repository.mongo_job_repository import (
+    MongoJobRepository,
 )
 from src.infrastructure.adapter.output.llm_provider.crewai_provider import (
     CrewAILLMProvider,
@@ -39,3 +43,11 @@ def get_agent_service() -> AgentService:
     """
     agent_repository = MongoAgentRepository()
     return AgentService(agent_repository=agent_repository)
+
+
+def get_job_service() -> JobService:
+    """
+    Dependency injection for JobService.
+    """
+    job_repository = MongoJobRepository()
+    return JobService(job_repository=job_repository)
