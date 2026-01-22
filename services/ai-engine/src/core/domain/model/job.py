@@ -5,7 +5,7 @@ from src.core.domain.model.base import Entity
 
 class Job(Entity):
     name: str
-    agent: str
+    agent_id: str
     task_description: str
     expected_output: str
     context: Optional[List["Job"]] = None

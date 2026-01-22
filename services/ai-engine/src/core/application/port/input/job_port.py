@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import List
 from src.core.domain.model.job import Job
-from src.core.application.dto.job import CreateJobRequest, UpdateJobRequest
+from src.core.application.dto.job import (
+    CreateJobRequest,
+    UpdateJobRequest,
+    JobCompletionRequest,
+    JobCompletionResponse,
+)
 
 
 class JobPort(ABC):
@@ -37,4 +42,11 @@ class JobPort(ABC):
     @abstractmethod
     async def delete_job(self, job_id: str) -> bool:
         """Delete a job by ID. Returns True if successful."""
+        pass
+
+    @abstractmethod
+    async def execute_job(
+        self, job_id: str, request: JobCompletionRequest
+    ) -> JobCompletionResponse:
+        """Execute a job completion."""
         pass

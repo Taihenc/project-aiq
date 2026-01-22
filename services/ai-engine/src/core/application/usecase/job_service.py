@@ -1,12 +1,24 @@
-from typing import List
+from typing import List, Any
 from datetime import datetime
-from src.core.application.port.output.repository import JobRepository
+from src.core.application.port.output.repository import (
+    JobRepository,
+    AgentRepository,
+    ModelRepository,
+    ToolRepository,
+)
+from src.core.application.port.output.job_executor import JobExecutorPort
 from src.core.application.port.input.job_port import JobPort
 from src.core.domain.model.job import Job
-from src.core.application.dto.job import CreateJobRequest, UpdateJobRequest
+from src.core.application.dto.job import (
+    CreateJobRequest,
+    UpdateJobRequest,
+    JobCompletionRequest,
+    JobCompletionResponse,
+)
 from src.core.domain.exceptions import (
     EntityNotFoundException,
     DuplicateEntityException,
+    InactiveEntityException,
 )
 
 
@@ -15,8 +27,19 @@ class JobService(JobPort):
     Service for managing Jobs.
     """
 
-    def __init__(self, job_repository: JobRepository):
+    def __init__(
+        self,
+        job_repository: JobRepository,
+        agent_repository: AgentRepository,
+        model_repository: ModelRepository,
+        tool_repository: ToolRepository,
+        job_executor: JobExecutorPort,
+    ):
         self.job_repository = job_repository
+        self.agent_repository = agent_repository
+        self.model_repository = model_repository
+        self.tool_repository = tool_repository
+        self.job_executor = job_executor
 
     async def list_jobs(self) -> List[Job]:
         """
@@ -45,7 +68,10 @@ class JobService(JobPort):
                     f"Job with name '{request.name}' already exists"
                 )
 
-        # In a real implementation, we might want to validate that the agent exists here
+        # Validate that the agent exists
+        agent = await self.agent_repository.get(request.agent_id)
+        if not agent:
+            raise EntityNotFoundException(f"Agent not found: {request.agent_id}")
 
         job = Job(**request.model_dump())
         return await self.job_repository.create(job)
@@ -67,6 +93,12 @@ class JobService(JobPort):
                         f"Job with name '{request.name}' already exists"
                     )
 
+        # Validate that the agent exists if it's being updated
+        if request.agent_id is not None:
+            agent = await self.agent_repository.get(request.agent_id)
+            if not agent:
+                raise EntityNotFoundException(f"Agent not found: {request.agent_id}")
+
         update_data = request.model_dump(exclude_unset=True)
         updated_job = existing.model_copy(update=update_data)
         updated_job.updated_at = datetime.utcnow()
@@ -81,3 +113,45 @@ class JobService(JobPort):
         if not existing:
             raise EntityNotFoundException(f"Job not found: {job_id}")
         return await self.job_repository.delete(job_id)
+
+    async def execute_job(
+        self, job_id: str, request: JobCompletionRequest
+    ) -> JobCompletionResponse:
+        """
+        Execute a job completion.
+        """
+        job = await self.job_repository.get(job_id)
+        if not job:
+            raise EntityNotFoundException(f"Job not found: {job_id}")
+
+        # 1. Get Agent
+        agent = await self.agent_repository.get(job.agent_id)
+        if not agent:
+            raise EntityNotFoundException(f"Agent not found: {job.agent_id}")
+
+        # 2. Get Model
+        model = await self.model_repository.get(agent.model_id)
+        if not model:
+            raise EntityNotFoundException(f"Model not found: {agent.model_id}")
+
+        if not model.is_active:
+            raise InactiveEntityException(f"Model is not active: {model.name}")
+
+        # 3. Get Tools
+        tools = []
+        for tool_id in agent.tools:
+            tool = await self.tool_repository.get(tool_id)
+            if not tool:
+                raise EntityNotFoundException(f"Tool not found: {tool_id}")
+            tools.append(tool)
+
+        # 4. Execute
+        result, usage = await self.job_executor.execute_job(
+            job=job,
+            agent=agent,
+            model=model,
+            tools=tools,
+            input_variables=request.inputs,
+        )
+
+        return JobCompletionResponse(result=result, usage=usage)

@@ -17,6 +17,9 @@ from src.infrastructure.adapter.output.persistence.repository.mongo_job_reposito
 from src.infrastructure.adapter.output.llm_provider.crewai_provider import (
     CrewAILLMProvider,
 )
+from src.infrastructure.adapter.output.job_executor.crewai_executor import (
+    CrewAIJobExecutor,
+)
 
 
 def get_model_service() -> ModelService:
@@ -42,7 +45,14 @@ def get_agent_service() -> AgentService:
     Dependency injection for AgentService.
     """
     agent_repository = MongoAgentRepository()
-    return AgentService(agent_repository=agent_repository)
+    model_repository = MongoModelRepository()
+    tool_repository = MongoToolRepository()
+
+    return AgentService(
+        agent_repository=agent_repository,
+        model_repository=model_repository,
+        tool_repository=tool_repository,
+    )
 
 
 def get_job_service() -> JobService:
@@ -50,4 +60,17 @@ def get_job_service() -> JobService:
     Dependency injection for JobService.
     """
     job_repository = MongoJobRepository()
-    return JobService(job_repository=job_repository)
+    agent_repository = MongoAgentRepository()
+    model_repository = MongoModelRepository()
+    tool_repository = MongoToolRepository()
+
+    llm_provider = CrewAILLMProvider()
+    job_executor = CrewAIJobExecutor(llm_provider=llm_provider)
+
+    return JobService(
+        job_repository=job_repository,
+        agent_repository=agent_repository,
+        model_repository=model_repository,
+        tool_repository=tool_repository,
+        job_executor=job_executor,
+    )

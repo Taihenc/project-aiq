@@ -1,6 +1,10 @@
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 from src.core.domain.value_object.llm import ModelConfig, Message
+from src.core.application.dto.completion import (
+    BaseCompletionRequest,
+    BaseCompletionResponse,
+)
 
 
 class CreateModelRequest(BaseModel):
@@ -55,9 +59,8 @@ class UpdateModelRequest(BaseModel):
     )
 
 
-class CompletionRequest(BaseModel):
-    messages: List[Message]
-    config: Optional[ModelConfig] = None
+class CompletionRequest(BaseCompletionRequest):
+    messages: List[Message] = []
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -78,5 +81,5 @@ class CompletionRequest(BaseModel):
     )
 
 
-class CompletionResponse(BaseModel):
+class CompletionResponse(BaseCompletionResponse):
     content: str

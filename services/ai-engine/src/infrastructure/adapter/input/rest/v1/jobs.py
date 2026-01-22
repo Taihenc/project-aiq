@@ -4,13 +4,19 @@ from src.core.domain.model.job import Job
 from src.core.application.usecase.job_service import JobService
 from src.infrastructure.adapter.input.rest.v1.responses import BaseResponse
 from src.infrastructure.config.dependencies import get_job_service
-from src.core.application.dto.job import CreateJobRequest, UpdateJobRequest
+from src.core.application.dto.job import (
+    CreateJobRequest,
+    UpdateJobRequest,
+    JobCompletionRequest,
+    JobCompletionResponse,
+)
 from src.infrastructure.adapter.input.rest.v1.examples.job_examples import (
     LIST_JOBS_RESPONSES,
     GET_JOB_RESPONSES,
     CREATE_JOB_RESPONSES,
     UPDATE_JOB_RESPONSES,
     DELETE_JOB_RESPONSES,
+    EXECUTE_JOB_RESPONSES,
 )
 
 router = APIRouter()
@@ -85,3 +91,18 @@ async def delete_job(
     """Delete a job."""
     result = await service.delete_job(job_id)
     return BaseResponse(data=result, message="Job deleted successfully")
+
+
+@router.post(
+    "/{job_id}/completion",
+    response_model=BaseResponse[JobCompletionResponse],
+    responses=EXECUTE_JOB_RESPONSES,
+)
+async def execute_job(
+    job_id: str,
+    request: JobCompletionRequest,
+    service: JobService = Depends(get_job_service),
+):
+    """Execute a job completion using CrewAI."""
+    result = await service.execute_job(job_id, request)
+    return BaseResponse(data=result, message="Job executed successfully")

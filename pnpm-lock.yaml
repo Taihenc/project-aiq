@@ -211,6 +211,8 @@ importers:
 
   services/ai-engine: {}
 
+  services/ai-engine[archive]: {}
+
   services/data-ingestion: {}
 
   services/embedding-service: {}

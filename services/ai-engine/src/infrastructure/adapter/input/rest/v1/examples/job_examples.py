@@ -54,7 +54,7 @@ GET_JOB_RESPONSES: Dict[int, Dict[str, Any]] = {
             "application/json": {
                 "example": {
                     "success": False,
-                    "error_code": "RESOURCE_NOT_FOUND",
+                    "error_code": "NOT_FOUND",
                     "message": "Job not found: job_01",
                 }
             }
@@ -83,7 +83,19 @@ CREATE_JOB_RESPONSES: Dict[int, Dict[str, Any]] = {
                 }
             }
         },
-    }
+    },
+    404: {
+        "description": "Agent not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "error_code": "NOT_FOUND",
+                    "message": "Agent not found: researcher_agent",
+                }
+            }
+        },
+    },
 }
 
 UPDATE_JOB_RESPONSES: Dict[int, Dict[str, Any]] = {
@@ -104,7 +116,19 @@ UPDATE_JOB_RESPONSES: Dict[int, Dict[str, Any]] = {
                 }
             }
         },
-    }
+    },
+    404: {
+        "description": "Job or Agent not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "error_code": "NOT_FOUND",
+                    "message": "Job not found: job_01",
+                }
+            }
+        },
+    },
 }
 
 DELETE_JOB_RESPONSES: Dict[int, Dict[str, Any]] = {
@@ -119,5 +143,50 @@ DELETE_JOB_RESPONSES: Dict[int, Dict[str, Any]] = {
                 }
             }
         },
-    }
+    },
+    404: {
+        "description": "Job not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "error_code": "NOT_FOUND",
+                    "message": "Job not found: job_01",
+                }
+            }
+        },
+    },
+}
+
+EXECUTE_JOB_RESPONSES: Dict[int, Dict[str, Any]] = {
+    200: {
+        "description": "Successfully executed job",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": True,
+                    "data": {
+                        "result": {
+                            "report_title": "Renewable Energy Trends 2024",
+                            "technologies": ["Solar", "Wind", "Hydro"],
+                            "summary": "Solar is growing fast.",
+                        }
+                    },
+                    "message": "Job executed successfully",
+                }
+            }
+        },
+    },
+    404: {
+        "description": "Job/Agent/Model not found",
+        "content": {
+            "application/json": {
+                "example": {
+                    "success": False,
+                    "error_code": "NOT_FOUND",
+                    "message": "Agent not found: agent_01",
+                }
+            }
+        },
+    },
 }
