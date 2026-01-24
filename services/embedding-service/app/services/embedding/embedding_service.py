@@ -14,6 +14,11 @@ class EmbeddingService:
             print(f"Loading embedding model: {self.model_name}")
             self.model = FlagModel(settings.embedding_model, use_fp16=True)
             print("Model loaded successfully")
+
+    def clean_text(self, text):
+        cleaned_text = text.lower()
+        cleaned_text = cleaned_text.replace("..", "")
+        return cleaned_text
     
     def encode(self, texts: Union[str, List[str]], batch_size: int = None) -> np.ndarray:
         if self.model is None:
@@ -21,6 +26,8 @@ class EmbeddingService:
         
         if isinstance(texts, str):
             texts = [texts]
+
+        texts = [self.clean_text(t) for t in texts]
         
         batch_size = batch_size or settings.batch_size
         

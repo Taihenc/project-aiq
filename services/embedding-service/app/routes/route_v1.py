@@ -17,7 +17,16 @@ from app.services.qdrant.qdrant_service import qdrant_service
 from app.services.embedding.embedding_service import embedding_service
 from app.services.reranking.reranking_service import reranking_service
 
+import logging
+import json
+
 router = APIRouter()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=201)
 async def upload_documents(batch: DocumentUploadRequest):
@@ -25,7 +34,14 @@ async def upload_documents(batch: DocumentUploadRequest):
         documents = [
             {
                 "text": doc.text,
-                "metadata": doc.metadata
+                "metadata": {
+                    "file": doc.metadata.file,
+                    "file_path": doc.metadata.file_path,
+                    "file_type": doc.metadata.file_type,
+                    "page": doc.metadata.page,
+                    "created_at": doc.metadata.created_at,
+                    "checksum": doc.metadata.checksum,
+                }
             }
             for doc in batch.documents
         ]
@@ -51,21 +67,55 @@ async def search_documents(search_request: SearchRequest):
             query_filter=search_request.filter
         )
 
-        format_document = [DocumentResponse(
+        document = [DocumentResponse(
             id=document["id"],
             text=document["text"],
             metadata=document["metadata"],
-            score=document["score"]
+            similarity_score=document["score"],
+            reranking_score=0.0
         ) for document in documents]
 
-        results = reranking_service.rerank(
-            query=search_request.query,
-            documents=format_document,
-            top_n=search_request.top_n
-        )
+        log_payload = {
+            "event": "similarity_search_completed",
+            "query": search_request.query,
+            "num_documents": len(document),
+            "results": [
+                {
+                    "id": doc.id,
+                    "similarity_score": doc.similarity_score,
+                }
+                for doc in document[:3]
+            ]
+        }
+
+        logger.info("Similarity search completed:\n%s", json.dumps(log_payload, indent=2, ensure_ascii=False))
+
+        if search_request.top_n is not None:
+            document = reranking_service.rerank(
+                query=search_request.query,
+                documents=document,
+                top_n=search_request.top_n
+            )
+
+            log_payload = {
+                "event": "reranking_completed",
+                "query": search_request.query,
+                "num_documents": len(document),
+                "results": [
+                    {
+                        "id": doc.id,
+                        "similarity_score": doc.similarity_score,
+                        "reranking_score": doc.reranking_score
+                    }
+                    for doc in document[:3]
+                ]
+            }
+
+            logger.info("Reranking completed:\n%s", json.dumps(log_payload, indent=2, ensure_ascii=False))
         
-        return SearchResponse(documents=results)
+        return SearchResponse(documents=document, counts=len(document))
     except Exception as e:
+        logger.exception("Search failed", extra={"query": search_request.query})
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
