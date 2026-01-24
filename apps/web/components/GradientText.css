@@ -10,9 +10,12 @@
   font-weight: 500;
   backdrop-filter: blur(10px);
   transition: box-shadow 0.5s ease-out;
-  overflow: visible;
+  overflow: hidden;
   cursor: pointer;
-  padding: 2px 0;
+}
+
+.animated-gradient-text.with-border {
+  padding: 0.35rem 0.75rem;
 }
 
 .gradient-overlay {
@@ -21,8 +24,6 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-size: 300% 100%;
-  animation: gradient linear infinite;
   border-radius: inherit;
   z-index: 0;
   pointer-events: none;
@@ -43,7 +44,31 @@
   z-index: -1;
 }
 
-@keyframes gradient {
+.text-content {
+  display: inline-block;
+  position: relative;
+  z-index: 2;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.loading-gradient-text {
+  display: inline-flex;
+  align-items: center;
+  background-image: linear-gradient(90deg, #FFB3FD, #72E9FF, #B19EEF, #8A79FF, #FFB3FD);
+  background-size: 200% 100%;
+  background-repeat: repeat;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: loading-gradient-shift 2.5s ease-in-out infinite;
+}
+
+
+
+@keyframes loading-gradient-shift {
   0% {
     background-position: 0% 50%;
   }
@@ -55,17 +80,4 @@
   100% {
     background-position: 0% 50%;
   }
-}
-
-.text-content {
-  display: inline-block;
-  position: relative;
-  z-index: 2;
-  background-size: 300% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  animation: gradient linear infinite;
-  padding: 1px 0;
-  line-height: 1.3;
 }

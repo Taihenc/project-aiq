@@ -27,8 +27,7 @@ export default function Home() {
   const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
   const [currentChatId, setCurrentChatId] = useState('1');
 
-  // Auto-scroll to bottom when messages change
-  const messagesEndRef = useAutoScroll(messages);
+  const messagesEndRef = useAutoScroll([messages, isLoading]);
 
   const showWelcomeScreen = messages.length === 0;
 
@@ -51,14 +50,12 @@ export default function Home() {
         {/* Messages Area / Welcome Screen */}
         <div className="relative z-0 flex flex-1 min-h-0 flex-col px-6 pt-2 sm:px-10 lg:px-12">
           {showWelcomeScreen ? (
-            <ChatWelcome
-              onSendMessage={sendMessage}
-              isLoading={isLoading}
-            />
+            <ChatWelcome onSendMessage={sendMessage} isLoading={isLoading} />
           ) : (
             <ChatMessagesArea
               messages={messages}
               messagesEndRef={messagesEndRef}
+              isLoading={isLoading}
             />
           )}
           {/* Fade overlay above input - only show when not on welcome screen */}
@@ -69,10 +66,7 @@ export default function Home() {
 
         {/* Input Area - only show when not on welcome screen */}
         {!showWelcomeScreen && (
-          <ChatInputArea
-            onSendMessage={sendMessage}
-            isLoading={isLoading}
-          />
+          <ChatInputArea onSendMessage={sendMessage} isLoading={isLoading} />
         )}
 
         {/* Citations Panel */}
