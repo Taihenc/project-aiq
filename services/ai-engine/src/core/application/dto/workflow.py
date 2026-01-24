@@ -53,8 +53,8 @@ class WorkflowCompletionRequest(BaseCompletionRequest):
         json_schema_extra={
             "example": {
                 "inputs": {
-                    "topic": "AI Agents",
-                    "audience": "Developers",
+                    "user_query": "คุณช่วยหาเอกสารที่เกี่ยวกับ แผนกITหน่อย",
+                    "chat_history": '[{"role": "user", "content": "สวัสดี ฉันชื่อพล"}, {"role": "assistant", "content": "สวัสดีครับพล ผมชื่อ Aingo AI Assistant ยินดีที่ได้รู้จักครับ"}]',
                 }
             }
         }
