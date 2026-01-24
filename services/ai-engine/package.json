@@ -1,21 +1,15 @@
 {
   "name": "ai-engine",
-  "version": "1.0.0",
-  "description": "AI Engine service with CrewAI reasoning and autonomous RAG retrieval",
+  "version": "0.1.0",
+  "description": "AI Engine Service",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "install": "uv sync",
-    "dev": "source .venv/bin/activate && uvicorn main:app --reload --port 8001",
-    "start": "source .venv/bin/activate && uvicorn main:app --port 8001",
-    "clean": "rm -rf .venv && rm -rf __pycache__ && find . -type d -name '__pycache__' -exec rm -r {} +"
+    "dev": "uv run uvicorn src.main:app --reload",
+    "start": "uv run uvicorn src.main:app",
+    "test": "uv run pytest"
   },
-  "keywords": [
-    "ai",
-    "crewai",
-    "rag",
-    "fastapi"
-  ],
+  "keywords": [],
   "author": "",
   "license": "ISC"
 }
