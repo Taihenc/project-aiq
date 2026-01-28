@@ -66,7 +66,7 @@ export class AppService {
       );
   }
 
-  // OpenAI-compatible method with adapter logic using AI Engine
+  // OpenAI-compatible method with adapter logic using AI Engine workflows
   chatWithAiEngine(
     chatRequest: ChatCompletionsRequestDto,
     userId: string,
@@ -95,17 +95,19 @@ export class AppService {
         },
       };
 
-      const aiEngineUrl = `${aiEngineBaseUrl}/v1/completions/crews/${crew}`;
+      const aiEngineUrl = `${aiEngineBaseUrl}/v1/workflows/${crew}/completion`;
 
       return this.httpService.post<any>(aiEngineUrl, aiEngineRequest).pipe(
         map((axiosResponse: AxiosResponse<any>) => {
           // The AI Engine response is nested under `data`
           const aiEngineData = axiosResponse.data;
 
-          // Parse the AI Engine response to handle different formats
-          const parsedResponse = this.parseAiEngineResponse(aiEngineData.data);
+          // Parse the workflow response
+          const parsedResponse = this.parseAiEngineResponse(
+            aiEngineData.data.result,
+          );
 
-          console.log('[BACKEND] Parsed AI Engine response:', parsedResponse);
+          console.log('[BACKEND] Parsed workflow response:', parsedResponse);
 
           const transformed = this.transformAiEngineToOpenAI(
             parsedResponse,
@@ -137,7 +139,7 @@ export class AppService {
     }
   }
 
-  // Parse AI Engine response to handle different formats
+  // Parse completion response to handle different formats
   private parseAiEngineResponse(data: any): {
     response: string;
     response_type: string;
@@ -145,29 +147,11 @@ export class AppService {
     language: string;
   } {
     // Handle the new CompletionData format
-    if (data && data.raw !== undefined && data.tasks_output) {
-      let response = data.json_dict;
+    if (data) {
+      let response = data.final_answer || '';
       let response_type = 'DIRECT';
-      let sources_used: any[] = [];
+      let sources_used: any[] = data.file_path || [];
       let language = 'en';
-
-      try {
-        let parsedRaw = data.json_dict;
-        if (typeof data.json_dict === 'string') {
-          parsedRaw = JSON.parse(data.json_dict);
-        }
-
-        if (parsedRaw && typeof parsedRaw === 'object') {
-          if (parsedRaw.response) {
-            response = parsedRaw.response;
-            response_type = parsedRaw.response_type || 'DIRECT';
-            sources_used = parsedRaw.sources_used || [];
-            language = parsedRaw.language || 'en';
-          }
-        }
-      } catch (e) {
-        // It's not a JSON string, so we use it as is.
-      }
 
       return {
         response,

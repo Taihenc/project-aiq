@@ -7,7 +7,7 @@ from ingestion import (
     context_builder,
     chunker,
     indexer,
-    upload
+    upload,
 )
 from ingestion.extract_docling import DoclingExtractor
 import os
@@ -50,8 +50,8 @@ class IngestionWorker:
             if not qdrant_upload:
                 return contexts
             
-            res = await self.upload.upload(summarized_chunks)
-            print(f"Uploaded {len(summarized_chunks)} chunks for file: {file_path}")
+            res = await self.upload.upload(contexts)
+            print(f"Uploaded {len(contexts)} chunks for file: {file_path}")
             # print(f"Upload response: {res}")
             return res
 
