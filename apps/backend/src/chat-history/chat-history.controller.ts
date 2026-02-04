@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ChatHistoryService } from './chat-history.service';
 
@@ -10,6 +10,13 @@ export class ChatHistoryController {
   @Get()
   async getHistory(@Request() req) {
     return this.historyService.getHistory(req.user.userId);
+  }
+
+  @Get(':id/context')
+  async getContext(@Request() req, @Param('id') id: string, @Query('limit') limit: number, @Query('tokenLimit') tokenLimit: number) {
+    const limitNum = limit ? parseInt(limit.toString()) : 20;
+    const tokenLimitNum = tokenLimit ? parseInt(tokenLimit.toString()) : undefined;
+    return this.historyService.getRecentMessages(id, limitNum, tokenLimitNum);
   }
 
   @Get(':id')
