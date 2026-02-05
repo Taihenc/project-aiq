@@ -1,0 +1,19 @@
+{
+    "name": "mcp-server",
+    "version": "0.1.0",
+    "description": "MCP server for searching documents via embedding service",
+    "main": "src/server.py",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "install": "uv sync",
+        "dev": "uv run src/server.py",
+        "start": "uv run src/server.py"
+    },
+    "keywords": [
+        "mcp",
+        "search",
+        "embedding"
+    ],
+    "author": "",
+    "license": "ISC"
+}
