@@ -2,12 +2,20 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any, Literal
 
 class MetaData(BaseModel):
-    file: Optional[str] = Field(default="", description="file name")
-    file_path: Optional[str] = Field(default="", description="file path")
-    file_type: Optional[str] = Field(default="", description="file type")
-    page: Optional[int] = Field(default=-1, description="file page")
-    created_at: Optional[str] = Field(default="", description="created time")
-    checksum: Optional[str] = Field(default="", description="checksum of byte")
+    order: int = Field(default=0, description="order")
+    file: str = Field(default="example.pdf", description="file name")
+    file_path: str = Field(default="/example/example.pdf", description="file path")
+    file_type: str = Field(default="pdf", description="file type")
+    pages: List[int] = Field(default=[1], description="file pages")
+    department: str = Field(default="AI", description="department")
+    project: str = Field(default="Aingo", description="project")
+    team: str = Field(default="AiQ", description="team")
+    tags: List[str] = Field(default=[], description="tags")
+    is_summary: Optional[bool] = Field(default=None, description="is summary", nullable=True)
+    sheet_name: Optional[str] = Field(default=None, description="sheet name", nullable=True)
+    columns: Optional[List[str]] = Field(default=None, description="columns", nullable=True)
+    created_at: Optional[str] = Field(default="", description="created time", nullable=True)
+    checksum: Optional[str] = Field(default="", description="checksum of byte", nullable=True)
 
 class DocumentUpload(BaseModel):
     text: str = Field(default="Ecotourism and nature conservation in tourist destinations across the country", description="Text content to embed")
@@ -21,15 +29,23 @@ class DocumentUploadResponse(BaseModel):
     count: int = Field(..., description="Number of documents uploaded")
     message: str = Field(default="Documents uploaded successfully")
 
-class SearchFilter(BaseModel):
-    path: Optional[str] = Field(default="", description="Path filter")
+class Filter(BaseModel):
+    file_name: Optional[str] = Field(default="",description="File name filter",nullable=True)
+    file_path: Optional[str] = Field(default="",description="Path filter",nullable=True)
+    file_type: Optional[str] = Field(default="",description="File type filter",nullable=True)
+    pages: Optional[List[int]] = Field(default=[],description="Page filter",nullable=True)
+    department: Optional[str] = Field(default="",description="Department filter",nullable=True)
+    team: Optional[str] = Field(default="",description="Team filter",nullable=True)
+    project: Optional[str] = Field(default="",description="Project filter",nullable=True)
+    tags: Optional[List[str]] = Field(default=[],description="Tags filter",nullable=True)
+
 
 class SearchRequest(BaseModel):
     query: str = Field("artificial intelligence", description="Search query text")
     top_k: int = Field(default=10, ge=1, le=100, description="Number of results from sematic search")
     top_n: Optional[int] = Field(default=10, ge=1, le=100, description="Number of results from rerank (Leave null for no reranking)")
     score_threshold: Optional[float] = Field(default=0, ge=0.0, le=1.0, description="Minimum similarity score")
-    filter: Optional[SearchFilter] = Field(default=None, description="Metadata filter")
+    filter: Optional[Filter] = Field(..., description="Metadata filter")
 
 class DocumentResponse(BaseModel):
     id: str = Field(..., description="Document ID")
@@ -74,40 +90,36 @@ class DocumentDeleteResponse(BaseModel):
 # NEW TOOL MODELS
 # ==========================================
 
-class PageFilter(BaseModel):
-    file_path: Optional[str] = None
-    directory: Optional[str] = None
-    mime_type: Optional[str] = None
-    tags: Optional[List[str]] = None
-    department: Optional[str] = None
-    team: Optional[str] = None
-    project: Optional[str] = None
-
-class PageNavigation(BaseModel):
-    anchor_page_num: int = Field(..., description="The reference page number")
-    page_range: int = Field(1, ge=0, description="Number of additional pages to retrieve")
-    mode: Literal['exact', 'forward', 'next', 'backward', 'prev', 'around', 'both'] = Field(
-        'exact', description="Direction: 'forward', 'backward', or 'around'"
-    )
-
 class PageRetrievalRequest(BaseModel):
-    filter: Optional[PageFilter] = None
-    navigation: Optional[PageNavigation] = None
+    file_path: str = Field("/example/example.pdf", description="Full path to the csv or xlsx file")
+    start_page: int = Field(default=0, description="Start page number")
+    end_page: int = Field(default=1000, description="End page number")
+
 
 class PageContent(BaseModel):
-    page_number: int
-    text: str
-    file_path: str
-    metadata: Dict[str, Any]
+    page_number: int = Field(..., description="Page number")
+    ids: List[str] = Field(default=[], description="List of document IDs")
+    text: str = Field(default="", description="Text content")
+    metadata_list: List[MetaData] = Field(default=[], description="Additional metadata")
+    total_chunks: int = Field(..., description="Total number of chunk found")
 
 class PageRetrievalResponse(BaseModel):
     pages: List[PageContent]
-    total_found: int
+    total_pages: int = Field(..., description="Total number of pages")
 
 class StructuredQueryRequest(BaseModel):
     file_path: str = Field(..., description="Full path to the csv or xlsx file")
     sheet_name: Optional[str] = Field(None, description="The specific sheet name to query (Required for Excel)")
     query: Optional[str] = Field(None, description="Pandas query expression. If blank, returns data preview.")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "file_path": "/path/to/data.csv",
+                "query": "department == 'Engineering' and salary > 50000"
+            }
+        }
+    }
 
 class StructuredQueryResponse(BaseModel):
     result: str

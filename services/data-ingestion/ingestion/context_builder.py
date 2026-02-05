@@ -5,32 +5,23 @@ import hashlib
 from datetime import datetime
 import pandas as pd  # Required for the new CSV/Excel logic
 
-# --- Data Models ---
-class OrgMetadata(TypedDict):
-    dept: str
-    team: str
-    project: str
-
-# Define the nested Org structure
-class OrgMetadata(TypedDict):
-    dept: str
-    team: str
-    project: str
-
 class ContextMetadata(TypedDict, total=False):
+    order: int
     file: str
     file_path: str
     file_type: str
     pages: List[int]
-    section: Optional[str]
+    department: str
+    project: str
+    team: str
+    tags: List[str]
     created_at: str
     checksum: str
-    doc_metadata: Optional[Dict[str, Any]]
     
     # Extra fields for structured data tools
-    is_summary: bool
-    sheet_name: str
-    columns: List[str]
+    is_summary: Optional[bool]
+    sheet_name: Optional[str]
+    columns: Optional[List[str]]
 
 class ContextRecord(TypedDict):
     id: str
@@ -58,7 +49,7 @@ class ContextBuilder:
         file_extension = os.path.splitext(filename)[1]
         timestamp = datetime.utcnow().isoformat() + "Z"
 
-        for chunk in chunks:
+        for i, chunk in enumerate(chunks):
             # SAFETY CHECK: If Docling returned something weird, skip it
             if not isinstance(chunk, dict):
                 continue
@@ -77,15 +68,17 @@ class ContextBuilder:
 
             # 4. Construct the record
             metadata: ContextMetadata = {
-                "org": self.mock_org,
+                "order": i,
                 "file": filename,
                 "file_path": file_path,
                 "file_type": file_extension,
                 "pages": pages,
-                # "section": primary_label,
+                "department": "AI", # mock up
+                "project": "AINGO", # mock up
+                "team": "AiQ", # mock up
+                "tags": ["AI", "AINGO", "AiQ"], # mock up
                 "created_at": timestamp,
                 "checksum": checksum,
-                # "doc_metadata": chunk.get("metadata", {}) # Keeping original metadata too
             }
 
             records.append({

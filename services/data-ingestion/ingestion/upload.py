@@ -21,17 +21,23 @@ class Upload:
                 "id": context.get("id"),
                 "text": context.get("text"),
                 "metadata": {
+                    "order": metadata.get("order"),           # New: Required for reconstruction
                     "file": metadata.get("file"),
                     "file_path": metadata.get("file_path"),
                     "file_type": metadata.get("file_type"),
-                    "order": metadata.get("order"),           # New: Required for reconstruction
-                    "pages": metadata.get("pages", []),       # New: Changed from 'page' to 'pages'
+                    "pages": metadata.get("pages"),       # New: Changed from 'page' to 'pages'
+                    "department": metadata.get("department"),       # New: Changed from 'page' to 'pages'
+                    "project": metadata.get("project"),       # New: Changed from 'page' to 'pages'
+                    "team": metadata.get("team"),       # New: Changed from 'page' to 'pages'
+                    "tags": metadata.get("tags"),       # New: Changed from 'page' to 'pages'
+                    # Include these for the Structured Data Tool to work
+                    ###
+                    "is_summary": metadata.get("is_summary"),
+                    "sheet_name": metadata.get("sheet_name"),
+                    "columns": metadata.get("columns"),
+                    ###
                     "created_at": metadata.get("created_at"),
                     "checksum": metadata.get("checksum"),
-                    # Include these for the Structured Data Tool to work
-                    "is_summary": metadata.get("is_summary", False),
-                    "sheet_name": metadata.get("sheet_name"),
-                    "columns": metadata.get("columns", [])
                 }
             })
 
