@@ -1,11 +1,10 @@
 import pandas as pd
 import os
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional, List, Dict, Any, Literal
-from pydantic import BaseModel, Field
-from qdrant_client.http import models as q_models # Required for Qdrant filtering
+from typing import Optional, List, Dict, Any
+from qdrant_client.http import models as q_models 
 
-# Import your existing models
+# Import ALL models including the new ones
 from app.models.models import (
     DocumentUploadRequest,
     DocumentUploadResponse,
@@ -18,7 +17,14 @@ from app.models.models import (
     DocumentUpdateRequest,
     DocumentUpdateResponse,
     DocumentDeleteResponse,
+    # New Tool Models
+    PageRetrievalRequest,
+    PageRetrievalResponse,
+    PageContent,
+    StructuredQueryRequest,
+    StructuredQueryResponse
 )
+
 from app.services.qdrant.qdrant_service import qdrant_service
 from app.services.embedding.embedding_service import embedding_service
 from app.services.reranking.reranking_service import reranking_service
@@ -26,54 +32,7 @@ from app.services.reranking.reranking_service import reranking_service
 router = APIRouter()
 
 # ==============================================================================
-#  1. NEW PYDANTIC MODELS (Add these here for the new tools)
-# ==============================================================================
-
-# --- Models for Page Context Tool ---
-class PageFilter(BaseModel):
-    file_path: Optional[str] = None
-    directory: Optional[str] = None
-    mime_type: Optional[str] = None
-    tags: Optional[List[str]] = None
-    department: Optional[str] = None
-    team: Optional[str] = None
-    project: Optional[str] = None
-
-class PageNavigation(BaseModel):
-    anchor_page_num: int = Field(..., description="The reference page number")
-    page_range: int = Field(1, ge=0, description="Number of additional pages to retrieve")
-    mode: Literal['exact', 'forward', 'next', 'backward', 'prev', 'around', 'both'] = Field(
-        'exact', description="Direction: 'forward', 'backward', or 'around'"
-    )
-
-class PageRetrievalRequest(BaseModel):
-    filter: Optional[PageFilter] = None
-    navigation: Optional[PageNavigation] = None
-
-class PageContent(BaseModel):
-    page_number: int
-    text: str
-    file_path: str
-    metadata: Dict[str, Any]
-
-class PageRetrievalResponse(BaseModel):
-    pages: List[PageContent]
-    total_found: int
-
-# --- Models for Structured Data Tool ---
-class StructuredQueryRequest(BaseModel):
-    file_path: str = Field(..., description="Full path to the csv or xlsx file")
-    sheet_name: Optional[str] = Field(None, description="The specific sheet name to query (Required for Excel)")
-    query: str = Field(..., description="Pandas query expression (e.g., `Region == 'North' and Sales > 5000`)")
-
-class StructuredQueryResponse(BaseModel):
-    result: str
-    metadata: Dict[str, Any]
-    success: bool
-    error: Optional[str] = None
-
-# ==============================================================================
-#  2. EXISTING ENDPOINTS
+#  EXISTING ENDPOINTS
 # ==============================================================================
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=201)
@@ -214,7 +173,7 @@ async def delete_document(id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
 # ==============================================================================
-#  3. NEW TOOLS IMPLEMENTATION
+#  NEW TOOLS IMPLEMENTATION
 # ==============================================================================
 
 # --- TOOL 1: PAGE CONTEXT RETRIEVAL (Reconstruct pages from chunks) ---
@@ -258,12 +217,11 @@ async def get_pages_context(request: PageRetrievalRequest):
             
             # Use strict range filter for page numbers
             must_filters.append(q_models.FieldCondition(
-                key="metadata.page_numbers",
+                key="metadata.pages",
                 range=q_models.Range(gte=start_p, lte=end_p)
             ))
 
         # 3. Fetch Chunks (Using helper from service)
-        # NOTE: Ensure qdrant_service has 'get_chunks_by_filter' implemented!
         raw_chunks = qdrant_service.get_chunks_by_filter(filters=must_filters)
 
         # 4. Reconstruct Pages
@@ -271,7 +229,7 @@ async def get_pages_context(request: PageRetrievalRequest):
         requested_page_set = set(range(start_p, end_p + 1)) if request.navigation else None
 
         for chunk in raw_chunks:
-            p_nums = chunk.get("metadata", {}).get("page_numbers", [])
+            p_nums = chunk.get("metadata", {}).get("pages", [])
             for p_num in p_nums:
                 if request.navigation and p_num not in requested_page_set:
                     continue
@@ -342,7 +300,10 @@ async def analyze_structured_data(request: StructuredQueryRequest):
 
         # B. Execute Query
         try:
-            filtered_df = df.query(request.query)
+            if not request.query or not request.query.strip():
+                filtered_df = df
+            else:
+                filtered_df = df.query(request.query)
             
             # Truncate if result is huge
             limit_rows = 50
