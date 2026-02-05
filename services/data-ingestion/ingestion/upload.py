@@ -14,16 +14,24 @@ class Upload:
         documents = []
 
         for context in contexts:
+            metadata = context.get("metadata", {})
+            
+            # Construct the payload to match the DocumentUploadRequest model
             documents.append({
-                # "id": context.get("id", ""),
-                "text": context.get("text", ""),
+                "id": context.get("id"),
+                "text": context.get("text"),
                 "metadata": {
-                    "file": context.get("metadata", {}).get("file", None),
-                    "file_path": context.get("metadata", {}).get("file_path", None),
-                    "file_type": context.get("metadata", {}).get("file_type", None),
-                    "page": context.get("metadata", {}).get("page", None),
-                    "created_at": context.get("metadata", {}).get("created_at", None),
-                    "checksum": context.get("metadata", {}).get("checksum", None),
+                    "file": metadata.get("file"),
+                    "file_path": metadata.get("file_path"),
+                    "file_type": metadata.get("file_type"),
+                    "order": metadata.get("order"),           # New: Required for reconstruction
+                    "pages": metadata.get("pages", []),       # New: Changed from 'page' to 'pages'
+                    "created_at": metadata.get("created_at"),
+                    "checksum": metadata.get("checksum"),
+                    # Include these for the Structured Data Tool to work
+                    "is_summary": metadata.get("is_summary", False),
+                    "sheet_name": metadata.get("sheet_name"),
+                    "columns": metadata.get("columns", [])
                 }
             })
 

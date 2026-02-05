@@ -285,7 +285,45 @@ class QdrantService:
             "vectors_count": info.vectors_count,
             "status": info.status
         }
+    def get_chunks_by_filter(self, filters: List[FieldCondition]) -> List[Dict[str, Any]]:
+        """
+        Retrieves ALL chunks that match the given filters using the Scroll API.
+        Used for reconstructing full pages from individual chunks.
+        """
+        self._ensure_collection()
 
+        # 1. Build the Filter object using the provided conditions
+        q_filter = Filter(must=filters)
+
+        all_points = []
+        next_offset = None
+        
+        # 2. Use the Scroll API to paginate through all matching points
+        # We fetch 100 at a time and continue until next_offset is None
+        while True:
+            points, next_offset = self.client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=q_filter,
+                limit=100,
+                offset=next_offset,
+                with_payload=True,
+                with_vectors=False  # Vectors are not needed for text reconstruction
+            )
+            all_points.extend(points)
+            
+            if next_offset is None:
+                break
+        
+        # 3. Format the results for the API
+        formatted_chunks = []
+        for point in all_points:
+            formatted_chunks.append({
+                "id": point.id,
+                "text": point.payload.get("text", ""),
+                "metadata": {k: v for k, v in point.payload.items() if k != "text"}
+            })
+            
+        return formatted_chunks
 
 # Global instance
 qdrant_service = QdrantService()
