@@ -1,14 +1,15 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
-    Distance, VectorParams, PointStruct,
-    Filter, FieldCondition, MatchValue, MatchText, SearchRequest as QdrantSearchRequest
+    Distance, VectorParams, PointStruct, FilterSelector,
+    Filter, FieldCondition, MatchValue, MatchText, MatchAny, SearchRequest as QdrantSearchRequest,
+    Range
 )
 from typing import List, Dict, Any, Optional
 import uuid
 from app.config import settings
 from app.services.embedding.embedding_service import embedding_service
 from app.models.models import (
-    SearchFilter
+    Filter as ModelFilter
 )
 
 
@@ -49,7 +50,7 @@ class QdrantService:
 
     def _ensure_duplicate(self, path: str) -> bool:
         self._ensure_collection()
-
+        
         try:
             results, _ = self.client.scroll(
                 collection_name=self.collection_name,
@@ -69,32 +70,13 @@ class QdrantService:
         except Exception:
             return False
         
-    def _delete_by_metadata(self, metadata: Dict[str, Any]) -> None:
+    def _delete_by_metadata(self, metadata_filter: Filter) -> None:
         self._ensure_collection()
 
         try:
-            conditions = []
-
-            for key, value in metadata.items():
-                # Case 1: (MatchClass, match_value)
-                if isinstance(value, tuple):
-                    match_cls, match_value = value
-                    match = match_cls(value=match_value)
-
-                # Case 2: raw value → MatchValue
-                else:
-                    match = MatchValue(value=value)
-
-                conditions.append(
-                    FieldCondition(
-                        key=key,
-                        match=match
-                    )
-                )
-
             self.client.delete(
                 collection_name=self.collection_name,
-                points_selector=Filter(must=conditions)
+                points_selector=metadata_filter
             )
 
         except Exception as e:
@@ -107,9 +89,15 @@ class QdrantService:
             return []
 
         if not duplicate and self._ensure_duplicate(documents[0]["metadata"]["file_path"]):
-            self._delete_by_metadata(metadata={
-                "file_path": (MatchValue, documents[0]["metadata"]["file_path"])
-            })
+            metadata_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="file_path",
+                        match=MatchValue(value=documents[0]["metadata"]["file_path"])
+                    )
+                ]
+            )
+            self._delete_by_metadata(metadata_filter=metadata_filter)
 
         texts = [doc['text'] for doc in documents]
 
@@ -147,28 +135,12 @@ class QdrantService:
         query: str,
         limit: int = 10,
         score_threshold: Optional[float] = None,
-        query_filter: Optional[SearchFilter] = None
+        query_filter: Optional[ModelFilter] = None
     ) -> List[Dict[str, Any]]:
         self._ensure_collection()
 
         query_embedding = embedding_service.encode_single(query)
-
-        qdrant_filter = None
-
-        if query_filter:
-            conditions = []
-
-            if query_filter.path:
-                conditions.append(
-                    FieldCondition(
-                        key="path",
-                        match=MatchText(text=query_filter.path)
-                    )
-                )
-
-            # print('finish format filter')
-            if conditions:
-                qdrant_filter = Filter(must=conditions)
+        qdrant_filter = self.format_filter(query_filter)
 
         results = self.client.search(
             collection_name=self.collection_name,
@@ -285,8 +257,170 @@ class QdrantService:
             "vectors_count": info.vectors_count,
             "status": info.status
         }
+    
+    def format_filter(self, filters: ModelFilter) -> Filter:
+        if filters is None:
+            return Filter()
 
+        field_conditions = []
+
+        # Exact Matches (MatchValue)
+        exact_match_fields = {
+            "file_name": filters.file_name,
+            "file_type": filters.file_type,
+            "department": filters.department,
+            "team": filters.team,
+            "project": filters.project,
+        }
+
+        for key, value in exact_match_fields.items():
+            if value:  # Ensures we don't add empty strings or None
+                field_conditions.append(
+                    FieldCondition(key=key, match=MatchValue(value=value))
+                )
+
+        # Full-text Match (MatchText)
+        if filters.file_path:
+            field_conditions.append(
+                FieldCondition(key="file_path", match=MatchText(text=filters.file_path))
+            )
+
+        # List Matches (MatchAny)
+        if filters.pages:
+            field_conditions.append(
+                FieldCondition(key="pages", match=MatchAny(any=filters.pages))
+            )
+
+        if filters.tags:
+            field_conditions.append(
+                FieldCondition(key="tags", match=MatchAny(any=filters.tags))
+            )
+
+        format_filter = Filter(
+            must=field_conditions
+        )
+
+        return format_filter
+
+    def get_chunks_by_page_range(self, start_page: int, end_page: int, file_path: str):
+        """
+        Retrieves all chunks that match the given filters within the specified page range.
+        """
+        self._ensure_collection()
+
+        q_filter = Filter(
+            must=[
+                FieldCondition(key="file_path", match=MatchValue(value=file_path)),
+            ]
+        )
+
+        all_points = []
+        next_offset = None
+        
+        while True:
+            points, next_offset = self.client.scroll(
+                collection_name=self.collection_name,
+                scroll_filter=q_filter,
+                # limit=100,
+                offset=next_offset,
+                with_payload=True,
+                with_vectors=False  # Vectors are not needed for text reconstruction
+            )
+            all_points.extend(points)
+            
+            if next_offset is None:
+                break
+
+        all_points.sort(key=lambda p: p.payload.get("order", 0))
+        pages_chunk = []
+
+        for i in range(start_page, end_page + 1):
+            page_ids = []
+            page_text_segments = []
+            page_metadata = []
+
+            for point in all_points:
+                if i in point.payload.get("pages", []):
+                    page_ids.append(point.id)
+                    page_text_segments.append(point.payload.get("text", ""))
+                    meta = {k: v for k, v in point.payload.items() if k != "text"}
+                    page_metadata.append(meta)
+
+            if page_ids:
+                pages_chunk.append({
+                    "page_number": i,
+                    "ids": page_ids,
+                    "text": "".join(page_text_segments),
+                    "metadata_list": page_metadata,
+                    "total_chunks": len(page_ids)
+                })
+
+        return pages_chunk, len(pages_chunk)
+
+    def get_neighbor_chunks(self, chunk_id: str, backward: int, forward: int) -> List[Dict[str, Any]]:
+        """
+        Retrieves neighbor chunks for a given chunk_id based on 'order' and 'file_path'.
+        """
+        self._ensure_collection()
+        
+        # 1. Get target chunk to find file_path and order
+        target_doc = self.get_document(chunk_id)
+        if not target_doc:
+            raise ValueError(f"Target chunk {chunk_id} not found")
+        
+        target_metadata = target_doc["metadata"]
+        file_path = target_metadata.get("file_path")
+        
+        # 'order' might be stored as int or float. Defaults to -1 if missing, which shouldn't happen for valid docs.
+        try:
+            target_order = int(target_metadata.get("order", -1))
+        except (ValueError, TypeError):
+            # Fallback if order is somehow not an integer
+             raise ValueError(f"Invalid 'order' value in chunk {chunk_id}")
+
+        if not file_path or target_order == -1:
+             raise ValueError(f"Chunk {chunk_id} missing required 'file_path' or 'order' metadata")
+
+        # 2. Define Range
+        min_order = target_order - backward
+        max_order = target_order + forward
+        
+        # 3. Query
+        q_filter = Filter(
+            must=[
+                FieldCondition(key="file_path", match=MatchValue(value=file_path)),
+                FieldCondition(key="order", range=Range(gte=min_order, lte=max_order))
+            ]
+        )
+        
+        # We need to fetch enough potential candidates. 
+        # The number of chunks is roughly (backward + forward + 1).
+        # We fetch a bit more to be safe.
+        limit = (backward + forward + 1) + 5
+        
+        results, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=q_filter,
+            limit=limit,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        # 4. Format and Sort
+        neighbors = []
+        for point in results:
+             neighbors.append({
+                "id": point.id,
+                "text": point.payload.get("text", ""),
+                "metadata": {k: v for k, v in point.payload.items() if k != "text"},
+                "score": 0.0 # Context retrieval doesn't have a similarity score
+             })
+        
+        # Sort by order
+        neighbors.sort(key=lambda x: int(x["metadata"].get("order", 0)))
+        
+        return neighbors
 
 # Global instance
 qdrant_service = QdrantService()
-qdrant_service.connect()
+# qdrant_service.connect()

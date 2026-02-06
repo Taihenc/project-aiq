@@ -228,6 +228,8 @@ importers:
 
   services/file-storage-service: {}
 
+  services/mcp: {}
+
   services/sharepoint-webhook: {}
 
 packages:
