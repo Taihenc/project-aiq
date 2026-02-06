@@ -3,7 +3,8 @@
 from mcp.server import Server
 import mcp.types as types
 from services.search import perform_search
-from services.page_retrieval import retrieve_pages
+from services.pages import retrieve_pages
+from services.chunks import retrieve_chunks
 
 # Initialize MCP server
 mcp = Server("embedding-search")
@@ -62,7 +63,31 @@ async def list_tools() -> list[types.Tool]:
                 },
                 "required": ["file_path", "start_page", "end_page"]
             }
-        )
+        ),
+        types.Tool(
+            name="retrieve_chunks",
+            description="Retrieve surrounding chunks using a chunk ID.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "chunk_id": {
+                        "type": "string",
+                        "description": "Target chunk ID."
+                    },
+                    "backward": {
+                        "type": "integer",
+                        "default": 2,
+                        "description": "Number of chunks before the target chunk."
+                    },
+                    "forward": {
+                        "type": "integer",
+                        "default": 2,
+                        "description": "Number of chunks after the target chunk."
+                    }
+                },
+                "required": ["chunk_id"]
+            }
+        ),
     ]
 
 
@@ -88,6 +113,14 @@ async def call_tool(
         end_page = arguments.get("end_page")
 
         result = await retrieve_pages(file_path, start_page, end_page)
+        return [types.TextContent(type="text", text=result)]
+
+    if name == "retrieve_chunks":
+        chunk_id = arguments.get("chunk_id")
+        backward = arguments.get("backward", 2)
+        forward = arguments.get("forward", 2)
+
+        result = await retrieve_chunks(chunk_id, backward, forward)
         return [types.TextContent(type="text", text=result)]
 
     raise ValueError(f"Unknown tool: {name}")

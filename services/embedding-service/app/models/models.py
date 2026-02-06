@@ -45,7 +45,7 @@ class SearchRequest(BaseModel):
     top_k: int = Field(default=10, ge=1, le=100, description="Number of results from sematic search")
     top_n: Optional[int] = Field(default=10, ge=1, le=100, description="Number of results from rerank (Leave null for no reranking)")
     score_threshold: Optional[float] = Field(default=0, ge=0.0, le=1.0, description="Minimum similarity score")
-    filter: Optional[Filter] = Field(..., description="Metadata filter")
+    filter: Optional[Filter] = Field(default=None, description="Metadata filter")
 
 class DocumentResponse(BaseModel):
     id: str = Field(..., description="Document ID")
