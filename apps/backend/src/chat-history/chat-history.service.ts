@@ -126,4 +126,43 @@ export class ChatHistoryService {
     }
     return messagesToReturn.reverse();
   }
+
+  async getSessionSummary(sessionId: string) {
+    const session = this.db
+      .select({
+        summary: chatSessions.summary,
+        lastSummarizedMessageId: chatSessions.lastSummarizedMessageId
+      })
+      .from(chatSessions)
+      .where(eq(chatSessions.id, sessionId))
+      .get();
+    return session;
+  }
+
+  async updateSessionSummary(sessionId: string, summary: string, lastMessageId: string) {
+    this.db.update(chatSessions)
+      .set({
+        summary,
+        lastSummarizedMessageId: lastMessageId,
+        updatedAt: Date.now()
+      })
+      .where(eq(chatSessions.id, sessionId))
+      .run();
+  }
+
+  async getUnsummarizedMessages(sessionId: string, lastSummarizedId?: string | null) {
+    const allMessages = this.db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.sessionId, sessionId))
+      .orderBy(chatMessages.createdAt)
+      .all();
+
+    if (!lastSummarizedId) return allMessages;
+
+    const index = allMessages.findIndex(m => m.id === lastSummarizedId);
+    if (index === -1) return allMessages;
+
+    return allMessages.slice(index + 1);
+  }
 }

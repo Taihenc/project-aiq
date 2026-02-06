@@ -138,4 +138,4 @@ class ModelService(ModelPort):
             model=model, messages=request.messages, config_override=config_override
         )
 
-        return CompletionResponse(content=content)
+        return CompletionResponse(content=content, result=content)

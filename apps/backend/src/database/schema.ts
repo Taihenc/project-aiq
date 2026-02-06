@@ -18,6 +18,8 @@ export const chatSessions = sqliteTable('chat_sessions', {
     .notNull(),
   createdAt: integer('created_at').default(Date.now()),
   updatedAt: integer('updated_at').default(Date.now()),
+  summary: text('summary'),
+  lastSummarizedMessageId: text('last_summarized_message_id'),
 });
 
 export const chatMessages = sqliteTable('chat_messages', {

@@ -12,6 +12,7 @@ import { ChatHistoryModule } from './chat-history/chat-history.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [aiServiceConfig],
     }),
     HttpModule,
     DrizzleModule,

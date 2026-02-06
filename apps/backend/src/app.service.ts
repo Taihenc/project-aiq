@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
-import { Observable } from 'rxjs';
+import { Observable, from } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -84,58 +84,141 @@ export class AppService {
       const lastUserMessage = [...chatRequest.messages]
         .reverse()
         .find((m) => m.role === 'user');
+      const sessionId = chatRequest.session_id || '';
+      return from(this.chatHistoryService.getSessionSummary(sessionId)).pipe(
+        switchMap((sessionData) => {
+          const existingSummary = sessionData?.summary || '';
 
-      const aiEngineRequest = {
-        inputs: {
-          user_query: lastUserMessage
-            ? lastUserMessage.content
-            : chatRequest.messages.slice(-1)[0]?.content || '',
-          chat_history: chatHistory,
-          context: [],
-        },
-      };
+          return from(
+            this.chatHistoryService.getUnsummarizedMessages(
+              sessionId,
+              sessionData?.lastSummarizedMessageId,
+            ),
+          ).pipe(
+            switchMap((unsummarizedMessages) => {
+              const historyFromDb = unsummarizedMessages.map((msg) => ({
+                role: msg.role,
+                content: msg.content,
+              }));
 
-      const aiEngineUrl = `${aiEngineBaseUrl}/v1/workflows/${crew}/completion`;
+              const aiEngineRequest = {
+                inputs: {
+                  user_query: lastUserMessage
+                    ? lastUserMessage.content
+                    : chatRequest.messages.slice(-1)[0]?.content || '',
+                  chat_history: historyFromDb,
+                  context: [existingSummary],
+                },
+              };
 
-      return this.httpService.post<any>(aiEngineUrl, aiEngineRequest).pipe(
-        map((axiosResponse: AxiosResponse<any>) => {
-          // The AI Engine response is nested under `data`
-          const aiEngineData = axiosResponse.data;
+              const aiEngineUrl = `${aiEngineBaseUrl}/api/v1/workflows/${crew}/completion`;
 
-          // Parse the workflow response
-          const parsedResponse = this.parseAiEngineResponse(
-            aiEngineData.data.result,
+              return this.httpService.post<any>(aiEngineUrl, aiEngineRequest).pipe(
+                switchMap(async (axiosResponse: AxiosResponse<any>) => {
+                  // The AI Engine response is nested under `data`
+                  const aiEngineData = axiosResponse.data;
+
+                  // Parse the workflow response
+                  const parsedResponse = this.parseAiEngineResponse(
+                    aiEngineData.data.result,
+                  );
+
+                  console.log('[BACKEND] Parsed workflow response:', parsedResponse);
+
+                  const transformed = this.transformAiEngineToOpenAI(
+                    parsedResponse,
+                    chatRequest,
+                  );
+
+                  if (chatRequest.session_id) {
+                    await this.chatHistoryService.addMessage(
+                      chatRequest.session_id,
+                      userId,
+                      'user',
+                      aiEngineRequest.inputs.user_query
+                    );
+                    await this.chatHistoryService.addMessage(
+                      chatRequest.session_id,
+                      userId,
+                      'assistant',
+                      transformed.choices[0].message.content,
+                      transformed.citations
+                    );
+
+                    const unsummarized = await this.chatHistoryService.getUnsummarizedMessages(
+                      chatRequest.session_id,
+                      sessionData?.lastSummarizedMessageId
+                    );
+                    if (unsummarized.length >= 6) {
+                      this.summarizeContext(unsummarized, existingSummary).then(async (newFullSummary) => {
+                        if (newFullSummary) {
+                          const lastId = unsummarized[unsummarized.length - 1].id;
+                          await this.chatHistoryService.updateSessionSummary(
+                            sessionId,
+                            newFullSummary,
+                            lastId
+                          );
+                          console.log(`[BACKEND] Session ${sessionId} summarized.`);
+                        }
+                      });
+                    }
+                  }
+
+                  return transformed;
+                }),
+              );
+            }),
           );
-
-          console.log('[BACKEND] Parsed workflow response:', parsedResponse);
-
-          const transformed = this.transformAiEngineToOpenAI(
-            parsedResponse,
-            chatRequest,
-          );
-
-          if (chatRequest.session_id) {
-            this.chatHistoryService.addMessage(
-              chatRequest.session_id,
-              userId,
-              'user',
-              aiEngineRequest.inputs.user_query
-            );
-            this.chatHistoryService.addMessage(
-              chatRequest.session_id,
-              userId,
-              'assistant',
-              transformed.choices[0].message.content,
-              transformed.citations
-            );
-          }
-
-          return transformed;
         }),
       );
     } catch (error) {
       console.error('Error in chatWithAiEngine:', error);
       throw error;
+    }
+  }
+
+  async summarizeContext(
+    messages: { role: string; content: string }[],
+    existingSummary: string = '',
+  ): Promise<string> {
+    try {
+      const aiEngineBaseUrl = this.getAiEngineBaseUrl();
+      const modelId = this.configService.get<string>('aiService.defaultModel') || 'gpt-4o-mini';
+
+      const prompt = `
+      Please summarize the following conversation history into a concise, single paragraph memory.
+
+      Existing Memory:
+      "${existingSummary}"
+
+      New Messages:
+      ${messages.map(m => `${m.role}: ${m.content}`).join('\n')}
+
+      Instructions:
+      1. Merge the "Existing Memory" and "New Messages" into a SINGLE cohesive paragraph.
+      2. Focus on key decisions, user preferences, and important facts.
+      3. Do not include meta-commentary (e.g., "The user said...", "In this conversation..."). Just state the facts.
+      4. Keep it concise.
+      5. If "Existing Memory" is empty, just summarize the "New Messages".
+      `;
+
+      const request = {
+        messages: [
+          { role: 'system', content: 'You are an expert summarizer for AI memory systems.' },
+          { role: 'user', content: prompt }
+        ],
+        config: {
+          temperature: 0.3,
+        }
+      };
+
+      const url = `${aiEngineBaseUrl}/api/v1/models/${modelId}/completion`;
+
+      const response = await this.httpService.post(url, request).toPromise();
+      return response?.data?.data?.content || '';
+    } catch (error) {
+      console.error('[BACKEND] Error summarizing context:', error);
+      return '';
     }
   }
 
