@@ -275,11 +275,11 @@ async def query_structured_data(request: StructuredQueryRequest):
                 debug_logs.append(f"Lookup failed: {e}")
 
             if qdrant_path:
-                 resolved_path_q = _resolve_file_path(qdrant_path)
-                 if resolved_path_q:
+                resolved_path_q = _resolve_file_path(qdrant_path)
+                if resolved_path_q:
                     resolved_path = resolved_path_q
                     debug_logs.append(f"Resolved from Qdrant path: {resolved_path}")
-                 else:
+                else:
                     debug_logs.append(f"Could not resolve path from Qdrant value: {qdrant_path}")
 
         if not resolved_path:
