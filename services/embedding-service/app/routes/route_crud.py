@@ -107,6 +107,7 @@ async def upload_documents(batch: DocumentUploadRequest):
             message="Documents uploaded successfully"
         )
     except Exception as e:
+        print(f"Upload Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to upload documents: {str(e)}")
 
 

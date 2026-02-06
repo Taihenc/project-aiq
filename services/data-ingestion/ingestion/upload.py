@@ -46,6 +46,10 @@ class Upload:
         }
         
         res = requests.post(self.API_URL, json=payload)
-        res.raise_for_status()
+        try:
+            res.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            print(f"Upload failed. Status: {res.status_code}, Response: {res.text}")
+            raise e
 
         return res.json()

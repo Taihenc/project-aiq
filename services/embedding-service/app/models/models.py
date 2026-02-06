@@ -107,6 +107,15 @@ class PageRetrievalResponse(BaseModel):
     pages: List[PageContent]
     total_pages: int = Field(..., description="Total number of pages")
 
+class ChunkContextRequest(BaseModel):
+    chunk_id: str = Field(..., description="The ID of the target chunk")
+    backward: int = Field(0, description="Number of chunks to retrieve before the target", ge=0)
+    forward: int = Field(0, description="Number of chunks to retrieve after the target", ge=0)
+
+class ChunkContextResponse(BaseModel):
+    chunks: List[DocumentResponse]
+
+
 class StructuredQueryRequest(BaseModel):
     file_path: str = Field(..., description="Full path to the csv or xlsx file")
     sheet_name: Optional[str] = Field(None, description="The specific sheet name to query (Required for Excel)")

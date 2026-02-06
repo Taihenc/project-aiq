@@ -1,7 +1,8 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance, VectorParams, PointStruct, FilterSelector,
-    Filter, FieldCondition, MatchValue, MatchText, MatchAny, SearchRequest as QdrantSearchRequest
+    Filter, FieldCondition, MatchValue, MatchText, MatchAny, SearchRequest as QdrantSearchRequest,
+    Range
 )
 from typing import List, Dict, Any, Optional
 import uuid
@@ -356,6 +357,70 @@ class QdrantService:
 
         return pages_chunk, len(pages_chunk)
 
+    def get_neighbor_chunks(self, chunk_id: str, backward: int, forward: int) -> List[Dict[str, Any]]:
+        """
+        Retrieves neighbor chunks for a given chunk_id based on 'order' and 'file_path'.
+        """
+        self._ensure_collection()
+        
+        # 1. Get target chunk to find file_path and order
+        target_doc = self.get_document(chunk_id)
+        if not target_doc:
+            raise ValueError(f"Target chunk {chunk_id} not found")
+        
+        target_metadata = target_doc["metadata"]
+        file_path = target_metadata.get("file_path")
+        
+        # 'order' might be stored as int or float. Defaults to -1 if missing, which shouldn't happen for valid docs.
+        try:
+            target_order = int(target_metadata.get("order", -1))
+        except (ValueError, TypeError):
+            # Fallback if order is somehow not an integer
+             raise ValueError(f"Invalid 'order' value in chunk {chunk_id}")
+
+        if not file_path or target_order == -1:
+             raise ValueError(f"Chunk {chunk_id} missing required 'file_path' or 'order' metadata")
+
+        # 2. Define Range
+        min_order = target_order - backward
+        max_order = target_order + forward
+        
+        # 3. Query
+        q_filter = Filter(
+            must=[
+                FieldCondition(key="file_path", match=MatchValue(value=file_path)),
+                FieldCondition(key="order", range=Range(gte=min_order, lte=max_order))
+            ]
+        )
+        
+        # We need to fetch enough potential candidates. 
+        # The number of chunks is roughly (backward + forward + 1).
+        # We fetch a bit more to be safe.
+        limit = (backward + forward + 1) + 5
+        
+        results, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=q_filter,
+            limit=limit,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        # 4. Format and Sort
+        neighbors = []
+        for point in results:
+             neighbors.append({
+                "id": point.id,
+                "text": point.payload.get("text", ""),
+                "metadata": {k: v for k, v in point.payload.items() if k != "text"},
+                "score": 0.0 # Context retrieval doesn't have a similarity score
+             })
+        
+        # Sort by order
+        neighbors.sort(key=lambda x: int(x["metadata"].get("order", 0)))
+        
+        return neighbors
+
 # Global instance
 qdrant_service = QdrantService()
-qdrant_service.connect()
+# qdrant_service.connect()

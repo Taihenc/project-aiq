@@ -21,7 +21,9 @@ from app.models.models import (
     PageRetrievalResponse,
     PageContent,
     StructuredQueryRequest,
-    StructuredQueryResponse
+    StructuredQueryResponse,
+    ChunkContextRequest,
+    ChunkContextResponse
 )
 
 from app.services.qdrant.qdrant_service import qdrant_service
@@ -78,7 +80,7 @@ async def search_documents(search_request: SearchRequest):
 
 
 # --- TOOL 1: PAGE CONTEXT RETRIEVAL (Reconstruct pages from chunks) ---
-@router.post("/documents/pages", response_model=PageRetrievalResponse)
+@router.post("/pages", response_model=PageRetrievalResponse)
 async def get_pages_context(request: PageRetrievalRequest):
     try:
         reconstructed_pages, total_pages = qdrant_service.get_chunks_by_page_range(
@@ -95,38 +97,147 @@ async def get_pages_context(request: PageRetrievalRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve pages: {str(e)}")
 
+# --- TOOL 3: CHUNK CONTEXT RETRIEVAL (Neighbors) ---
+@router.post("/chunks", response_model=ChunkContextResponse)
+async def get_chunks_context(request: ChunkContextRequest):
+    """
+    Tool: Retrieve neighboring chunks for a specific chunk ID to expand context.
+
+    **Example Usage:**
+    ```json
+    {
+        "chunk_id": "881bc625-e293-4403-b152-49852c0ec9a0",
+        "backward": 2,  // Get 2 chunks before
+        "forward": 2    // Get 2 chunks after
+    }
+    ```
+    """
+    try:
+        chunks = qdrant_service.get_neighbor_chunks(
+            chunk_id=request.chunk_id,
+            backward=request.backward,
+            forward=request.forward
+        )
+        
+        # Convert dict to DocumentResponse
+        response_chunks = [
+            DocumentResponse(
+                id=c["id"],
+                text=c["text"],
+                metadata=c["metadata"],
+                score=c.get("score")
+            ) for c in chunks
+        ]
+
+        return ChunkContextResponse(chunks=response_chunks)
+
+    except ValueError as e:
+         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve chunks: {str(e)}")
+
 
 # --- TOOL 2: STRUCTURED DATA QUERY (CSV/XLSX Analysis) ---
-@router.post("/tools/analyze-data", response_model=StructuredQueryResponse)
-async def analyze_structured_data(request: StructuredQueryRequest):
+
+def _resolve_file_path(file_path: str) -> Optional[str]:
+    """
+    Resolves file path relative to the embedding-service.
+    Specifically checks:
+    1. Exact path
+    2. ../data-ingestion/ (for paths like 'uploaded-files/file.csv')
+    """
+    # 1. Exact path or absolute path
+    if os.path.exists(file_path):
+        return os.path.abspath(file_path)
+
+    # 2. Check relative to data-ingestion service
+    # Assuming embedding-service is at /services/embedding-service
+    # And data-ingestion is at /services/data-ingestion
+    # So we traverse up one level: ../data-ingestion/
+    
+    # Construct potential path in data-ingestion
+    # effective path becomes: ../data-ingestion/<file_path>
+    data_ingestion_path = os.path.join("..", "data-ingestion", file_path)
+    
+    if os.path.exists(data_ingestion_path):
+        return os.path.abspath(data_ingestion_path)
+
+    return None
+
+@router.post("/query-structured-data", response_model=StructuredQueryResponse)
+async def query_structured_data(request: StructuredQueryRequest):
     """
     Tool: Executes a Pandas query on a CSV or Excel file.
     
     **Example Usage:**
     ```json
     {
-        "file_path": "/tmp/employees.csv",
-        "query": "department == 'HR' & salary > 50000"
+        "file_path": "employees.xlsx", 
+        "sheet_name": "Sheet1",  // REQUIRED if file is .xlsx/.xls
+        "query": "department == 'HR' & salary > 50000" // Optional pandas query string
     }
     ```
     """
+    debug_logs = []
     try:
-        if not os.path.exists(request.file_path):
-            raise HTTPException(status_code=404, detail=f"File not found: {request.file_path}")
+        debug_logs.append(f"Analyzing {request.file_path}")
+        resolved_path = _resolve_file_path(request.file_path)
+        debug_logs.append(f"Initial determination: {resolved_path}")
+        
+        # If not found locally, try looking it up in Qdrant by name (assuming input is filename)
+        if not resolved_path:
+             # Try to find the file path via Qdrant metadata
+            potential_filename = os.path.basename(request.file_path)
+            qdrant_path = None
+            try:
+                # Direct lookup using client to avoid modifying qdrant_service
+                qdrant_service._ensure_collection()
+                results, _ = qdrant_service.client.scroll(
+                    collection_name=qdrant_service.collection_name,
+                    scroll_filter=q_models.Filter(
+                        must=[
+                            q_models.FieldCondition(
+                                key="file", # Metadata is flattened in payload
+                                match=q_models.MatchValue(value=potential_filename)
+                            )
+                        ]
+                    ),
+                    limit=1,
+                    with_payload=True
+                )
+                if results and results[0].payload:
+                    qdrant_path = results[0].payload.get("file_path")
+                    debug_logs.append(f"Qdrant lookup found path: {qdrant_path}")
+                else:
+                    debug_logs.append("Qdrant lookup returned no results")
+
+            except Exception as e:
+                debug_logs.append(f"Lookup failed: {e}")
+
+            if qdrant_path:
+                 resolved_path_q = _resolve_file_path(qdrant_path)
+                 if resolved_path_q:
+                    resolved_path = resolved_path_q
+                    debug_logs.append(f"Resolved from Qdrant path: {resolved_path}")
+                 else:
+                    debug_logs.append(f"Could not resolve path from Qdrant value: {qdrant_path}")
+
+        if not resolved_path:
+            raise HTTPException(status_code=404, detail=f"File not found: {request.file_path}. Debug: {'; '.join(debug_logs)}")
 
         df = None
         
         # A. Load Data
-        if request.file_path.endswith('.csv'):
-            df = pd.read_csv(request.file_path)
-        elif request.file_path.endswith(('.xlsx', '.xls')):
+        if resolved_path.endswith('.csv'):
+            df = pd.read_csv(resolved_path)
+        elif resolved_path.endswith(('.xlsx', '.xls')):
             if not request.sheet_name:
                 return StructuredQueryResponse(
                     result="", metadata={}, success=False,
                     error="Missing 'sheet_name'. Required for Excel files."
                 )
             try:
-                df = pd.read_excel(request.file_path, sheet_name=request.sheet_name)
+                df = pd.read_excel(resolved_path, sheet_name=request.sheet_name)
             except ValueError:
                  return StructuredQueryResponse(
                     result="", metadata={}, success=False, 
@@ -135,7 +246,7 @@ async def analyze_structured_data(request: StructuredQueryRequest):
         else:
             return StructuredQueryResponse(
                 result="", metadata={}, success=False, 
-                error="Unsupported file format."
+                error=f"Unsupported file format: {resolved_path}"
             )
 
         # B. Execute Query

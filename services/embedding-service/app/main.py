@@ -12,9 +12,20 @@ from app.services.reranking.reranking_service import reranking_service
 async def lifespan(app: FastAPI):
     print("Starting up...")
     
-    embedding_service.load_model()
-    qdrant_service.connect()
-    reranking_service.load_model()
+    try:
+        embedding_service.load_model()
+    except Exception as e:
+        print(f"Warning: Failed to load embedding model: {e}")
+
+    try:
+        qdrant_service.connect()
+    except Exception as e:
+        print(f"Warning: Failed to connect to Qdrant: {e}")
+
+    try:
+        reranking_service.load_model()
+    except Exception as e:
+        print(f"Warning: Failed to load reranking model: {e}")
     print("Application ready!")
     
     yield
