@@ -124,3 +124,4 @@ async def call_tool(
         return [types.TextContent(type="text", text=result)]
 
     raise ValueError(f"Unknown tool: {name}")
+
