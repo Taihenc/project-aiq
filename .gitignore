@@ -73,3 +73,6 @@ wheels/
 
 # Data Ingestion Service
 services/data-ingestion/uploaded-files/
+
+# Langfuse
+deploy/langfuse/postgres_data/
