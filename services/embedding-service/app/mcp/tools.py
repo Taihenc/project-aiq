@@ -1,29 +1,35 @@
 # app/mcp/tools.py
 from fastmcp import FastMCP
-from app.services.qdrant.qdrant_service import qdrant_service
-from app.services.embedding.embedding_service import embedding_service
+from app.services.service_tools import service_tools
+from app.models.models import (
+    SearchRequest
+)
 
 mcp = FastMCP("embedding-service")
 
 @mcp.tool()
-async def search_documents(query: str, top_k: int = 10) -> str:
-    """Search for similar documents using semantic search."""
-    embedding = embedding_service.encode_single(query)
-    results = qdrant_service.search(embedding, top_k)
-    return format_results(results)
+async def greet(name: str) -> str:
+    """Greet the user."""
+    return f"Hello, {name}! Welcome to embedding-service."
 
-def format_results(results):
+@mcp.tool()
+async def search_documents(search_request: SearchRequest) -> str:
+    """Search for similar documents using semantic search."""
+    response = await service_tools.search_documents(search_request)
+    return format_results(response.documents)
+
+def format_results(documents):
     """Format search results for display."""
-    if not results:
+    if not documents:
         return "No documents found."
     
-    lines = [f"Found {len(results)} documents:"]
-    for i, result in enumerate(results, 1):
-        score = result.get("score", 0)
-        payload = result.get("payload", {})
-        file_name = payload.get("file", "Unknown")
-        page = payload.get("page", "N/A")
-        text = payload.get("text", "")
+    lines = [f"Found {len(documents)} documents:"]
+    for i, doc in enumerate(documents, 1):
+        score = doc.similarity_score or 0
+        metadata = doc.metadata
+        file_name = metadata.file or "Unknown"
+        page = metadata.pages[0] if metadata.pages else "N/A"
+        text = doc.text
         
         lines.append(f"\n{i}. Score: {score:.4f}")
         lines.append(f"   File: {file_name} (Page {page})")
@@ -31,7 +37,7 @@ def format_results(results):
     
     return "\n".join(lines)
 
-@mcp.tool()
-async def get_document(doc_id: str) -> dict:
-    """Retrieve a specific document by ID."""
-    return qdrant_service.get_document(doc_id)
+# @mcp.tool()
+# async def get_document(doc_id: str) -> dict:
+#     """Retrieve a specific document by ID."""
+#     return qdrant_service.get_document(doc_id)

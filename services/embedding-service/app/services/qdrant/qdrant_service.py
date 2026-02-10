@@ -142,13 +142,13 @@ class QdrantService:
         query_embedding = embedding_service.encode_single(query)
         qdrant_filter = self.format_filter(query_filter)
 
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=limit,
             score_threshold=score_threshold,
             query_filter=qdrant_filter
-        )
+        ).points
 
         formatted_results = []
         for result in results:

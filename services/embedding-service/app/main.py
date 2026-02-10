@@ -7,6 +7,7 @@ from app.services.embedding.embedding_service import embedding_service
 from app.services.qdrant.qdrant_service import qdrant_service
 from app.services.reranking.reranking_service import reranking_service
 from app.mcp.tools import mcp
+import asyncio
 
 
 @asynccontextmanager
@@ -43,7 +44,18 @@ app = FastAPI(
 app.include_router(route_crud, prefix="/v1", tags=["CRUD"])
 app.include_router(route_tools, prefix="/v1", tags=["tools"])
 # Mount MCP at /mcp subpath
-app.mount("/mcp", mcp.http_app())
+mcp_app = mcp.http_app(transport="sse")
+app.mount("/v1/mcp", mcp_app)
+
+# # Add this debug code
+# print("MCP app routes:")
+# for route in mcp_app.routes:
+#     print(f"  {route.path}")
+
+# # Also print all FastAPI routes
+# print("\nAll app routes:")
+# for route in app.routes:
+#     print(f"  {route.path}")
 
 @app.get("/")
 async def root():
