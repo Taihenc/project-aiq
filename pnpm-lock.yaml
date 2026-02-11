@@ -228,6 +228,8 @@ importers:
 
   services/file-storage-service: {}
 
+  services/search-flow: {}
+
   services/sharepoint-webhook: {}
 
 packages:
