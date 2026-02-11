@@ -1,5 +1,5 @@
 from crewai.tools import BaseTool
-from src.core.domain.model.search import VectorResultItem, VectorSearchOutput
+from src.models.search import VectorResultItem, VectorSearchOutput
 from .mock_data import MOCK_CHUNKS
 
 

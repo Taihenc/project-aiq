@@ -1,7 +1,7 @@
 import logging
 import sys
 from loguru import logger
-from src.infrastructure.config.settings import settings
+from src.config.settings import settings
 
 
 class InterceptHandler(logging.Handler):
@@ -64,4 +64,3 @@ def setup_logging():
         )
 
     logger.info(f"Logging configured. Env: {settings.app_env}, Debug: {settings.debug}")
-    logger.debug("This is a debug message")

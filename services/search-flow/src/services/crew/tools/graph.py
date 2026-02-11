@@ -1,5 +1,5 @@
 from crewai.tools import BaseTool
-from src.core.domain.model.search import GraphSearchOutput, GraphRelation
+from src.models.search import GraphSearchOutput, GraphRelation
 
 
 class GraphTool(BaseTool):

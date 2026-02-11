@@ -1,5 +1,5 @@
 from crewai.tools import BaseTool
-from src.core.domain.model.search import ChunkLookupOutput
+from src.models.search import ChunkLookupOutput
 from .mock_data import MOCK_CHUNKS
 
 

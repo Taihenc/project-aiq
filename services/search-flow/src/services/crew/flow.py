@@ -2,31 +2,31 @@ import json
 from crewai.flow.flow import Flow, listen, start, router
 from crewai import Crew, Process
 
-from src.core.domain.model.state import (
+from src.models.state import (
     FlowState,
     FlowResponse,
     IntentOutput,
     CapabilityPlan,
 )
-from src.infrastructure.config.settings import ORGANIZATION_CONTEXT
-from src.infrastructure.adapter.output.crew.agents import (
+from src.config.settings import ORGANIZATION_CONTEXT
+from src.services.crew.agents import (
     create_intent_validator_agent,
     create_capability_planner_agent,
     create_query_transformer_agent,
     create_hyde_generator_agent,
     create_knowledge_agent,
 )
-from src.infrastructure.adapter.output.crew.tasks import (
+from src.services.crew.tasks import (
     create_classify_intent_task,
     create_plan_capabilities_task,
     create_transform_query_task,
     create_hyde_generation_task,
     create_execute_search_task,
 )
-from src.infrastructure.adapter.output.crew.tools.vector import VectorSearchTool
-from src.infrastructure.adapter.output.crew.tools.chunk import ChunkLookupTool
-from src.infrastructure.adapter.output.crew.tools.page import PageLookupTool
-from src.infrastructure.adapter.output.crew.tools.graph import GraphTool
+from src.services.crew.tools.vector import VectorSearchTool
+from src.services.crew.tools.chunk import ChunkLookupTool
+from src.services.crew.tools.page import PageLookupTool
+from src.services.crew.tools.graph import GraphTool
 
 
 class SearchCrewFlow(Flow[FlowState]):

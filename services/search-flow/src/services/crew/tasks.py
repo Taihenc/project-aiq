@@ -1,7 +1,7 @@
 from crewai import Task, Agent
 from typing import List, Optional
-from src.core.domain.model.state import IntentOutput, CapabilityPlan, FlowResponse
-from src.infrastructure.config.settings import ORGANIZATION_CONTEXT
+from src.models.state import IntentOutput, CapabilityPlan, FlowResponse
+from src.config.settings import ORGANIZATION_CONTEXT
 
 
 def create_classify_intent_task(agent: Agent, query: str) -> Task:

@@ -1,5 +1,5 @@
 from crewai.tools import BaseTool
-from src.core.domain.model.search import PageLookupOutput
+from src.models.search import PageLookupOutput
 from .mock_data import MOCK_CHUNKS
 
 

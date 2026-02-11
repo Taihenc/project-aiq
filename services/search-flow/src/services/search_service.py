@@ -1,8 +1,8 @@
 import asyncio
 from typing import List, Dict
-from src.core.application.dto.request import SearchChatRequest
-from src.core.domain.model.state import FlowResponse
-from src.infrastructure.adapter.output.crew.flow import SearchCrewFlow
+from src.dtos.request import SearchChatRequest
+from src.models.state import FlowResponse
+from src.services.crew.flow import SearchCrewFlow
 
 
 class SearchFlowService:

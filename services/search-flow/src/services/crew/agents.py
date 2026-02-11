@@ -1,5 +1,5 @@
 from crewai import Agent, LLM
-from src.infrastructure.config.settings import settings, ORGANIZATION_CONTEXT
+from src.config.settings import settings, ORGANIZATION_CONTEXT
 
 
 def get_llm():

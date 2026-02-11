@@ -1,6 +1,10 @@
 from fastapi import FastAPI
-from src.infrastructure.config.settings import settings
-from src.infrastructure.adapter.input.rest.router import router as search_router
+from src.config.settings import settings
+from src.config.logging import setup_logging
+from src.routers.search import router as search_router
+
+
+setup_logging()
 
 
 def create_app() -> FastAPI:
@@ -8,10 +12,10 @@ def create_app() -> FastAPI:
         title="Search Flow Service",
         description="Microservice for Search Flow using CrewAI (Hexagonal Architecture)",
         version="0.1.0",
-        debug=True,  # Can be toggle via settings
+        debug=settings.debug,
     )
 
-    app.include_router(search_router, prefix="/api/v1/search", tags=["Search"])
+    app.include_router(search_router, prefix="/api/v1", tags=["Search"])
 
     @app.get("/")
     async def root():
@@ -25,4 +29,4 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, port=settings.port)
