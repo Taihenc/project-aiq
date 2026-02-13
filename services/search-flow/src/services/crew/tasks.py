@@ -58,6 +58,11 @@ def create_plan_capabilities_task(agent: Agent, query: str, context_str: str) ->
     
     Output a list of required capabilities suitable for CapabilityPlan JSON.
         Example: [(search, "Find file A"), (page_lookup, "Read page 46")]
+    
+    Note Mappings:
+    - search -> search_documents (MCP Tool)
+    - page_lookup -> retrieve_pages (MCP Tool)
+    - chunk_lookup -> retrieve_chunks (MCP Tool)
     """
     return Task(
         description=task_desc,
@@ -111,7 +116,7 @@ def create_execute_search_task(
        - Output: action='chat', response="Your reply", details=[]
 
     2. IF Intent is 'search':
-       - USE TOOLS to find information (VectorSearchTool, PageLookupTool, etc.).
+       - USE TOOLS to find information (search_documents, retrieve_pages, retrieve_chunks, etc.).
        - !!! PRIORITY !!! Check 'Attached Files Context' FIRST. If it answers the query, USE IT and skip tools.
        - Synthesize the answer from Context + Tool Results.
        - Output: action='search', response="Comprehensive answer", details=[Citation objects...]
@@ -120,10 +125,10 @@ def create_execute_search_task(
        - Collect sources from 'Attached Files Context' or 'Tool Outputs'.
        - Format as a list of Citation objects:
          {{
-            "source": "vector_search" | "page_lookup" | ...,
-            "content": <THE FULL JSON OUTPUT OBJECT FROM THE TOOL>
+            "source": "search_documents" | "retrieve_pages" | "retrieve_chunks" | "graph_search" | "manual_attachment",
+            "content": <THE FULL OUTPUT STRING/OBJECT FROM THE TOOL>
          }}
-       - Valid sources: 'vector_search', 'page_lookup', 'chunk_lookup', 'graph_search', 'manual_attachment'.
+       - Valid sources: 'search_documents', 'retrieve_pages', 'retrieve_chunks', 'graph_search', 'manual_attachment'.
        - If 'chat', details MUST be empty.
 
     Return strictly valid FlowResponse JSON.

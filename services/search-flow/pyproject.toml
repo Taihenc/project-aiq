@@ -20,6 +20,7 @@ dependencies = [
     "orjson>=3.9.14",
     "loguru>=0.7.3",
     "crewai[azure-ai-inference]>=1.9.3",
+    "mcp>=1.23.3",
 ]
 
 [build-system]

@@ -23,10 +23,30 @@ from src.services.crew.tasks import (
     create_hyde_generation_task,
     create_execute_search_task,
 )
-from src.services.crew.tools.vector import VectorSearchTool
-from src.services.crew.tools.chunk import ChunkLookupTool
-from src.services.crew.tools.page import PageLookupTool
-from src.services.crew.tools.graph import GraphTool
+from src.services.crew.tools.mcp import MCPTool
+from pydantic import BaseModel, Field
+from typing import Type
+
+
+class VectorSearchInput(BaseModel):
+    query: str = Field(..., description="The search query text.")
+    top_k: int = Field(10, description="Number of results from semantic search.")
+    top_n: int = Field(10, description="Number of results from rerank.")
+    score_threshold: float = Field(0.0, description="Minimum similarity score.")
+
+
+class ChunkLookupInput(BaseModel):
+    chunk_id: str = Field(..., description="Target chunk ID.")
+    backward: int = Field(2, description="Number of chunks before the target chunk.")
+    forward: int = Field(2, description="Number of chunks after the target chunk.")
+
+
+class PageLookupInput(BaseModel):
+    file_path: str = Field(
+        ..., description="Path of the file in the embedding service."
+    )
+    start_page: int = Field(..., description="Starting page index (inclusive).")
+    end_page: int = Field(..., description="Ending page index (inclusive).")
 
 
 class SearchCrewFlow(Flow[FlowState]):
@@ -135,16 +155,37 @@ class SearchCrewFlow(Flow[FlowState]):
         intent_action = self.state.intent.action if self.state.intent else "search"
 
         if intent_action != "chat":
-            selected_tools.append(ChunkLookupTool())
+            selected_tools.append(
+                MCPTool(
+                    name="retrieve_chunks",
+                    description="Fetch surrounding chunks by ID. Use this ONLY when you have a valid chunk_id from search results and need more context.",
+                    args_schema=ChunkLookupInput,
+                    mcp_tool_name="retrieve_chunks",
+                )
+            )
 
             if "search" in caps:
-                selected_tools.append(VectorSearchTool())
+                selected_tools.append(
+                    MCPTool(
+                        name="search_documents",
+                        description="Global Document Search. Use this for semantic search, finding facts, keywords, or specific information across all documents. Returns content snippets with chunk_ids.",
+                        args_schema=VectorSearchInput,
+                        mcp_tool_name="search_documents",
+                    )
+                )
 
             if "graph_search" in caps:
                 selected_tools.append(GraphTool())
 
             if "page_lookup" in caps:
-                selected_tools.append(PageLookupTool())
+                selected_tools.append(
+                    MCPTool(
+                        name="retrieve_pages",
+                        description="Navigate to and read a specific page number of a file. Use this ONLY when the user explicitly specifies a file and page number.",
+                        args_schema=PageLookupInput,
+                        mcp_tool_name="retrieve_pages",
+                    )
+                )
 
         agent = create_knowledge_agent(selected_tools)
         task = create_execute_search_task(

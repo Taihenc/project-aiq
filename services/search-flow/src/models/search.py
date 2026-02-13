@@ -43,9 +43,9 @@ class GraphSearchOutput(BaseModel):
 class Citation(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source: Literal[
-        "vector_search",
-        "page_lookup",
-        "chunk_lookup",
+        "search_documents",
+        "retrieve_pages",
+        "retrieve_chunks",
         "graph_search",
         "manual_attachment",
     ]

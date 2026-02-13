@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     azure_api_version: str = Field(..., validation_alias="AZURE_API_VERSION")
     azure_model_name: str = Field(..., validation_alias="AZURE_MODEL_NAME")
 
+    mcp_server_url: str = Field(
+        "http://localhost:8005/sse", validation_alias="MCP_SERVER_URL"
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
