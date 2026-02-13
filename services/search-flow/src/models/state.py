@@ -1,6 +1,12 @@
-from typing import List, Dict, Literal, Optional
+from typing import List, Dict, Literal, Optional, Union, Any
 from pydantic import BaseModel, ConfigDict, Field
-from .search import Citation
+from .search import (
+    Citation,
+    VectorSearchOutput,
+    PageLookupOutput,
+    ChunkLookupOutput,
+    GraphSearchOutput,
+)
 
 
 class IntentOutput(BaseModel):
@@ -38,7 +44,15 @@ class FlowResponse(BaseModel):
 
 class FlowState(BaseModel):
     query: str = ""
-    context: List[Dict] = Field(default_factory=list)
+    context: List[
+        Union[
+            Dict[str, Any],
+            VectorSearchOutput,
+            PageLookupOutput,
+            ChunkLookupOutput,
+            GraphSearchOutput,
+        ]
+    ] = Field(default_factory=list)
     history: List[str] = Field(default_factory=list)
     intent: Optional[IntentOutput] = None
     capabilities: List[CapabilityItem] = Field(default_factory=list)

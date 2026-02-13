@@ -6,7 +6,6 @@ from src.services.search_service import SearchFlowService
 
 router = APIRouter()
 
-# In a real app, use dependency injection
 service = SearchFlowService()
 
 
