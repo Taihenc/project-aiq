@@ -4,8 +4,8 @@ from docling.datamodel.pipeline_options import *
 from docling.datamodel.base_models import *
 from docling_core.types.doc import *
 from docling.pipeline.vlm_pipeline import VlmPipeline
-from .chunker import Chunker
-from .context_builder import ContextBuilder
+# from chunker import Chunker
+# from context_builder import ContextBuilder
 from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 from pathlib import Path
 from pprint import pprint
@@ -291,22 +291,22 @@ class DoclingExtractor:
         else:
             raise ValueError(f"Unsupported export format: {export}")
 
-# --------------------------------------------------------
-# Example usage
-# --------------------------------------------------------
-if __name__ == "__main__":
-    extractor = DoclingExtractor()
-    source = "services/data-ingestion/ingestion/Books.xlsx"
-    result = extractor.convert(source)
-    # pprint(result,width=120)
-    pprint(extractor.convert(source,'dict'))
-    # n = extractor.convert(source,'markdown')
-    # n = n['pages']['1']['image']['uri'].split(",")[1]
-    # pprint(n)
-    # a = Chunker().chunk(result)
-    # builder = ContextBuilder()
-    # b = builder.build(a,source)
-    # pprint(a)
-    # pprint(b,width=120)
-    # for i in result:
-    #      pprint(i)
+# # --------------------------------------------------------
+# # Example usage
+# # --------------------------------------------------------
+# if __name__ == "__main__":
+#     extractor = DoclingExtractor()
+#     source = "services/data-ingestion/ingestion/Books.xlsx"
+#     result = extractor.convert(source)
+#     # pprint(result,width=120)
+#     pprint(extractor.convert(source,'dict'))
+#     # n = extractor.convert(source,'markdown')
+#     # n = n['pages']['1']['image']['uri'].split(",")[1]
+#     # pprint(n)
+#     # a = Chunker().chunk(result)
+#     # builder = ContextBuilder() 
+#     # b = builder.build(a,source)
+#     # pprint(a)
+#     # pprint(b,width=120)
+#     # for i in result:
+#     #      pprint(i)

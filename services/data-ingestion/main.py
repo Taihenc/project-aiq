@@ -32,7 +32,7 @@ async def upload_document(file: UploadFile = File(...),chunking: bool = True,for
         f.write(await file.read())
 
     response = await ingestion_workder.ingest(file_path=file_path, chunking=chunking, format=format, qdrant_upload=qdrant_upload)
-
+    
     return response
 
 
