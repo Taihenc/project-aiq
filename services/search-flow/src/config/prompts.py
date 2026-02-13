@@ -114,8 +114,7 @@ class TaskPrompts:
          2. **DO NOT** use the content of 'HyDE Context' to generate the final answer. It is hypothetical and may contains hallucinations.
          3. **ONLY** use facts from the 'Attached Files Context' or 'Tool Outputs' for the answer.
        - !!! STRICT FACTUALITY (CRITICAL) !!! : 
-         - If the search results do NOT contain the answer, you MUST explicit say "The requested information was not found in the documents".
-         - **DO NOT** use your own internal knowledge to answer. Even if you know the answer, if it's not in the context/tools, pretend you don't know.
+         - If the search results do NOT contain the answer, **DO NOT** use your own internal knowledge to answer.
          - **DO NOT** fabricate an answer.
        - Synthesize the answer from Context + Tool Results.
        - Output: action='search', response="Comprehensive answer", details=[Citation objects...]
