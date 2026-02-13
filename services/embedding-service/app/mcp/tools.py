@@ -20,9 +20,9 @@ async def greet(name: str) -> str:
 async def search_documents(search_request: SearchRequest) -> str:
     """Search for similar documents using semantic search."""
     response = await service_tools.search_documents(search_request)
-    return format_results(response.documents)
+    return format_search_results(response.documents)
 
-def format_results(documents):
+def format_search_results(documents):
     """Format search results for display."""
     if not documents:
         return "No documents found."
@@ -44,17 +44,12 @@ def format_results(documents):
 
     return "\n".join(lines)
 
+
 @mcp.tool()
 async def get_pages(request: PageRetrievalRequest) -> str:
     """Retrieve pages from a document."""
     response = await service_tools.get_pages_context(request)
     return format_pages_results(response)
-
-@mcp.tool()
-async def get_chunks(request: ChunkContextRequest) -> str:
-    """Retrieve context chunks around a specific chunk."""
-    response = await service_tools.get_chunks_context(request)
-    return format_chunks_results(response)
 
 def format_pages_results(response: PageRetrievalResponse) -> str:
     """Format page retrieval results for display."""
@@ -68,6 +63,13 @@ def format_pages_results(response: PageRetrievalResponse) -> str:
     
     return "\n".join(lines)
 
+
+@mcp.tool()
+async def get_chunks(request: ChunkContextRequest) -> str:
+    """Retrieve context chunks around a specific chunk."""
+    response = await service_tools.get_chunks_context(request)
+    return format_chunks_results(response)
+
 def format_chunks_results(response: ChunkContextResponse) -> str:
     """Format chunk context results for display."""
     if not response.chunks:
@@ -79,8 +81,9 @@ def format_chunks_results(response: ChunkContextResponse) -> str:
         lines.append(f"{chunk.text}")
     
     return "\n".join(lines)
+    
 
-# @mcp.tool()
-# async def get_document(doc_id: str) -> dict:
-#     """Retrieve a specific document by ID."""
-#     return qdrant_service.get_document(doc_id)
+@mcp.tool()
+async def get_document(doc_id: str) -> dict:
+    """Retrieve a specific document by ID."""
+    return qdrant_service.get_document(doc_id)
