@@ -17,6 +17,8 @@ async def lifespan(app: FastAPI):
     app.state.mongodb = mongodb_client.get_database()
     app.state.redis = await redis_client.get_client()
 
+    # # Telemetry Setup
+    # AzureMonitorService().setup()
     # Langfuse Setup
     langfuse = LangfuseService().setup()
     langfuse.flush()
