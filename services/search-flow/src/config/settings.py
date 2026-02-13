@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     mcp_server_url: str = Field(
         "http://localhost:8005/sse", validation_alias="MCP_SERVER_URL"
     )
+    # Capability to Tool Mapping
+    capability_tool_map: dict = {
+        "search": "search_documents",
+        "page_lookup": "retrieve_pages",
+        "chunk_lookup": "retrieve_chunks",
+        "graph_search": "graph_search",
+    }
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

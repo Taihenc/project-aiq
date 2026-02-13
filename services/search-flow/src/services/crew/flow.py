@@ -8,6 +8,7 @@ from src.models.state import (
     IntentOutput,
     CapabilityPlan,
 )
+from src.config.settings import settings
 from src.services.crew.agents import (
     create_intent_validator_agent,
     create_capability_planner_agent,
@@ -143,17 +144,9 @@ class SearchCrewFlow(Flow[FlowState]):
 
         if intent_action != "chat":
             # Map capabilities to tool names
-            # 'search' -> 'search_documents'
-            # 'page_lookup' -> 'retrieve_pages'
-            # 'chunk_lookup' -> 'retrieve_chunks'
-            # 'graph_search' -> 'graph_search'
+            # Map capabilities to tool names using settings
 
-            tool_map = {
-                "search": "search_documents",
-                "page_lookup": "retrieve_pages",
-                "chunk_lookup": "retrieve_chunks",
-                "graph_search": "graph_search",
-            }
+            tool_map = settings.capability_tool_map
 
             required_tools = set()
             for cap in caps:

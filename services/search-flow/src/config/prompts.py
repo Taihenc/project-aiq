@@ -72,16 +72,8 @@ class TaskPrompts:
     - page_lookup
         - User explicitly specified a Page Number (e.g. "page 4", "page 10")
     
-    - page_lookup
-        - User explicitly specified a Page Number (e.g. "page 4", "page 10")
-    
     Output a list of required capabilities suitable for CapabilityPlan JSON.
         Example: [(search, "Find file A"), (page_lookup, "Read page 46")]
-    
-    Note Mappings:
-    - search -> search_documents (MCP Tool)
-    - page_lookup -> retrieve_pages (MCP Tool)
-    - chunk_lookup -> retrieve_chunks (MCP Tool)
     """
 
     TRANSFORM_QUERY = (
@@ -112,7 +104,7 @@ class TaskPrompts:
        - Output: action='chat', response="Your reply", details=[]
 
     2. IF Intent is 'search':
-       - USE TOOLS to find information (search_documents, retrieve_pages, retrieve_chunks, etc.).
+       - USE AVAILABLE TOOLS to find information.
        - !!! PRIORITY !!! Check 'Attached Files Context' FIRST. If it answers the query, USE IT and skip tools.
        - Synthesize the answer from Context + Tool Results.
        - Output: action='search', response="Comprehensive answer", details=[Citation objects...]
