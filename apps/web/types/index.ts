@@ -25,7 +25,24 @@ export type {
   ChatCompletionsResponse,
   ChatRequest,
   ChatResponse,
+  ChatSession,
+  BackendMessage,
 } from './api';
+
+// ============================================================================
+// Auth Types
+// ============================================================================
+export type {
+  User,
+  DecodedToken,
+  LoginResponse,
+  AuthContextType,
+} from './auth';
+
+// ============================================================================
+// Store Types
+// ============================================================================
+export type { ChatStore } from './store';
 
 // ============================================================================
 // Component Props Types

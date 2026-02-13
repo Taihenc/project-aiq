@@ -4,8 +4,8 @@ from docling.datamodel.pipeline_options import *
 from docling.datamodel.base_models import *
 from docling_core.types.doc import *
 from docling.pipeline.vlm_pipeline import VlmPipeline
-from chunker import Chunker
-from context_builder import ContextBuilder
+from .chunker import Chunker
+from .context_builder import ContextBuilder
 from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 from pathlib import Path
 from pprint import pprint
@@ -25,15 +25,15 @@ class DoclingExtractor:
         # Set the prompt on the model object first
         smolvlm_picture_description.prompt = (
             "explain this image in 5 sentences. Be precise and accurate"
-        )    
+        )
         # --- 2. BUILD FAST CONVERTER (Vision OFF) ---
         pdf_opts_fast = PdfPipelineOptions(do_ocr=True, do_table_structure=True, do_picture_description=False)
         pdf_opts_fast.accelerator_options = accel_options
         # Ensure table matching is on to keep structure
         pdf_opts_fast.table_structure_options.do_cell_matching = True
-        
+
         other_opts_fast = ConvertPipelineOptions(do_picture_description=False)
-        
+
         self.fast_converter = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts_fast),
@@ -56,10 +56,10 @@ class DoclingExtractor:
         pdf_opts_smart.picture_description_options = smolvlm_picture_description
         # Critical: Re-apply table structure settings so Pass 2 doesn't lose Pass 1's structure
         pdf_opts_smart.table_structure_options.do_cell_matching = True
-        
+
         other_opts_smart = ConvertPipelineOptions(do_picture_description=True)
         other_opts_smart.picture_description_options = smolvlm_picture_description
-        
+
         self.smart_converter = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts_smart),
@@ -93,7 +93,7 @@ class DoclingExtractor:
                     "role": "user",
                     "content": [
                         {
-                            "type": "text", 
+                            "type": "text",
                             "text": (
                                 "explain the picture be clear and precise"
                             )
@@ -116,7 +116,7 @@ class DoclingExtractor:
         try:
             # 3. Send POST Request
             response = requests.post(url, headers=headers, data=json.dumps(payload))
-            
+
             # 4. Handle Response
             if response.status_code == 200:
                 result_json = response.json()
@@ -125,10 +125,10 @@ class DoclingExtractor:
                 return f"**[IMAGE CONTENT]**: {content}"
             else:
                 return f"LM Studio Error {response.status_code}: {response.text}"
-                
+
         except Exception as e:
             return f"Connection Error: {e}. Is LM Studio running?"
-    
+
     def convert(self, file_path: str, export: str = "raw"):
         file_path = Path(file_path)
         if file_path.suffix.lower() not in self.supported_extensions:
@@ -147,19 +147,19 @@ class DoclingExtractor:
             try:
                 # 1. Get Dictionary to access URI
                 n = result.export_to_dict()
-                
+
                 # 2. Get Base64 using your specific path
                 # Note: We use '1' because Docling pages are 1-indexed strings in the dict
                 base64_str = n['pages']['1']['image']['uri'].split(",")[1]
-                
+
                 # 3. Get String from External Model
                 external_text = self._mock_external_model(base64_str)
-                
+
                 # 4. Update the document with ONLY this result (and stop processing)
                 result.add_text(
                     label=DocItemLabel.TEXT,
                     text = external_text
-                )  
+                )
             except KeyError as e:
                 print(f"Error extracting base64: {e}")
             except Exception as e:
@@ -172,23 +172,23 @@ class DoclingExtractor:
         # for csv
         if (is_csv):
             clean_md = result.export_to_markdown()
-            result.body.children = []  
+            result.body.children = []
             result.tables = []
             result.texts = []
             result.add_text(
-                label=DocItemLabel.TEXT, 
+                label=DocItemLabel.TEXT,
                 text=clean_md
             )
         if is_xlsx:
             # --- PHASE 1: COLLECT MARKDOWN PER PAGE ---
             page_contents = []
-            
+
             # Get all page numbers
             all_pages = sorted(result.pages.keys(), key=lambda x: int(x)) if result.pages else []
-            
+
             for page_key in all_pages:
                 page_no = int(page_key)
-                
+
                 # 1. SIMPLE EXPORT: Get markdown for just this page
                 # (Assumes your Docling version supports the page_no argument)
                 try:
@@ -198,10 +198,10 @@ class DoclingExtractor:
                     )
                 except TypeError:
                     # Fallback if argument isn't supported: Export whole doc (risky) or skip
-                    # forcing a specific filter if the API differs. 
+                    # forcing a specific filter if the API differs.
                     # But per your request, we use the direct call:
                     print(f"Warning: export_to_markdown might not support page_no on this version.")
-                    page_md = "" 
+                    page_md = ""
 
                 if page_md:
                     page_contents.append({
@@ -219,7 +219,7 @@ class DoclingExtractor:
             result.groups = []  # Explicitly reset groups too
 
             # --- PHASE 3: PUSH NEW CONTENT (With Dynamic Indexing) ---
-            
+
             # Pointer to Body (The root parent)
             body_ref = RefItem(cref="#/body")
 
@@ -232,10 +232,10 @@ class DoclingExtractor:
                 # This ensures the ref matches exactly where we are about to append
                 text_idx = len(result.texts)
                 group_idx = len(result.groups)
-                
+
                 text_ref_str = f"#/texts/{text_idx}"
                 group_ref_str = f"#/groups/{group_idx}"
-                
+
                 # 2. CREATE POINTERS
                 text_ref_pointer = RefItem(cref=text_ref_str)
                 group_ref_pointer = RefItem(cref=group_ref_str)
@@ -260,15 +260,15 @@ class DoclingExtractor:
                 group_item = GroupItem(
                     self_ref=group_ref_str,
                     parent=body_ref,          # Parent is Body
-                    label=GroupLabel.SECTION, 
-                    children=[text_ref_pointer], 
+                    label=GroupLabel.SECTION,
+                    children=[text_ref_pointer],
                     content_layer="body"
                 )
 
                 # 5. INJECT INTO STORAGE (Order matters!)
                 result.texts.append(text_item)
                 result.groups.append(group_item)
-                
+
                 # 6. LINK TO BODY
                 result.body.children.append(group_ref_pointer)
         # ---- choose output format (Original logic kept) ----
@@ -304,7 +304,7 @@ if __name__ == "__main__":
     # n = n['pages']['1']['image']['uri'].split(",")[1]
     # pprint(n)
     # a = Chunker().chunk(result)
-    # builder = ContextBuilder() 
+    # builder = ContextBuilder()
     # b = builder.build(a,source)
     # pprint(a)
     # pprint(b,width=120)

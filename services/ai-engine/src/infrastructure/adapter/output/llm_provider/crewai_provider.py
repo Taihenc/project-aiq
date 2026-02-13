@@ -53,7 +53,7 @@ class CrewAILLMProvider(LLMProviderPort):
         formatted_messages = [{"role": m.role, "content": m.content} for m in messages]
 
         try:
-            return await llm.call(formatted_messages)
+            return llm.call(formatted_messages)
         except Exception as e:
             self._handle_llm_error(e)
 

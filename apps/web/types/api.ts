@@ -1,7 +1,7 @@
 /**
  * API Type Definitions
  * OpenAI-compatible types for API communication
- * 
+ *
  * These types mirror the backend API contracts and should be kept in sync
  */
 
@@ -107,5 +107,21 @@ export interface ChatResponse {
 }
 
 // Type aliases for convenience
+// Type aliases for convenience
 export type Message = APIMessage;
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BackendMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: number;
+  citations?: string;
+}
 

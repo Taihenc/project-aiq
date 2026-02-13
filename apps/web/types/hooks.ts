@@ -9,6 +9,7 @@ import type { UIMessage } from './chat';
 export interface UseChatMessagesOptions {
   isDemoMode?: boolean;
   initialMessages?: UIMessage[];
+  chatId?: string;
 }
 
 export interface UseChatMessagesReturn {

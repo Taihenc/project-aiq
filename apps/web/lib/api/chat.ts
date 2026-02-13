@@ -24,8 +24,7 @@ export type {
   ChatResponse,
 } from '@/types/api';
 
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+import { client } from '@/lib/api/client';
 
 /**
  * Send chat completions request (OpenAI-compatible)
@@ -51,19 +50,8 @@ export async function sendChatCompletions(
     stream: options?.stream,
   };
 
-  const response = await fetch(`${BACKEND_URL}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to send message: ${response.statusText}`);
-  }
-
-  return response.json();
+  const response = await client.post<ChatCompletionsResponse>('/v1/chat/completions', requestBody);
+  return response.data;
 }
 
 /**
@@ -81,17 +69,6 @@ export async function sendChatMessage(
     session_id: sessionId,
   };
 
-  const response = await fetch(`${BACKEND_URL}/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to send message: ${response.statusText}`);
-  }
-
-  return response.json();
+  const response = await client.post<ChatResponse>('/chat', requestBody);
+  return response.data;
 }
