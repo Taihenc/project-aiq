@@ -22,9 +22,9 @@ async def perform_search(
     url = f"{settings.embedding_service}/v1/search"
     payload = {
         "query": query,
-        "top_k": top_k,
-        "top_n": top_n,
-        "score_threshold": score_threshold,
+        "top_k": 10,
+        "top_n": 5,
+        "score_threshold": 0,
     }
 
     try:

@@ -174,6 +174,7 @@ class SearchCrewFlow(Flow[FlowState]):
             intent_action=intent_action,
             context_str=self._format_context(),
             history_str=self._format_history(),
+            hyde_result=self.state.hyde_result,
         )
 
         crew = Crew(

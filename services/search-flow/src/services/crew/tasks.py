@@ -42,14 +42,23 @@ def create_hyde_generation_task(agent: Agent, context_task: Task) -> Task:
 
 
 def create_execute_search_task(
-    agent: Agent, query: str, intent_action: str, context_str: str, history_str: str
+    agent: Agent,
+    query: str,
+    intent_action: str,
+    context_str: str,
+    history_str: str,
+    hyde_result: Optional[str] = None,
 ) -> Task:
+    hyde_str = (
+        f"HyDE Context (Hypothetical Answer):\n{hyde_result}\n" if hyde_result else ""
+    )
     return Task(
         description=TaskPrompts.EXECUTE_SEARCH.format(
             query=query,
             intent_action=intent_action,
             context_str=context_str,
             history_str=history_str,
+            hyde_str=hyde_str,
         ),
         expected_output="FlowResponse JSON",
         agent=agent,

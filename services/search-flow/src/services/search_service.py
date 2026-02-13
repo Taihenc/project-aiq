@@ -5,10 +5,12 @@ from src.models.state import FlowResponse
 from src.services.crew.flow import SearchCrewFlow
 
 
+from langfuse import observe
 from src.services.crew.tools.factory import MCPToolFactory
 
 
 class SearchFlowService:
+    @observe(name="search_flow", as_type="generation")
     async def execute_workflow(self, request: SearchChatRequest) -> FlowResponse:
         # 1. Fetch Tools Dynamically
         tools = await MCPToolFactory.get_tools()
