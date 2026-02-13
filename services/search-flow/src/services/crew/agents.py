@@ -1,5 +1,5 @@
 from crewai import Agent, LLM
-from src.config.settings import settings, ORGANIZATION_CONTEXT
+from src.config.settings import settings
 from src.config.prompts import AgentPrompts
 
 
@@ -51,9 +51,7 @@ def create_knowledge_agent(tools: list) -> Agent:
     return Agent(
         role="Aingo Kung",
         goal=AgentPrompts.KNOWLEDGE_AGENT_GOAL,
-        backstory=AgentPrompts.KNOWLEDGE_AGENT_BACKSTORY_TEMPLATE.format(
-            organization_context=ORGANIZATION_CONTEXT
-        ),
+        backstory=AgentPrompts.KNOWLEDGE_AGENT_BACKSTORY_TEMPLATE,
         verbose=True,
         tools=tools,
         llm=get_llm(),

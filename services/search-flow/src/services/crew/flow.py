@@ -8,7 +8,6 @@ from src.models.state import (
     IntentOutput,
     CapabilityPlan,
 )
-from src.config.settings import ORGANIZATION_CONTEXT
 from src.services.crew.agents import (
     create_intent_validator_agent,
     create_capability_planner_agent,

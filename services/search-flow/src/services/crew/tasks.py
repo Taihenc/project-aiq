@@ -1,15 +1,12 @@
 from crewai import Task, Agent
 from typing import List, Optional
 from src.models.state import IntentOutput, CapabilityPlan, FlowResponse
-from src.config.settings import ORGANIZATION_CONTEXT
 from src.config.prompts import TaskPrompts
 
 
 def create_classify_intent_task(agent: Agent, query: str) -> Task:
     return Task(
-        description=TaskPrompts.CLASSIFY_INTENT.format(
-            query=query, organization_context=ORGANIZATION_CONTEXT
-        ),
+        description=TaskPrompts.CLASSIFY_INTENT.format(query=query),
         expected_output="IntentOutput JSON",
         agent=agent,
         output_pydantic=IntentOutput,

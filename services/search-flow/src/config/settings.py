@@ -23,9 +23,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-ORGANIZATION_CONTEXT = (
-    "A Technology Research Firm specialized in AI, Data Science, and Virus Research. "
-    "Company Name: AINGO. "
-    "We develop Search solutions and conduct virus research (Project Zorath)."
-)

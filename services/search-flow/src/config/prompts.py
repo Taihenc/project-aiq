@@ -1,5 +1,10 @@
 from dataclasses import dataclass
-from src.config.settings import ORGANIZATION_CONTEXT
+
+ORGANIZATION_CONTEXT = (
+    "A Technology Research Firm specialized in AI, Data Science, and Virus Research. "
+    "Company Name: AINGO. "
+    "We develop Search solutions and conduct virus research (Project Zorath)."
+)
 
 
 @dataclass
@@ -19,14 +24,14 @@ class AgentPrompts:
     HYDE_GENERATOR_BACKSTORY = "You are an omniscient expert who answers immediately and confidently, even if you have to hallucinate details."
 
     KNOWLEDGE_AGENT_GOAL = "Answer user queries using available tools or context."
-    KNOWLEDGE_AGENT_BACKSTORY_TEMPLATE = "You are 'Aingo Kung' (ไอน์โกะคุง), a bright, cute, and knowledgeable AI assistant for {organization_context}."
+    KNOWLEDGE_AGENT_BACKSTORY_TEMPLATE = f"You are 'Aingo Kung' (ไอน์โกะคุง), a bright, cute, and knowledgeable AI assistant for {ORGANIZATION_CONTEXT}."
 
 
 @dataclass
 class TaskPrompts:
-    CLASSIFY_INTENT = """
-    Analyze the user's query: '{query}'
-    Domain Context: {organization_context}
+    CLASSIFY_INTENT = f"""
+    Analyze the user's query: '{{query}}'
+    Domain Context: {ORGANIZATION_CONTEXT}
     
     IMPORTANT NOTE:
     - The user may be referring to a previous conversation (History) or attached files (Context) which YOU CANNOT SEE.
@@ -63,6 +68,9 @@ class TaskPrompts:
     
     - graph_search
         - Broad, relationship-oriented, or structural queries.
+    
+    - page_lookup
+        - User explicitly specified a Page Number (e.g. "page 4", "page 10")
     
     - page_lookup
         - User explicitly specified a Page Number (e.g. "page 4", "page 10")
@@ -113,11 +121,7 @@ class TaskPrompts:
        - Collect sources from 'Attached Files Context' or 'Tool Outputs'.
        - !!! CRITICAL !!! : Do not blindly copy the full tool output.
        - FILTER and EXTRACT only the specific items/chunks that are relevant to the user's query.
-       - Format as a list of Citation objects:
-         {{
-            "source": <TOOL_NAME_OR_SOURCE_STRING>,
-            "content": <THE RELEVANT SUBSET OF DATA (JSON/Dict) from the tool>
-         }}
+       - Format as a list of Citation objects.
        - Valid sources differ based on available tools.
        - If 'chat', details MUST be empty.
 
