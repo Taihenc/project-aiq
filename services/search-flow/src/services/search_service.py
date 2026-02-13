@@ -18,9 +18,11 @@ class SearchFlowService:
         flow.set_tools(tools)  # Inject tools
 
         # Determine strict inputs matching FlowState
+        # Ensure context items are converted to dicts for JSON serialization
+        context_dicts = [item.model_dump() for item in request.context]
         inputs = {
             "query": request.query,
-            "context": request.context,
+            "context": context_dicts,
             "history": request.history,
         }
 

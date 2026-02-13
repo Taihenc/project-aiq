@@ -33,7 +33,9 @@ class SearchCrewFlow(Flow[FlowState]):
         """Helper to format structured context for LLM prompts."""
         if not self.state.context:
             return ""
-        return f"\nAttached Files Context:\n{json.dumps(self.state.context, indent=2, ensure_ascii=False)}\n"
+        # Convert Pydantic models to dicts for JSON serialization
+        context_data = [item.model_dump() for item in self.state.context]
+        return f"\nAttached Files Context:\n{json.dumps(context_data, indent=2, ensure_ascii=False)}\n"
 
     def _format_history(self) -> str:
         """Helper to format chat history for LLM prompts."""

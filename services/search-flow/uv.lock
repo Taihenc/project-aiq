@@ -2658,6 +2658,8 @@ dev = [
     { name = "isort" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "requests" },
+    { name = "rich" },
 ]
 
 [package.metadata]
@@ -2683,6 +2685,8 @@ dev = [
     { name = "isort", specifier = ">=5.12.0" },
     { name = "pytest", specifier = ">=7.4.0" },
     { name = "pytest-asyncio", specifier = ">=0.21.0" },
+    { name = "requests", specifier = ">=2.31.0" },
+    { name = "rich", specifier = ">=13.7.0" },
 ]
 
 [[package]]
