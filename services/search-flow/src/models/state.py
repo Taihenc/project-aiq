@@ -1,4 +1,4 @@
-from typing import List, Dict, Literal, Optional, Union, Any
+from typing import List, Dict, Literal, Optional, Union, Any, Annotated
 from pydantic import BaseModel, ConfigDict, Field
 from .search import (
     Citation,
@@ -43,9 +43,11 @@ class FlowResponse(BaseModel):
 
 class FlowState(BaseModel):
     query: str = ""
-    context: List[Union[ChunkContent, PageContent, SearchContent]] = Field(
-        default_factory=list
-    )
+    context: List[
+        Annotated[
+            Union[ChunkContent, PageContent, SearchContent], Field(discriminator="type")
+        ]
+    ] = Field(default_factory=list)
     history: List[str] = Field(default_factory=list)
     intent: Optional[IntentOutput] = None
     capabilities: List[CapabilityItem] = Field(default_factory=list)

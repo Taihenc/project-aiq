@@ -142,16 +142,33 @@ class SearchCrewFlow(Flow[FlowState]):
         intent_action = self.state.intent.action if self.state.intent else "search"
 
         if intent_action != "chat":
-            # Simple mapping logic:
-            # If capability X is present, add tool X if available.
-            # However, since we want to be generic, we might just pass ALL available search tools
-            # or implement a smart filter based on name matching.
+            # Map capabilities to tool names
+            # 'search' -> 'search_documents'
+            # 'page_lookup' -> 'retrieve_pages'
+            # 'chunk_lookup' -> 'retrieve_chunks'
+            # 'graph_search' -> 'graph_search'
 
-            # For now, pass ALL discovered MCP tools to the agent,
-            # allowing the LLM to pick the right one based on the Plan + Tool Description.
-            # This is more robust to dynamic tool changes.
+            tool_map = {
+                "search": "search_documents",
+                "page_lookup": "retrieve_pages",
+                "chunk_lookup": "retrieve_chunks",
+                "graph_search": "graph_search",
+            }
+
+            required_tools = set()
+            for cap in caps:
+                mapped_name = tool_map.get(cap)
+                if mapped_name:
+                    required_tools.add(mapped_name)
+
+            print(f"🔹 [Knowledge Crew] Required Tools: {required_tools}")
+
+            # Filter available_tools based on required_tools
             if available_tools:
-                selected_tools = available_tools
+                for tool in available_tools:
+                    # CrewAI Tool objects usually have a 'name' attribute
+                    if tool.name in required_tools:
+                        selected_tools.append(tool)
             else:
                 print("⚠️ No MCP tools available or loaded.")
 

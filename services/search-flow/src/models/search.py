@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -7,10 +7,6 @@ class ChunkContent(BaseModel):
     type: Literal["chunk"] = "chunk"
     chunk_id: str = Field(..., description="Unique identifier for the chunk.")
     content: str = Field(..., description="The chunk text.")
-    previous_chunk_id: Optional[str] = Field(
-        None, description="ID of the preceding chunk."
-    )
-    next_chunk_id: Optional[str] = Field(None, description="ID of the following chunk.")
 
 
 class PageContent(BaseModel):
@@ -24,20 +20,19 @@ class PageContent(BaseModel):
 class SearchContent(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["search"] = "search"
-    query: str = Field(..., description="The search query used.")
-    # Search results are a list of items, we can keep it flexible or strict
-    results: List[Dict[str, Any]] = Field(
-        ..., description="List of search result items."
-    )
+    content: str = Field(..., description="The result text.")
+    score: Optional[float] = Field(None, description="Relevance score.")
+    file_path: Optional[str] = Field(None, description="Source file path.")
+    page_number: Optional[int] = Field(None, description="Page number.")
 
 
 class Citation(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    source: str = Field(description="The source of the information (e.g., tool name).")
-    content: Union[ChunkContent, PageContent, SearchContent] = Field(
-        ...,
-        discriminator="type",
-        description="The structured content (must match strict type).",
+    source: Literal["search", "page", "chunk"] = Field(
+        ..., description="The source type of the citation."
+    )
+    data: Union[SearchContent, PageContent, ChunkContent] = Field(
+        ..., discriminator="type", description="The structured content data."
     )
 
 

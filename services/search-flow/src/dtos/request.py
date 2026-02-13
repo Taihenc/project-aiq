@@ -1,5 +1,5 @@
-from typing import List, Dict, Any, Union
-from pydantic import BaseModel
+from typing import List, Dict, Any, Union, Annotated
+from pydantic import BaseModel, Field
 from src.models.search import (
     ChunkContent,
     PageContent,
@@ -10,4 +10,8 @@ from src.models.search import (
 class SearchChatRequest(BaseModel):
     query: str
     history: List[str] = []
-    context: List[Union[ChunkContent, PageContent, SearchContent]] = []
+    context: List[
+        Annotated[
+            Union[ChunkContent, PageContent, SearchContent], Field(discriminator="type")
+        ]
+    ] = Field(default=[])
