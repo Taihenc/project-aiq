@@ -23,30 +23,9 @@ from src.services.crew.tasks import (
     create_hyde_generation_task,
     create_execute_search_task,
 )
-from src.services.crew.tools.mcp import MCPTool
+
 from pydantic import BaseModel, Field
 from typing import Type
-
-
-class VectorSearchInput(BaseModel):
-    query: str = Field(..., description="The search query text.")
-    top_k: int = Field(10, description="Number of results from semantic search.")
-    top_n: int = Field(10, description="Number of results from rerank.")
-    score_threshold: float = Field(0.0, description="Minimum similarity score.")
-
-
-class ChunkLookupInput(BaseModel):
-    chunk_id: str = Field(..., description="Target chunk ID.")
-    backward: int = Field(2, description="Number of chunks before the target chunk.")
-    forward: int = Field(2, description="Number of chunks after the target chunk.")
-
-
-class PageLookupInput(BaseModel):
-    file_path: str = Field(
-        ..., description="Path of the file in the embedding service."
-    )
-    start_page: int = Field(..., description="Starting page index (inclusive).")
-    end_page: int = Field(..., description="Ending page index (inclusive).")
 
 
 class SearchCrewFlow(Flow[FlowState]):
@@ -61,6 +40,10 @@ class SearchCrewFlow(Flow[FlowState]):
         if not self.state.history:
             return ""
         return f"\nChat History:\n{self.state.history}\n"
+
+    def set_tools(self, tools: list):
+        """Setter for tools injection."""
+        self.tools = tools
 
     @start()
     def classify_intent(self):
@@ -118,6 +101,8 @@ class SearchCrewFlow(Flow[FlowState]):
             )
             return "stop_flow"
 
+        # Simplified routing: if we have capabilities, we likely need HyDE or just search
+        # keeping logic similar to before:
         if "search" in caps or "graph_search" in caps:
             return "start_hyde"
 
@@ -149,43 +134,27 @@ class SearchCrewFlow(Flow[FlowState]):
     def execute_search(self):
         print("\n🔹 [Knowledge Crew] Execution & Synthesis...")
 
-        # 1. Filter Tools based on Plan
+        # Available tools are injected via self.tools
+        available_tools = getattr(self, "tools", [])
+
+        # Filter Tools based on Plan
         selected_tools = []
         caps = [c.capability for c in self.state.capabilities]
         intent_action = self.state.intent.action if self.state.intent else "search"
 
         if intent_action != "chat":
-            selected_tools.append(
-                MCPTool(
-                    name="retrieve_chunks",
-                    description="Fetch surrounding chunks by ID. Use this ONLY when you have a valid chunk_id from search results and need more context.",
-                    args_schema=ChunkLookupInput,
-                    mcp_tool_name="retrieve_chunks",
-                )
-            )
+            # Simple mapping logic:
+            # If capability X is present, add tool X if available.
+            # However, since we want to be generic, we might just pass ALL available search tools
+            # or implement a smart filter based on name matching.
 
-            if "search" in caps:
-                selected_tools.append(
-                    MCPTool(
-                        name="search_documents",
-                        description="Global Document Search. Use this for semantic search, finding facts, keywords, or specific information across all documents. Returns content snippets with chunk_ids.",
-                        args_schema=VectorSearchInput,
-                        mcp_tool_name="search_documents",
-                    )
-                )
-
-            if "graph_search" in caps:
-                selected_tools.append(GraphTool())
-
-            if "page_lookup" in caps:
-                selected_tools.append(
-                    MCPTool(
-                        name="retrieve_pages",
-                        description="Navigate to and read a specific page number of a file. Use this ONLY when the user explicitly specifies a file and page number.",
-                        args_schema=PageLookupInput,
-                        mcp_tool_name="retrieve_pages",
-                    )
-                )
+            # For now, pass ALL discovered MCP tools to the agent,
+            # allowing the LLM to pick the right one based on the Plan + Tool Description.
+            # This is more robust to dynamic tool changes.
+            if available_tools:
+                selected_tools = available_tools
+            else:
+                print("⚠️ No MCP tools available or loaded.")
 
         agent = create_knowledge_agent(selected_tools)
         task = create_execute_search_task(

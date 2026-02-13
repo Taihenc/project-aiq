@@ -10,7 +10,7 @@ setup_logging()
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Search Flow Service",
-        description="Microservice for Search Flow using CrewAI (Hexagonal Architecture)",
+        description="Microservice for Search Flow using CrewAI",
         version="0.1.0",
         debug=settings.debug,
     )

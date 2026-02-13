@@ -5,9 +5,17 @@ from src.models.state import FlowResponse
 from src.services.crew.flow import SearchCrewFlow
 
 
+from src.services.crew.tools.factory import MCPToolFactory
+
+
 class SearchFlowService:
     async def execute_workflow(self, request: SearchChatRequest) -> FlowResponse:
+        # 1. Fetch Tools Dynamically
+        tools = await MCPToolFactory.get_tools()
+
+        # 2. Initialize Flow with Tools
         flow = SearchCrewFlow()
+        flow.set_tools(tools)  # Inject tools
 
         # Determine strict inputs matching FlowState
         inputs = {
@@ -18,7 +26,18 @@ class SearchFlowService:
 
         # Kickoff the flow in a separate thread to avoid blocking the event loop
         # and to prevent asyncio.run() conflicts if CrewAI uses it internally.
-        await asyncio.to_thread(flow.kickoff, inputs=inputs)
+
+        # Note: We can't easily pass objects (tools) into kickoff inputs as they are serialized.
+        # So we set them on the instance before kickoff.
+
+        try:
+            await asyncio.to_thread(flow.kickoff, inputs=inputs)
+        except Exception as e:
+            # Basic error logging
+            print(f"❌ Error during flow execution: {e}")
+            return FlowResponse(
+                action="no_skill", response=f"Error executing search flow: {str(e)}"
+            )
 
         # Return the final response from state
         if flow.state.final_response:

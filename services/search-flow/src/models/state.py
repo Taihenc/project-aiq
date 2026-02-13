@@ -1,12 +1,6 @@
 from typing import List, Dict, Literal, Optional, Union, Any
 from pydantic import BaseModel, ConfigDict, Field
-from .search import (
-    Citation,
-    VectorSearchOutput,
-    PageLookupOutput,
-    ChunkLookupOutput,
-    GraphSearchOutput,
-)
+from .search import Citation
 
 
 class IntentOutput(BaseModel):
@@ -44,18 +38,13 @@ class FlowResponse(BaseModel):
 
 class FlowState(BaseModel):
     query: str = ""
-    context: List[
-        Union[
-            Dict[str, Any],
-            VectorSearchOutput,
-            PageLookupOutput,
-            ChunkLookupOutput,
-            GraphSearchOutput,
-        ]
-    ] = Field(default_factory=list)
+    context: List[Dict[str, Any]] = Field(default_factory=list)
     history: List[str] = Field(default_factory=list)
     intent: Optional[IntentOutput] = None
     capabilities: List[CapabilityItem] = Field(default_factory=list)
+    hyde_result: str = ""
+    search_results: str = ""
+    final_response: Optional[FlowResponse] = None
     hyde_result: str = ""
     search_results: str = ""
     final_response: Optional[FlowResponse] = None

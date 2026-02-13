@@ -1,62 +1,13 @@
-from typing import List, Dict, Literal, Optional, Union
+from typing import List, Dict, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
-
-
-class VectorResultItem(BaseModel):
-    id: str
-    score: float
-    text: str
-    metadata: Dict = Field(default_factory=dict)
-
-
-class VectorSearchOutput(BaseModel):
-    status: Literal["found", "not_found", "error"]
-    results: List[VectorResultItem]
-
-
-class PageLookupOutput(BaseModel):
-    status: Literal["success", "error"]
-    file: str
-    page: int
-    content: str
-
-
-class ChunkLookupOutput(BaseModel):
-    status: Literal["success", "error"]
-    chunk_id: str
-    content: str
-    metadata: Optional[Dict] = None
-    next_chunk: Optional[str] = None
-
-
-class GraphRelation(BaseModel):
-    source: str
-    target: str
-    relation: str
-
-
-class GraphSearchOutput(BaseModel):
-    status: Literal["success", "error"]
-    relationships: List[GraphRelation]
 
 
 class Citation(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    source: Literal[
-        "search_documents",
-        "retrieve_pages",
-        "retrieve_chunks",
-        "graph_search",
-        "manual_attachment",
-    ]
-    # The content is now the FULL structured output from the tool
-    content: Union[
-        VectorSearchOutput,
-        PageLookupOutput,
-        ChunkLookupOutput,
-        GraphSearchOutput,
-        str,
-    ] = Field(description="The structured tool output or text content.")
+    source: str = Field(description="The source of the information (e.g., tool name).")
+    content: Dict[str, Any] = Field(
+        description="The structured tool output or text content."
+    )
 
 
 class SearchResultLog(BaseModel):

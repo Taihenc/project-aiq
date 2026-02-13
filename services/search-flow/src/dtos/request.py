@@ -1,22 +1,8 @@
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Dict, Any, Union
 from pydantic import BaseModel
-from src.models.search import (
-    VectorSearchOutput,
-    PageLookupOutput,
-    ChunkLookupOutput,
-    GraphSearchOutput,
-)
 
 
 class SearchChatRequest(BaseModel):
     query: str
     history: List[str] = []
-    context: List[
-        Union[
-            Dict[str, Any],
-            VectorSearchOutput,
-            PageLookupOutput,
-            # ChunkLookupOutput,
-            # GraphSearchOutput,
-        ]
-    ] = []
+    context: List[Dict[str, Any]] = []
