@@ -142,13 +142,13 @@ class QdrantService:
         query_embedding = embedding_service.encode_single(query)
         qdrant_filter = self.format_filter(query_filter)
 
-        results = self.client.query_points(
+        results = self.client.search(
             collection_name=self.collection_name,
-            query=query_embedding,
+            query_vector=query_embedding,
             limit=limit,
             score_threshold=score_threshold,
             query_filter=qdrant_filter
-        ).points
+        )
 
         formatted_results = []
         for result in results:
@@ -413,7 +413,6 @@ class QdrantService:
                 "id": point.id,
                 "text": point.payload.get("text", ""),
                 "metadata": {k: v for k, v in point.payload.items() if k != "text"},
-                "score": 0.0 # Context retrieval doesn't have a similarity score
              })
         
         # Sort by order

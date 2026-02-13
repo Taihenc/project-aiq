@@ -167,16 +167,31 @@ class Tools:
                 backward=request.backward,
                 forward=request.forward
             )
-            
-            # Convert dict to DocumentResponse
+
             response_chunks = [
                 DocumentResponse(
                     id=c["id"],
                     text=c["text"],
                     metadata=c["metadata"],
-                    score=c.get("score")
                 ) for c in chunks
             ]
+
+            log_payload = {
+                "event": "chunks_context_retrieved",
+                "chunk_id": request.chunk_id,
+                "backward": request.backward,
+                "forward": request.forward,
+                "num_chunks": len(response_chunks),
+                "results": [
+                    {
+                        "id": chunk.id,
+                        "text": chunk.text[:100] + "..." if len(chunk.text) > 100 else chunk.text,
+                    }
+                    for chunk in response_chunks[:3]
+                ]
+            }
+
+            logger.info("Chunks context retrieved:\n%s", json.dumps(log_payload, indent=2, ensure_ascii=False))
 
             return ChunkContextResponse(chunks=response_chunks)
 

@@ -6,7 +6,7 @@ from app.models.models import (
     PageRetrievalRequest,
     ChunkContextRequest,
     PageRetrievalResponse,
-    ChunkContextResponse
+    ChunkContextResponse,
 )
 
 mcp = FastMCP("embedding-service")
