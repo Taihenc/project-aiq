@@ -14,16 +14,30 @@ class Upload:
         documents = []
 
         for context in contexts:
+            metadata = context.get("metadata", {})
+            
+            # Construct the payload to match the DocumentUploadRequest model
             documents.append({
-                # "id": context.get("id", ""),
-                "text": context.get("text", ""),
+                "id": context.get("id"),
+                "text": context.get("text"),
                 "metadata": {
-                    "file": context.get("metadata", {}).get("file", None),
-                    "file_path": context.get("metadata", {}).get("file_path", None),
-                    "file_type": context.get("metadata", {}).get("file_type", None),
-                    "page": context.get("metadata", {}).get("page", None),
-                    "created_at": context.get("metadata", {}).get("created_at", None),
-                    "checksum": context.get("metadata", {}).get("checksum", None),
+                    "order": metadata.get("order"),           # New: Required for reconstruction
+                    "file": metadata.get("file"),
+                    "file_path": metadata.get("file_path"),
+                    "file_type": metadata.get("file_type"),
+                    "pages": metadata.get("pages"),       # New: Changed from 'page' to 'pages'
+                    "department": metadata.get("department"),       # New: Changed from 'page' to 'pages'
+                    "project": metadata.get("project"),       # New: Changed from 'page' to 'pages'
+                    "team": metadata.get("team"),       # New: Changed from 'page' to 'pages'
+                    "tags": metadata.get("tags"),       # New: Changed from 'page' to 'pages'
+                    # Include these for the Structured Data Tool to work
+                    ###
+                    "is_summary": metadata.get("is_summary"),
+                    "sheet_name": metadata.get("sheet_name"),
+                    "columns": metadata.get("columns"),
+                    ###
+                    "created_at": metadata.get("created_at"),
+                    "checksum": metadata.get("checksum"),
                 }
             })
 
@@ -32,6 +46,10 @@ class Upload:
         }
         
         res = requests.post(self.API_URL, json=payload)
-        res.raise_for_status()
+        try:
+            res.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            print(f"Upload failed. Status: {res.status_code}, Response: {res.text}")
+            raise e
 
         return res.json()

@@ -16,6 +16,8 @@ class EmbeddingService:
             print("Model loaded successfully")
 
     def clean_text(self, text):
+        if not isinstance(text, str):
+            text = str(text)
         cleaned_text = text.lower()
         cleaned_text = cleaned_text.replace("..", "")
         return cleaned_text
