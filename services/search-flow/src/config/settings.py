@@ -14,14 +14,14 @@ class Settings(BaseSettings):
     azure_model_name: str = Field(..., validation_alias="AZURE_MODEL_NAME")
 
     mcp_server_url: str = Field(
-        "http://localhost:8005/sse", validation_alias="MCP_SERVER_URL"
+        "http://localhost:8003/v1/mcp/sse", validation_alias="MCP_SERVER_URL"
     )
     # Capability to Tool Mapping
     capability_tool_map: dict = {
         "search": "search_documents",
-        "page_lookup": "retrieve_pages",
-        "chunk_lookup": "retrieve_chunks",
-        "graph_search": "graph_search",
+        "page_lookup": "get_pages",
+        "chunk_lookup": "get_chunks",
+        # "graph_search": "graph_search",
     }
 
     model_config = SettingsConfigDict(
