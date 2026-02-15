@@ -291,9 +291,9 @@ importers:
 
   services/file-storage-service: {}
 
-  services/search-flow: {}
+  services/mcp-fast: {}
 
-  services/mcp: {}
+  services/search-flow: {}
 
   services/sharepoint-webhook: {}
 
