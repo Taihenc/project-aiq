@@ -1,66 +1,120 @@
 from crewai import Task, Agent
 from typing import List, Optional
-from src.models.state import IntentOutput, CapabilityPlan, FlowResponse
+from src.models.state import (
+    ValidationOutput,
+    FlowResponse,
+    AskOutput,
+    LookupOutput,
+    SearchOutput,
+)
 from src.config.prompts import TaskPrompts
 
 
-def create_classify_intent_task(agent: Agent, query: str) -> Task:
-    return Task(
-        description=TaskPrompts.CLASSIFY_INTENT.format(query=query),
-        expected_output="IntentOutput JSON",
-        agent=agent,
-        output_pydantic=IntentOutput,
-    )
-
-
-def create_plan_capabilities_task(agent: Agent, query: str, context_str: str) -> Task:
-    return Task(
-        description=TaskPrompts.PLAN_CAPABILITIES.format(
-            query=query, context_str=context_str
-        ),
-        expected_output="CapabilityPlan JSON",
-        agent=agent,
-        output_pydantic=CapabilityPlan,
-    )
-
-
-def create_transform_query_task(agent: Agent, query: str) -> Task:
-    return Task(
-        description=TaskPrompts.TRANSFORM_QUERY.format(query=query),
-        expected_output="A single rephrased question string.",
-        agent=agent,
-    )
-
-
-def create_hyde_generation_task(agent: Agent, context_task: Task) -> Task:
-    return Task(
-        description=TaskPrompts.HYDE_GENERATION,
-        expected_output="A comprehensive hypothetical answer paragraph.",
-        agent=agent,
-        context=[context_task],
-    )
-
-
-def create_execute_search_task(
+def create_validate_task(
     agent: Agent,
     query: str,
-    intent_action: str,
     context_str: str,
     history_str: str,
-    hyde_result: Optional[str] = None,
 ) -> Task:
-    hyde_str = (
-        f"HyDE Context (Hypothetical Answer):\n{hyde_result}\n" if hyde_result else ""
-    )
     return Task(
-        description=TaskPrompts.EXECUTE_SEARCH.format(
+        description=TaskPrompts.VALIDATE_CREW.format(
             query=query,
-            intent_action=intent_action,
             context_str=context_str,
             history_str=history_str,
-            hyde_str=hyde_str,
         ),
-        expected_output="FlowResponse JSON",
+        expected_output=TaskPrompts.VALIDATE_CREW_OUTPUT,
         agent=agent,
-        output_pydantic=FlowResponse,
+        output_pydantic=ValidationOutput,
+        name="validate_task",
+    )
+
+
+def create_ask_task(
+    agent: Agent,
+    intent: str,
+    context_str: str,
+    language: str,
+) -> Task:
+    return Task(
+        description=TaskPrompts.ASK_CREW.format(
+            intent=intent,
+            context_str=context_str,
+            language=language,
+        ),
+        expected_output=TaskPrompts.ASK_CREW_OUTPUT,
+        agent=agent,
+        output_pydantic=AskOutput,  # Use specific output
+        name="ask_task",
+    )
+
+
+def create_lookup_task(
+    agent: Agent,
+    intent: str,
+    context_str: str,
+    language: str,
+) -> Task:
+    return Task(
+        description=TaskPrompts.LOOKUP_CREW.format(
+            intent=intent,
+            context_str=context_str,
+            language=language,
+        ),
+        expected_output=TaskPrompts.LOOKUP_CREW_OUTPUT,
+        agent=agent,
+        output_pydantic=LookupOutput,
+        name="lookup_task",
+    )
+
+
+def create_search_sim_task(
+    agent: Agent,
+    intent: str,
+    context_str: str,
+    language: str,
+) -> Task:
+    return Task(
+        description=TaskPrompts.SEARCH_SIMULATOR_TASK.format(
+            intent=intent,
+            context_str=context_str,
+            language=language,
+        ),
+        expected_output=TaskPrompts.SEARCH_SIMULATOR_OUTPUT,
+        agent=agent,
+        name="search_sim_task",
+    )
+
+
+def create_search_exec_task(
+    agent: Agent,
+    input_prev_task: Task,  # Output from sim task
+    intent: str,
+) -> Task:
+    return Task(
+        description=TaskPrompts.SEARCH_EXECUTION_TASK.format(
+            intent=intent,
+        ),
+        expected_output=TaskPrompts.SEARCH_EXECUTION_OUTPUT,
+        agent=agent,
+        context=[input_prev_task],
+        name="search_exec_task",
+    )
+
+
+def create_search_verify_task(
+    agent: Agent,
+    input_prev_task: Task,  # Output from exec task
+    intent: str,
+    language: str,
+) -> Task:
+    return Task(
+        description=TaskPrompts.SEARCH_VERIFY_TASK.format(
+            intent=intent,
+            language=language,
+        ),
+        expected_output=TaskPrompts.SEARCH_VERIFY_OUTPUT,
+        agent=agent,
+        context=[input_prev_task],
+        output_pydantic=SearchOutput,
+        name="search_verify_task",
     )

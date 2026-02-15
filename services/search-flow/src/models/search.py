@@ -21,9 +21,10 @@ class SearchContent(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["search"] = "search"
     content: str = Field(..., description="The result text.")
-    score: Optional[float] = Field(None, description="Relevance score.")
-    file_path: Optional[str] = Field(None, description="Source file path.")
-    page_number: Optional[int] = Field(None, description="Page number.")
+    score: float = Field(..., description="Relevance score.")
+    file_path: str = Field(..., description="Source file path.")
+    page_number: int = Field(..., description="Page number.")
+    chunk_id: str = Field(..., description="Chunk ID.")
 
 
 class Citation(BaseModel):

@@ -32,32 +32,33 @@ class SearchClient:
             title="Active Context (Attached to next request)",
             show_header=True,
             header_style="bold magenta",
+            show_lines=True,
         )
         table.add_column("Index", style="dim", width=6)
         table.add_column("Source", style="cyan", width=12)
-        table.add_column("Type/Summary", style="green")
+        table.add_column("Content", style="green")
+        table.add_column("Metadata", style="yellow")
 
         for idx, item in enumerate(self.context):
             source = item.get("source", "unknown")
-            content = item.get("data", {})  # Citation uses 'data'
-            ctype = content.get("type", "unknown")
+            data = item.get("data", {})  # Citation uses 'data'
 
-            summary = ""
-            if ctype == "page":
-                summary = (
-                    f"Page {content.get('page_number')} from {content.get('file_path')}"
-                )
-            elif ctype == "chunk":
-                summary = f"Chunk {content.get('chunk_id')}"
-            elif ctype == "search":
-                # Show file path and snippet
-                fpath = content.get("file_path", "unknown")
-                text = content.get("content", "")
-                summary = f"[bold]{fpath}[/bold]\n{text}"
-            else:
-                summary = str(content)
+            # Content
+            content_text = data.get("content", "")
 
-            table.add_row(str(idx), source, summary)
+            # Metadata (Everything else)
+            metadata_lines = []
+            for k, v in data.items():
+                if k not in ["content", "type"]:
+                    metadata_lines.append(f"{k}: {v}")
+            metadata_text = "\n".join(metadata_lines)
+
+            table.add_row(
+                str(idx),
+                source,
+                content_text[:100] + "..." if len(content_text) > 100 else content_text,
+                metadata_text,
+            )
 
         console.print(table)
 
@@ -72,34 +73,35 @@ class SearchClient:
         all_candidates = self.context + new_citations
 
         # Display candidates
-        table = Table(show_header=True, header_style="bold blue", box=None)
+        table = Table(show_header=True, header_style="bold blue", show_lines=True)
         table.add_column("ID", style="bold white", width=4)
         table.add_column("Origin", style="bold cyan", width=8)
         table.add_column("Type", style="bold magenta", width=12)
-        table.add_column("Summary", style="italic green")
+        table.add_column("Content", style="italic green")
+        table.add_column("Metadata", style="yellow")
 
         for idx, item in enumerate(all_candidates):
             origin = "OLD" if idx < len(self.context) else "NEW"
-            content = item.get("data", {})
-            ctype = content.get("type", "unknown")
+            data = item.get("data", {})
+            ctype = data.get("type", "unknown")
 
-            # Generate Summary
-            summary = ""
-            if ctype == "page":
-                summary = (
-                    f"Page {content.get('page_number')} | {content.get('file_path')}"
-                )
-            elif ctype == "chunk":
-                summary = f"ID: {content.get('chunk_id')}"
-            elif ctype == "search":
-                # Show file path and snippet
-                fpath = content.get("file_path", "unknown")
-                text = content.get("content", "")
-                summary = f"[bold]{fpath}[/bold]\n{text}"
-            else:
-                summary = f"Raw: {str(content)}"
+            # Content
+            content_text = data.get("content", "")
 
-            table.add_row(str(idx), origin, ctype.upper(), summary)
+            # Metadata (Everything else)
+            metadata_lines = []
+            for k, v in data.items():
+                if k not in ["content", "type"]:
+                    metadata_lines.append(f"{k}: {v}")
+            metadata_text = "\n".join(metadata_lines)
+
+            table.add_row(
+                str(idx),
+                origin,
+                ctype.upper(),
+                content_text[:100] + "..." if len(content_text) > 100 else content_text,
+                metadata_text,
+            )
 
         console.print(table)
 
@@ -136,6 +138,8 @@ class SearchClient:
             "chat": "green",
             "search": "yellow",
             "reject": "red",
+            "lookup": "blue",
+            "ask": "blue",
             "no_skill": "magenta",
             "unknown": "white",
         }
@@ -198,8 +202,9 @@ class SearchClient:
                 )
 
                 # Update History
-                self.history.append(f"User: {query}")
-                self.history.append(f"Agent: {responseText}")
+                if action != "unknown":
+                    self.history.append(f"User: {query}")
+                    self.history.append(f"Agent: {responseText}")
 
                 # 4. Context Selection Phase
                 if details:

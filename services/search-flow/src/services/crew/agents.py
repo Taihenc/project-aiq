@@ -7,51 +7,42 @@ def get_llm():
     return LLM(model=settings.azure_model_name)
 
 
-def create_intent_validator_agent() -> Agent:
+def create_validate_agent() -> Agent:
     return Agent(
         role="Intent Validator",
-        goal=AgentPrompts.INTENT_VALIDATOR_GOAL,
-        backstory=AgentPrompts.INTENT_VALIDATOR_BACKSTORY,
+        goal=AgentPrompts.VALIDATE_CREW_GOAL,
+        backstory=AgentPrompts.VALIDATE_CREW_BACKSTORY,
         verbose=True,
         llm=get_llm(),
     )
 
 
-def create_capability_planner_agent() -> Agent:
+def create_ask_agent() -> Agent:
     return Agent(
-        role="Capability Planner",
-        goal=AgentPrompts.CAPABILITY_PLANNER_GOAL,
-        backstory=AgentPrompts.CAPABILITY_PLANNER_BACKSTORY,
+        role="Answer Specialist",
+        goal=AgentPrompts.ASK_CREW_GOAL,
+        backstory=AgentPrompts.ASK_CREW_BACKSTORY,
         verbose=True,
         llm=get_llm(),
     )
 
 
-def create_query_transformer_agent() -> Agent:
+def create_lookup_agent(tools: list) -> Agent:
     return Agent(
-        role="Query Transformer",
-        goal=AgentPrompts.QUERY_TRANSFORMER_GOAL,
-        backstory=AgentPrompts.QUERY_TRANSFORMER_BACKSTORY,
+        role="Librarian",
+        goal=AgentPrompts.LOOKUP_CREW_GOAL,
+        backstory=AgentPrompts.LOOKUP_CREW_BACKSTORY,
         verbose=True,
+        tools=tools,
         llm=get_llm(),
     )
 
 
-def create_hyde_generator_agent() -> Agent:
+def create_search_agent(tools: list) -> Agent:
     return Agent(
-        role="HyDE Generator",
-        goal=AgentPrompts.HYDE_GENERATOR_GOAL,
-        backstory=AgentPrompts.HYDE_GENERATOR_BACKSTORY,
-        verbose=True,
-        llm=get_llm(),
-    )
-
-
-def create_knowledge_agent(tools: list) -> Agent:
-    return Agent(
-        role="Aingo Kung",
-        goal=AgentPrompts.KNOWLEDGE_AGENT_GOAL,
-        backstory=AgentPrompts.KNOWLEDGE_AGENT_BACKSTORY_TEMPLATE,
+        role="Research Specialist",
+        goal=AgentPrompts.SEARCH_CREW_GOAL,
+        backstory=AgentPrompts.SEARCH_CREW_BACKSTORY,
         verbose=True,
         tools=tools,
         llm=get_llm(),

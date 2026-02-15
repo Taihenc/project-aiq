@@ -8,31 +8,50 @@ from .search import (
 )
 
 
-class IntentOutput(BaseModel):
-    action: Literal["chat", "search", "reject"] = Field(
-        ..., description="The classified intent of the user."
+class ValidationOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["reject", "ask", "search", "lookup", "chat"] = Field(
+        ..., description="The decision action: reject, ask, search, lookup, or chat."
     )
-    description: str = Field(
-        ..., description="Reasoning for the decision or the rejection message."
+    intent: str = Field(
+        ..., description="The sophisticated intent/instruction for the next crew."
+    )
+    context: List[
+        Annotated[
+            Union[ChunkContent, PageContent, SearchContent], Field(discriminator="type")
+        ]
+    ] = Field(default_factory=list, description="Filtered relevant context.")
+    language: str = Field(..., description="The detected language of the user query.")
+    response: str = Field(
+        ...,
+        description="The response content. If reject: actionable advice. If chat: the reply. If others: reasoning.",
     )
 
 
-class CapabilityItem(BaseModel):
-    capability: Literal["graph_search", "search", "page_lookup", "context_load"]
-    query: str = Field(
-        ..., description="The specific query or parameter for this capability."
+class AskOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    answer: str = Field(..., description="The direct answer from the context.")
+
+
+class LookupOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    content: str = Field(..., description="The retrieved content summary.")
+    details: List[Union[PageContent, ChunkContent]] = Field(
+        default_factory=list, description="Specific retrieved items (Pages/Chunks)."
     )
 
 
-class CapabilityPlan(BaseModel):
-    tasks: List[CapabilityItem] = Field(
-        ..., description="List of capabilities to execute."
+class SearchOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    answer: str = Field(..., description="The synthesized answer from search.")
+    details: List[SearchContent] = Field(
+        default_factory=list, description="Search results."
     )
 
 
 class FlowResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    action: Literal["chat", "search", "reject", "no_skill"] = Field(
+    action: Literal["chat", "search", "reject", "lookup", "ask"] = Field(
         ..., description="The action taken."
     )
     response: str = Field(..., description="The response content.")
@@ -42,6 +61,7 @@ class FlowResponse(BaseModel):
 
 
 class FlowState(BaseModel):
+    # Inputs
     query: str = ""
     context: List[
         Annotated[
@@ -49,8 +69,10 @@ class FlowState(BaseModel):
         ]
     ] = Field(default_factory=list)
     history: List[str] = Field(default_factory=list)
-    intent: Optional[IntentOutput] = None
-    capabilities: List[CapabilityItem] = Field(default_factory=list)
-    hyde_result: str = ""
-    search_results: str = ""
+
+    # Internal Flow Data
+    flow_information: str = ""
+    validation_output: Optional[ValidationOutput] = None
+
+    # Final Output
     final_response: Optional[FlowResponse] = None
