@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from src.core.domain.model.workflow import Workflow
 from src.core.domain.model.job import Job
 from src.core.domain.model.agent import Agent
@@ -98,7 +98,7 @@ class WorkflowService:
 
         update_data = request.model_dump(exclude_unset=True)
         updated_workflow = existing.model_copy(update=update_data)
-        updated_workflow.updated_at = datetime.utcnow()
+        updated_workflow.updated_at = datetime.now(timezone.utc)
 
         return await self.workflow_repository.update(updated_workflow)
 
@@ -178,3 +178,66 @@ class WorkflowService:
         )
 
         return WorkflowCompletionResponse(result=result, usage=usage)
+
+    async def execute_workflow_stream(
+        self, workflow_id: str, request: WorkflowCompletionRequest
+    ):
+        workflow = await self.get_workflow(workflow_id)
+
+        # 1. Fetch all Jobs
+        jobs: List[Job] = []
+        for job_id in workflow.tasks:
+            job = await self.job_repository.get(job_id)
+            if not job:
+                raise EntityNotFoundException(f"Job not found: {job_id}")
+            jobs.append(job)
+
+        # 2. Fetch all Agents and their dependencies
+        agents: Dict[str, Agent] = {}
+        models: Dict[str, Model] = {}
+        tools: Dict[str, Tool] = {}
+
+        async def fetch_agent_deps(agent_id: str):
+            if agent_id in agents:
+                return
+            agent = await self.agent_repository.get(agent_id)
+            if not agent:
+                raise EntityNotFoundException(f"Agent not found: {agent_id}")
+            agents[agent_id] = agent
+
+            if agent.model_id not in models:
+                model = await self.model_repository.get(agent.model_id)
+                if not model:
+                    raise EntityNotFoundException(f"Model not found: {agent.model_id}")
+                models[agent.model_id] = model
+
+            for tool_id in agent.tools:
+                if tool_id not in tools:
+                    tool = await self.tool_repository.get(tool_id)
+                    if not tool:
+                        raise EntityNotFoundException(f"Tool not found: {tool_id}")
+                    tools[tool_id] = tool
+
+        for job in jobs:
+            await fetch_agent_deps(job.agent_id)
+
+        manager_agent = None
+        manager_model = None
+        if workflow.manager_agent_id:
+            await fetch_agent_deps(workflow.manager_agent_id)
+            manager_agent = agents[workflow.manager_agent_id]
+            manager_model = models[manager_agent.model_id]
+
+        # 3. Execute Stream
+        # execute_workflow_stream is an async generator
+        async for chunk in self.job_executor.execute_workflow_stream(
+            workflow=workflow,
+            jobs=jobs,
+            agents=agents,
+            models=models,
+            tools=tools,
+            input_variables=request.inputs,
+            manager_agent=manager_agent,
+            manager_model=manager_model,
+        ):
+            yield chunk
