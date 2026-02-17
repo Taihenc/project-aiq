@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional, Any
+from typing import List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from .search import Citation, FileContent
 
@@ -18,7 +18,7 @@ class FlowResponse(BaseModel):
 class FlowState(BaseModel):
     # Inputs
     query: str = ""
-    context: List[Any] = Field(default_factory=list)
+    context: List[FileContent] = Field(default_factory=list)
     history: List[str] = Field(default_factory=list)
 
     # Final Output Storage

@@ -11,6 +11,7 @@ from src.services.crew.tools.factory import MCPToolFactory
 
 
 class SearchCrewFlow(Flow[FlowState]):
+    # TODO: Temporary method
     def _format_context(self) -> str:
         """Helper to format structured context for LLM prompts."""
         if not self.state.context:

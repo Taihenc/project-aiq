@@ -43,6 +43,7 @@ class SearchFlowService:
             action="reject", response="Error: No response generated from the flow."
         )
 
+    # TODO: Temporary method
     async def _enrich_attachments(self, attachments: List[Any]) -> List[FileContent]:
         """
         Converts FileRef objects (from input) into FileContent objects (with text).
