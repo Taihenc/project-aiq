@@ -24,7 +24,7 @@ export type {
   ChatResponse,
 } from '@/types/api';
 
-import { client } from '@/lib/api/client';
+import { client, streamFetch } from '@/lib/api/client';
 
 /**
  * Send chat completions request (OpenAI-compatible)
@@ -71,4 +71,34 @@ export async function sendChatMessage(
 
   const response = await client.post<ChatResponse>('/chat', requestBody);
   return response.data;
+}
+
+/**
+ * Send chat completions request with streaming (SSE)
+ */
+export async function streamChatCompletions(
+  messages: APIMessage[],
+  options?: {
+    sessionId?: string;
+    requestSource?: string;
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+  },
+): Promise<ReadableStream<Uint8Array>> {
+  const requestBody: ChatCompletionsRequest = {
+    messages,
+    session_id: options?.sessionId,
+    request_source: options?.requestSource || 'frontend',
+    model: options?.model,
+    temperature: options?.temperature,
+    max_tokens: options?.maxTokens,
+    stream: true,
+  };
+
+  const stream = await streamFetch('/chat/completions/stream', requestBody);
+  if (!stream) {
+    throw new Error('No stream returned');
+  }
+  return stream;
 }

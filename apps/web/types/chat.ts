@@ -23,8 +23,8 @@ export interface UIMessage {
   processing_time_ms?: number;
   // Usage information from response.usage
   usage?: {
-    prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
   };
+  status?: string; // Real-time status update (e.g., "Searching...", "Thinking...")
 }
