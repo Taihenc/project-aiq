@@ -50,7 +50,7 @@ export async function sendChatCompletions(
     stream: options?.stream,
   };
 
-  const response = await client.post<ChatCompletionsResponse>('/v1/chat/completions', requestBody);
+  const response = await client.post<ChatCompletionsResponse>('/chat/completions', requestBody);
   return response.data;
 }
 

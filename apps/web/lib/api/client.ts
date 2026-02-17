@@ -3,7 +3,7 @@ import axios from 'axios';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
 export const client = axios.create({
-  baseURL: `${BACKEND_URL}/api/v1`,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
