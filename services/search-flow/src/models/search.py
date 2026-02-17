@@ -2,29 +2,41 @@ from typing import List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ChunkContent(BaseModel):
+class ChunkRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["chunk"] = "chunk"
     chunk_id: str = Field(..., description="Unique identifier for the chunk.")
-    content: str = Field(..., description="The chunk text.")
+    file_path: str = Field(..., description="Path or name of the source file.")
+    page_number: int = Field(..., description="Page number (1-indexed).")
 
 
-class PageContent(BaseModel):
+class PageRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["page"] = "page"
     page_number: int = Field(..., description="Page number (1-indexed).")
     file_path: str = Field(..., description="Path or name of the source file.")
+    page_id: str = Field(..., description="Unique identifier for the page.")
+
+
+class SearchRef(ChunkRef):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["search"] = "search"
+    score: float = Field(..., description="Relevance score.")
+
+
+class ChunkContent(ChunkRef):
+    model_config = ConfigDict(extra="forbid")
+    content: str = Field(..., description="The chunk text.")
+
+
+class PageContent(PageRef):
+    model_config = ConfigDict(extra="forbid")
     content: str = Field(..., description="The page text.")
 
 
-class SearchContent(BaseModel):
+class SearchContent(SearchRef):
     model_config = ConfigDict(extra="forbid")
-    type: Literal["search"] = "search"
     content: str = Field(..., description="The result text.")
-    score: float = Field(..., description="Relevance score.")
-    file_path: str = Field(..., description="Source file path.")
-    page_number: int = Field(..., description="Page number.")
-    chunk_id: str = Field(..., description="Chunk ID.")
 
 
 class Citation(BaseModel):
@@ -32,8 +44,8 @@ class Citation(BaseModel):
     source: Literal["search", "page", "chunk"] = Field(
         ..., description="The source type of the citation."
     )
-    data: Union[SearchContent, PageContent, ChunkContent] = Field(
-        ..., discriminator="type", description="The structured content data."
+    data: Union[SearchRef, PageRef, ChunkRef] = Field(
+        ..., description="The structured content reference."
     )
 
 

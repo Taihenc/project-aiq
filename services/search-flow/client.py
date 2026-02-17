@@ -19,27 +19,26 @@ console = Console()
 class SearchClient:
     def __init__(self):
         self.history: List[str] = []
-        self.context: List[Dict[str, Any]] = []  # List of Citation objects
+        self.attachments: List[Dict[str, Any]] = []  # List of Citation objects
         self.session = requests.Session()
 
-    def display_context(self):
-        """Displays the current active context."""
-        if not self.context:
-            console.print("[dim]No active context loaded.[/dim]")
+    def display_attachments(self):
+        """Displays the current active attachments."""
+        if not self.attachments:
+            console.print("[dim]No active attachments loaded.[/dim]")
             return
 
         table = Table(
-            title="Active Context (Attached to next request)",
+            title="Active Attachments (Attached to next request)",
             show_header=True,
             header_style="bold magenta",
             show_lines=True,
         )
         table.add_column("Index", style="dim", width=6)
         table.add_column("Source", style="cyan", width=12)
-        table.add_column("Content", style="green")
         table.add_column("Metadata", style="yellow")
 
-        for idx, item in enumerate(self.context):
+        for idx, item in enumerate(self.attachments):
             source = item.get("source", "unknown")
             data = item.get("data", {})  # Citation uses 'data'
 
@@ -56,32 +55,30 @@ class SearchClient:
             table.add_row(
                 str(idx),
                 source,
-                content_text[:100] + "..." if len(content_text) > 100 else content_text,
                 metadata_text,
             )
 
         console.print(table)
 
-    def select_context(self, new_citations: List[Dict[str, Any]]):
-        """Interactively allows user to select context to keep."""
-        if not new_citations and not self.context:
+    def select_attachments(self, new_citations: List[Dict[str, Any]]):
+        """Interactively allows user to select attachments to keep."""
+        if not new_citations and not self.attachments:
             return
 
-        console.print("\n[bold yellow]󰋚 Context Management[/bold yellow]")
+        console.print("\n[bold yellow]󰋚 Attachments Management[/bold yellow]")
 
         # Combine existing and new for selection
-        all_candidates = self.context + new_citations
+        all_candidates = self.attachments + new_citations
 
         # Display candidates
         table = Table(show_header=True, header_style="bold blue", show_lines=True)
         table.add_column("ID", style="bold white", width=4)
         table.add_column("Origin", style="bold cyan", width=8)
         table.add_column("Type", style="bold magenta", width=12)
-        table.add_column("Content", style="italic green")
         table.add_column("Metadata", style="yellow")
 
         for idx, item in enumerate(all_candidates):
-            origin = "OLD" if idx < len(self.context) else "NEW"
+            origin = "OLD" if idx < len(self.attachments) else "NEW"
             data = item.get("data", {})
             ctype = data.get("type", "unknown")
 
@@ -99,7 +96,6 @@ class SearchClient:
                 str(idx),
                 origin,
                 ctype.upper(),
-                content_text[:100] + "..." if len(content_text) > 100 else content_text,
                 metadata_text,
             )
 
@@ -112,9 +108,9 @@ class SearchClient:
         choice = Prompt.ask("Selection", default="all")
 
         if choice.lower() == "all":
-            self.context = all_candidates
+            self.attachments = all_candidates
         elif choice.lower() == "none":
-            self.context = []
+            self.attachments = []
         elif choice.lower() == "keep_old":
             pass
         else:
@@ -122,14 +118,14 @@ class SearchClient:
                 indices = [
                     int(x.strip()) for x in choice.split(",") if x.strip().isdigit()
                 ]
-                self.context = [
+                self.attachments = [
                     all_candidates[i] for i in indices if 0 <= i < len(all_candidates)
                 ]
             except Exception as e:
-                console.print(f"[red]Error: {e}. Keeping old context.[/red]")
+                console.print(f"[red]Error: {e}. Keeping old attachments.[/red]")
 
         rprint(
-            f"[bold green]✓ Context updated. {len(self.context)} items active.[/bold green]\n"
+            f"[bold green]✓ Attachments updated. {len(self.attachments)} items active.[/bold green]\n"
         )
 
     def chat_loop(self):
@@ -155,7 +151,7 @@ class SearchClient:
 
         while True:
             # 1. Input Phase
-            self.display_context()
+            self.display_attachments()
             query = Prompt.ask("\n[bold cyan]YOU[/bold cyan]")
 
             if query.lower() in ("exit", "quit"):
@@ -166,11 +162,13 @@ class SearchClient:
 
             # 2. Sending Request
             # Extract 'data' from Citation objects for the payload
-            context_payload = [c.get("data") for c in self.context if c.get("data")]
+            attachments_payload = [
+                c.get("data") for c in self.attachments if c.get("data")
+            ]
             payload = {
                 "query": query,
                 "history": self.history,
-                "context": context_payload,
+                "attachments": attachments_payload,
             }
 
             try:
@@ -183,17 +181,17 @@ class SearchClient:
                     data = api_response.get("data", {})
 
                 # 3. Output Phase
-                # data structure: FlowResponse(action, response, details)
+                # data structure: FlowResponse(action, response, citations)
                 action = data.get("action", "unknown")
-                responseText = data.get("response", "")
-                details = data.get("details", [])
+                response_text = data.get("response", "")
+                citations = data.get("citations") or []
 
                 color = ACTION_COLORS.get(action, "white")
 
                 # Wrapped response in a Panel
-                console.print(
+                rprint(
                     Panel(
-                        Markdown(responseText),
+                        response_text,
                         title=f"[bold {color}]AGENT ACTION: {action.upper()}[/bold {color}]",
                         title_align="left",
                         border_style=color,
@@ -204,18 +202,20 @@ class SearchClient:
                 # Update History
                 if action != "unknown":
                     self.history.append(f"User: {query}")
-                    self.history.append(f"Agent: {responseText}")
+                    self.history.append(f"Agent: {response_text}")
 
-                # 4. Context Selection Phase
-                if details:
-                    console.print(
-                        f"\n[bold yellow]󰋚 System collected {len(details)} references.[/bold yellow]"
+                # 4. Attachments Selection Phase
+                if citations:
+                    rprint(
+                        f"\n[bold yellow]󰋚 System collected {len(citations)} references.[/bold yellow]"
                     )
-                    self.select_context(details)
-                elif self.context:
-                    # Allow user to clear/modify context even if no new details came back
-                    if Confirm.ask("Manage current context?", default=False):
-                        self.select_context([])
+                    # Citations are Citations objects. We only care about user selection.
+                    # citations is a list of Dicts: [{"source": "...", "data": {...}}, ...]
+                    self.select_attachments(citations)
+                elif self.attachments:
+                    # Allow user to clear/modify attachments even if no new citations came back
+                    if Confirm.ask("Manage current attachments?", default=False):
+                        self.select_attachments([])
 
             except requests.exceptions.ConnectionError:
                 console.print(

@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     mcp_server_url: str = Field(
         "http://localhost:8003/v1/mcp/sse", validation_alias="MCP_SERVER_URL"
     )
+
+    embedding_service_url: str = Field(
+        "http://localhost:8003", validation_alias="EMBEDDING_SERVICE_URL"
+    )
+
     # Capability to Tool Mapping
     capability_tool_map: dict = {
         "search": "search_documents",
