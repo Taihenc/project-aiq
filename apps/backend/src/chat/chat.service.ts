@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
@@ -19,6 +19,8 @@ import { ChatHistoryService } from '../chat-history/chat-history.service';
 
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name);
+
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -67,16 +69,26 @@ export class ChatService {
     try {
       const sessionId = chatRequest.session_id || '';
 
+      this.logger.debug(`Processing chat request for session: ${sessionId}`);
+
       // 1. Get History Context
       const sessionData =
         await this.chatHistoryService.getSessionSummary(sessionId);
       const existingSummary = sessionData?.summary || '';
+
+      this.logger.verbose(
+        `Existing summary retrieved: ${existingSummary.substring(0, 50)}...`,
+      );
 
       const unsummarizedMessages =
         await this.chatHistoryService.getUnsummarizedMessages(
           sessionId,
           sessionData?.lastSummarizedMessageId,
         );
+
+      this.logger.verbose(
+        `Retrieved ${unsummarizedMessages.length} unsummarized messages`,
+      );
 
       // 2. Prepare and Call AI Engine
       const aiEngineRequest = this.prepareAiEngineRequest(
@@ -86,9 +98,13 @@ export class ChatService {
       );
 
       const aiEngineUrl = this.getAiEngineCompletionUrl();
+      this.logger.debug(`Calling AI Engine at: ${aiEngineUrl}`);
+
       const axiosResponse = await firstValueFrom(
         this.httpService.post<any>(aiEngineUrl, aiEngineRequest),
       );
+
+      this.logger.verbose('Received raw response from AI Engine');
 
       // 3. Transform Response
       const transformed = this.transformAiEngineToOpenAI(
@@ -110,7 +126,7 @@ export class ChatService {
 
       return transformed;
     } catch (error) {
-      console.error('Error in chatWithAiEngine:', error);
+      this.logger.error('Error in chatWithAiEngine:', error);
       throw error;
     }
   }
@@ -178,13 +194,15 @@ export class ChatService {
       lastSummarizedMessageId,
     );
 
+    this.logger.debug(`Unsummarized message count: ${unsummarized.length}`);
+
     if (unsummarized.length >= 6) {
       this.summarizeAndSaveSession(
         sessionId,
         unsummarized,
         existingSummary,
       ).catch((err) =>
-        console.error(`[BACKEND] Summarization failed for ${sessionId}:`, err),
+        this.logger.error(`Summarization failed for ${sessionId}:`, err),
       );
     }
   }
@@ -205,7 +223,7 @@ export class ChatService {
         newFullSummary,
         lastId,
       );
-      console.log(`[BACKEND] Session ${sessionId} summarized.`);
+      this.logger.log(`Session ${sessionId} summarized.`);
     }
   }
 
@@ -254,7 +272,7 @@ export class ChatService {
       const response = await this.httpService.post(url, request).toPromise();
       return response?.data?.data?.content || '';
     } catch (error) {
-      console.error('[BACKEND] Error summarizing context:', error);
+      this.logger.error('Error summarizing context:', error);
       return '';
     }
   }
@@ -326,7 +344,7 @@ export class ChatService {
           language,
         };
       } catch (error) {
-        console.error('[BACKEND] Error parsing AI Engine message:', error);
+        this.logger.error('Error parsing AI Engine message:', error);
         return {
           response: data.message,
           response_type: 'DIRECT',
@@ -336,7 +354,7 @@ export class ChatService {
       }
     }
 
-    console.warn('[BACKEND] Unknown AI Engine response format, using fallback');
+    this.logger.warn('Unknown AI Engine response format, using fallback');
     return {
       response: data.message || JSON.stringify(data),
       response_type: 'DIRECT',
