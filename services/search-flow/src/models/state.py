@@ -1,11 +1,6 @@
-from typing import List, Dict, Literal, Optional, Union, Any, Annotated
+from typing import List, Literal, Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
-from .search import (
-    Citation,
-    ChunkContent,
-    PageContent,
-    SearchContent,
-)
+from .search import Citation, FileContent
 
 
 class FlowResponse(BaseModel):
@@ -16,19 +11,15 @@ class FlowResponse(BaseModel):
     response: str = Field(..., description="The response content.")
     citations: Optional[List[Citation]] = Field(
         None,
-        description="List of structured citations (source, data). Metadata Only (ChunkRef, PageRef, SearchRef).",
+        description="List of file-based citations. Each citation groups chunks by file_path.",
     )
 
 
 class FlowState(BaseModel):
     # Inputs
     query: str = ""
-    context: List[
-        Annotated[
-            Union[ChunkContent, PageContent, SearchContent], Field(discriminator="type")
-        ]
-    ] = Field(default_factory=list)
+    context: List[Any] = Field(default_factory=list)
     history: List[str] = Field(default_factory=list)
 
-    # Final Output Storage (Future Ready)
+    # Final Output Storage
     final_response: Optional[FlowResponse] = None

@@ -2,7 +2,7 @@ import asyncio
 from typing import List, Any
 from src.dtos.request import SearchChatRequest
 from src.models.state import FlowResponse
-from src.models.search import ChunkContent, PageContent, SearchContent
+from src.models.search import FileRef, FileContent, ChunkMetadata
 from src.services.crew.flow import SearchCrewFlow
 import httpx
 from src.config.settings import settings
@@ -27,6 +27,8 @@ class SearchFlowService:
         }
 
         try:
+            # Flow handles tool loading internally
+            # Use async kickoff
             await flow.kickoff_async(inputs=inputs)
         except Exception as e:
             print(f"❌ Error during flow execution: {e}")
@@ -41,113 +43,46 @@ class SearchFlowService:
             action="reject", response="Error: No response generated from the flow."
         )
 
-    # TODO: Temporary until we have a better way to handle this
-    async def _enrich_attachments(self, attachments: List[Any]) -> List[Any]:
+    async def _enrich_attachments(self, attachments: List[Any]) -> List[FileContent]:
         """
-        Converts Ref objects (ChunkRef, PageRef, SearchRef) into Content objects
-        (ChunkContent, PageContent, SearchContent) by retrieving/simulating content.
+        Converts FileRef objects (from input) into FileContent objects (with text).
+        Simulates content retrieval for now as requested ("Content map later").
         """
+        results = []
+        for att in attachments:
+            try:
+                # att is expected to be a dict (from API) or FileRef
+                if isinstance(att, dict):
+                    # Basic validation or conversion
+                    # Assuming dict structure matches FileRef
+                    chunks_data = att.get("chunks", [])
+                    chunks = [ChunkMetadata(**c) for c in chunks_data]
+                    ref = FileRef(file_path=att.get("file_path", ""), chunks=chunks)
+                elif isinstance(att, FileRef):
+                    ref = att
+                else:
+                    print(f"⚠️ Invalid attachment type: {type(att)}")
+                    continue
 
-        enriched = []
-        async with httpx.AsyncClient(
-            base_url=settings.embedding_service_url, timeout=30.0
-        ) as client:
-            for item in attachments:
-                try:
-                    if item.type == "chunk":
-                        # Fetch chunk content
-                        response = await client.post(
-                            "/chunks",
-                            json={
-                                "chunk_id": item.chunk_id,
-                                "backward": 0,
-                                "forward": 0,
-                            },
-                        )
-                        response.raise_for_status()
-                        data = response.json()
-                        text = (
-                            data["chunks"][0]["text"]
-                            if data.get("chunks")
-                            else "[Chunk Content Not Found]"
-                        )
+                # Create FileContent
+                # For now, we init with empty content map or simulated one
+                content = FileContent(
+                    file_path=ref.file_path, chunks=ref.chunks, chunk_contents={}
+                )
 
-                        enriched.append(
-                            ChunkContent(
-                                **item.model_dump(),
-                                content=text,
-                            )
-                        )
-                    elif item.type == "page":
-                        # Fetch page content
-                        response = await client.post(
-                            "/pages",
-                            json={
-                                "file_path": item.file_path,
-                                "start_page": item.page_number,
-                                "end_page": item.page_number,
-                            },
-                        )
-                        # Page endpoint might return 200 with empty list or whatever.
-                        # It returns PageRetrievalResponse(pages=[...])
-                        response.raise_for_status()
-                        data = response.json()
-                        if data.get("pages") and len(data["pages"]) > 0:
-                            text = data["pages"][0]["text"]
-                        else:
-                            text = "[Page Content Not Found]"
+                # Simulate/Placeholder for chunk content
+                # In real scenario: fetch from embedding-service using chunk_id
+                for chunk in ref.chunks:
+                    # Simulation:
+                    content.chunk_contents[chunk.chunk_id] = (
+                        f"Content for chunk {chunk.chunk_id} (Page {chunk.page_number}) "
+                        f"from {ref.file_path}. [SCORE: {chunk.score}]"
+                    )
 
-                        enriched.append(
-                            PageContent(
-                                **item.model_dump(),
-                                content=text,
-                            )
-                        )
-                    elif item.type == "search":
-                        # Fetch search content (treated as chunk)
-                        response = await client.post(
-                            "/chunks",
-                            json={
-                                "chunk_id": item.chunk_id,
-                                "backward": 0,
-                                "forward": 0,
-                            },
-                        )
-                        response.raise_for_status()
-                        data = response.json()
-                        text = (
-                            data["chunks"][0]["text"]
-                            if data.get("chunks")
-                            else "[Search Result Content Not Found]"
-                        )
+                results.append(content)
 
-                        enriched.append(
-                            SearchContent(
-                                **item.model_dump(),
-                                content=text,
-                            )
-                        )
-                    else:
-                        # Fallback for unknown types
-                        enriched.append(item)
-                except Exception as e:
-                    print(f"⚠️ Failed to enrich attachment {item}: {e}")
-                    # Include it anyway with error message or fallback
-                    # Create a dummy Content object with error text to inform LLM
-                    error_text = f"[Error retrieving content: {str(e)}]"
-                    if item.type == "chunk":
-                        enriched.append(
-                            ChunkContent(**item.model_dump(), content=error_text)
-                        )
-                    elif item.type == "page":
-                        enriched.append(
-                            PageContent(**item.model_dump(), content=error_text)
-                        )
-                    elif item.type == "search":
-                        enriched.append(
-                            SearchContent(**item.model_dump(), content=error_text)
-                        )
-                    else:
-                        enriched.append(item)
+            except Exception as e:
+                print(f"⚠️ Failed to parse/enrich attachment: {e}")
+                continue
 
-        return enriched
+        return results

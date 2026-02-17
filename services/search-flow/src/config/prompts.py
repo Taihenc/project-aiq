@@ -106,14 +106,15 @@ class TaskPrompts:
     You must return a JSON object compatible with the following structure:
     - **action**: 'reject', 'chat', 'search', 'lookup'
     - **response**: The final answer to the user.
-    - **citations**: A list of structured citations (Optional).
-        - **MANDATORY**: If you used a **Search** or **Lookup** tool, you MUST extract the 'ID', 'Path', 'Score', and 'Page' from the tool's output text and create a Citation object for each relevant document.
-        - **Source**: Set source to 'search' (for search tool) or 'page' (for lookup).
-        - **Data**: Create the Metadata Object (SearchRef or ChunkRef).
-            - `chunk_id`: The ID from tool output.
-            - `file_path`: The Path from tool output.
-            - `page_number`: The Page Number from tool output.
-            - `score`: The Score from tool output (if present).
+    - **citations**: A list of file-based citations (Optional).
+        - **MANDATORY**: If you used a **Search** or **Lookup** tool, you MUST extract the metadata from the tool's output and GROUP it by file.
+        - **Structure**:
+            - `file_path`: The file path from tool output.
+            - `chunks`: A list of chunk metadata objects for that file.
+                - `chunk_id`: ID from tool output.
+                - `page_number`: Page number from tool output.
+                - `score`: Score from tool output (if present).
+        - **sorted**: Sort chunks within a file by `page_number` ascending.
         - **Do NOT return an empty list if you found documents.**
 
     """
@@ -122,7 +123,7 @@ class TaskPrompts:
         "JSON object containing: "
         "1. action: 'reject', 'chat', 'search', 'lookup'. "
         "2. response: Final answer. "
-        "3. citations: List of Citation objects. "
-        "   IMPORTANT: You MUST parse the tool output to populate this list. "
-        "   Format: [{'source': 'search', 'data': {'type': 'search', 'chunk_id': '...', 'file_path': '...', 'page_number': 1, 'score': 0.9}}]"
+        "3. citations: List of File Citations. "
+        "   IMPORTANT: Group chunks by file_path. "
+        "   Format: [{'file_path': 'foo.pdf', 'chunks': [{'chunk_id': '...', 'page_number': 1}]}]"
     )
