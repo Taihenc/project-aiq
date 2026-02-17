@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { DRIZZLE } from '../database/drizzle.module';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { chatSessions, chatMessages, users } from '../database/schema';
@@ -8,9 +8,12 @@ import { encode } from 'gpt-tokenizer';
 
 @Injectable()
 export class ChatHistoryService {
+  private readonly logger = new Logger(ChatHistoryService.name);
+
   constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) {}
 
   async getHistory(userId: string) {
+    this.logger.debug(`Fetching history for user: ${userId}`);
     return this.db
       .select()
       .from(chatSessions)
@@ -20,6 +23,7 @@ export class ChatHistoryService {
   }
 
   async getSession(sessionId: string, userId: string) {
+    this.logger.debug(`Fetching session: ${sessionId} for user: ${userId}`);
     const session = this.db
       .select()
       .from(chatSessions)
@@ -29,6 +33,7 @@ export class ChatHistoryService {
       .get();
 
     if (!session) {
+      this.logger.warn(`Session not found: ${sessionId}`);
       throw new NotFoundException('Session not found');
     }
 
@@ -44,6 +49,7 @@ export class ChatHistoryService {
 
   async createSession(userId: string, title: string = 'New Chat') {
     const id = uuidv4();
+    this.logger.log(`Creating new session: ${id} for user: ${userId}`);
     this.db
       .insert(chatSessions)
       .values({
@@ -67,6 +73,7 @@ export class ChatHistoryService {
     content: string,
     citations?: any,
   ) {
+    this.logger.debug(`Adding message to session ${sessionId}. Role: ${role}`);
     // Verify ownership first
     const session = this.db
       .select()
@@ -77,12 +84,16 @@ export class ChatHistoryService {
       .get();
 
     if (!session) {
+      this.logger.error(
+        `Failed to add message: Session ${sessionId} not found or ownership failed for user ${userId}`,
+      );
       throw new NotFoundException(
         'Session not found or search ownership failed',
       );
     }
 
     const id = uuidv4();
+    this.logger.verbose(`Inserting message ${id} into session ${sessionId}`);
     this.db
       .insert(chatMessages)
       .values({
@@ -109,6 +120,7 @@ export class ChatHistoryService {
   }
 
   async deleteSession(sessionId: string, userId: string) {
+    this.logger.log(`Deleting session: ${sessionId} for user: ${userId}`);
     const session = this.db
       .select()
       .from(chatSessions)
@@ -117,13 +129,21 @@ export class ChatHistoryService {
       )
       .get();
 
-    if (!session) return false;
+    if (!session) {
+      this.logger.warn(
+        `Delete failed: Session ${sessionId} not found for user ${userId}`,
+      );
+      return false;
+    }
 
     this.db
       .delete(chatMessages)
       .where(eq(chatMessages.sessionId, sessionId))
       .run();
     this.db.delete(chatSessions).where(eq(chatSessions.id, sessionId)).run();
+    this.logger.verbose(
+      `Session ${sessionId} and its messages deleted successfully`,
+    );
     return true;
   }
 
@@ -180,6 +200,8 @@ export class ChatHistoryService {
     summary: string,
     lastMessageId: string,
   ) {
+    this.logger.log(`Updating summary for session: ${sessionId}`);
+    this.logger.verbose(`New summary: ${summary.substring(0, 100)}...`);
     this.db
       .update(chatSessions)
       .set({

@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
   Query,
+  Logger,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ChatHistoryService } from './chat-history.service';
@@ -15,10 +16,13 @@ import { ChatHistoryService } from './chat-history.service';
 @Controller()
 @UseGuards(AuthGuard('jwt'))
 export class ChatHistoryController {
+  private readonly logger = new Logger(ChatHistoryController.name);
+
   constructor(private readonly historyService: ChatHistoryService) {}
 
   @Get()
   async getHistory(@Request() req) {
+    this.logger.debug(`GET /history hit for user: ${req.user.userId}`);
     return this.historyService.getHistory(req.user.userId);
   }
 
@@ -38,11 +42,15 @@ export class ChatHistoryController {
 
   @Get(':id')
   async getSession(@Request() req, @Param('id') id: string) {
+    this.logger.debug(`GET /history/${id} hit for user: ${req.user.userId}`);
     return this.historyService.getSession(id, req.user.userId);
   }
 
   @Post()
   async createSession(@Request() req, @Body() body: { title?: string }) {
+    this.logger.debug(
+      `POST /history hit for user: ${req.user.userId}, title: ${body.title}`,
+    );
     return this.historyService.createSession(req.user.userId, body.title);
   }
 
@@ -52,6 +60,9 @@ export class ChatHistoryController {
     @Param('id') id: string,
     @Body() body: { role: string; content: string; citations?: any },
   ) {
+    this.logger.debug(
+      `POST /history/${id}/message hit for user: ${req.user.userId}, role: ${body.role}`,
+    );
     return this.historyService.addMessage(
       id,
       req.user.userId,
@@ -63,6 +74,7 @@ export class ChatHistoryController {
 
   @Delete(':id')
   async deleteSession(@Request() req, @Param('id') id: string) {
+    this.logger.debug(`DELETE /history/${id} hit for user: ${req.user.userId}`);
     return this.historyService.deleteSession(id, req.user.userId);
   }
 }
