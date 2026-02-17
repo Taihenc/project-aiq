@@ -10,14 +10,14 @@ import { encode } from 'gpt-tokenizer';
 export class ChatHistoryService {
   private readonly logger = new Logger(ChatHistoryService.name);
 
-  constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) {}
+  constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) { }
 
   async getHistory(userId: string) {
     this.logger.debug(`Fetching history for user: ${userId}`);
     return this.db
       .select()
       .from(chatSessions)
-      .where(eq(chatSessions.userId, userId))
+      .where(eq(chatSessions.userId, userId || ''))
       .orderBy(desc(chatSessions.updatedAt))
       .all();
   }
@@ -28,7 +28,10 @@ export class ChatHistoryService {
       .select()
       .from(chatSessions)
       .where(
-        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+        and(
+          eq(chatSessions.id, sessionId || ''),
+          eq(chatSessions.userId, userId || ''),
+        ),
       )
       .get();
 
@@ -70,18 +73,50 @@ export class ChatHistoryService {
     sessionId: string,
     userId: string,
     role: string,
-    content: string,
+    content: any,
     citations?: any,
   ) {
-    this.logger.debug(`Adding message to session ${sessionId}. Role: ${role}`);
+    this.logger.debug(
+      `Adding message to session ${sessionId}. Role: ${role}, User: ${userId}`,
+    );
+
+    // Defensive check to ensure content is a string
+    const stringContent =
+      typeof content === 'string'
+        ? content
+        : JSON.stringify(content || '');
+
+    this.logger.verbose(
+      `Message content type: ${typeof content}, length: ${stringContent.length}`,
+    );
+
+    if (!sessionId || !userId) {
+      this.logger.error(
+        `Invalid parameters for addMessage: sessionId=${sessionId}, userId=${userId}`,
+      );
+      throw new Error('sessionId and userId are required');
+    }
+
     // Verify ownership first
-    const session = this.db
-      .select()
-      .from(chatSessions)
-      .where(
-        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
-      )
-      .get();
+    let session;
+    try {
+      session = this.db
+        .select()
+        .from(chatSessions)
+        .where(
+          and(
+            eq(chatSessions.id, sessionId || ''),
+            eq(chatSessions.userId, userId || ''),
+          ),
+        )
+        .get();
+    } catch (err: any) {
+      this.logger.error(`Ownership verification query failed: ${err.message}`, {
+        sessionId,
+        userId,
+      });
+      throw err;
+    }
 
     if (!session) {
       this.logger.error(
@@ -94,22 +129,32 @@ export class ChatHistoryService {
 
     const id = uuidv4();
     this.logger.verbose(`Inserting message ${id} into session ${sessionId}`);
-    this.db
-      .insert(chatMessages)
-      .values({
+    try {
+      this.db
+        .insert(chatMessages)
+        .values({
+          id,
+          sessionId,
+          role,
+          content: stringContent,
+          citations: citations || null,
+          createdAt: Date.now(),
+        })
+        .run();
+    } catch (err: any) {
+      this.logger.error(`Message insertion failed: ${err.message}`, {
         id,
         sessionId,
         role,
-        content,
-        citations: citations ? JSON.stringify(citations) : null,
-        createdAt: Date.now(),
-      })
-      .run();
+        contentType: typeof content,
+      });
+      throw err;
+    }
 
     this.db
       .update(chatSessions)
       .set({ updatedAt: Date.now() })
-      .where(eq(chatSessions.id, sessionId))
+      .where(eq(chatSessions.id, sessionId || ''))
       .run();
 
     return this.db
@@ -205,11 +250,11 @@ export class ChatHistoryService {
     this.db
       .update(chatSessions)
       .set({
-        summary,
-        lastSummarizedMessageId: lastMessageId,
+        summary: summary || '',
+        lastSummarizedMessageId: lastMessageId || null,
         updatedAt: Date.now(),
       })
-      .where(eq(chatSessions.id, sessionId))
+      .where(eq(chatSessions.id, sessionId || ''))
       .run();
   }
 
