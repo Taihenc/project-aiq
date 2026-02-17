@@ -20,10 +20,10 @@ import {
 
 @Controller()
 export class ChatController {
-  constructor(private readonly chatService: ChatService) { }
+  constructor(private readonly chatService: ChatService) {}
 
   // OpenAI-compatible endpoint
-  @Post('v1/chat/completions')
+  @Post('completions')
   @UseGuards(AuthGuard('jwt'))
   async chatCompletions(
     @Request() req,
@@ -43,11 +43,11 @@ export class ChatController {
   }
 
   // Legacy endpoint for backward compatibility
-  @Post('chat')
+  @Post()
   @UseGuards(AuthGuard('jwt'))
   async chat(
     @Request() req,
-    @Body() chatRequest: ChatRequestDto
+    @Body() chatRequest: ChatRequestDto,
   ): Promise<ChatResponseDto> {
     const aiResponse = await this.chatService
       .chatWithAi(chatRequest, req.user.userId)

@@ -6,12 +6,8 @@ import { ChatHistoryModule } from '../chat-history/chat-history.module';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [
-    HttpModule,
-    ConfigModule,
-    ChatHistoryModule,
-  ],
+  imports: [HttpModule, ConfigModule, ChatHistoryModule],
   controllers: [ChatController],
   providers: [ChatService],
 })
-export class ChatModule { }
+export class ChatModule {}

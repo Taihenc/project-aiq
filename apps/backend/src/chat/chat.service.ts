@@ -24,7 +24,7 @@ export class ChatService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly chatHistoryService: ChatHistoryService,
-  ) { }
+  ) {}
 
   getAiServiceBaseUrl(): string {
     return (
@@ -48,7 +48,10 @@ export class ChatService {
   }
 
   // Legacy method for backward compatibility
-  chatWithAi(chatRequest: ChatRequestDto, userId: string): Observable<ChatResponseDto> {
+  chatWithAi(
+    chatRequest: ChatRequestDto,
+    userId: string,
+  ): Observable<ChatResponseDto> {
     const aiServiceBaseUrl = this.getAiServiceBaseUrl();
     const aiServiceUrl = `${aiServiceBaseUrl}/v1/chat/`;
     return this.httpService
@@ -107,60 +110,72 @@ export class ChatService {
 
               const aiEngineUrl = `${aiEngineBaseUrl}/api/v1/workflows/${crew}/completion`;
 
-              return this.httpService.post<any>(aiEngineUrl, aiEngineRequest).pipe(
-                switchMap(async (axiosResponse: AxiosResponse<any>) => {
-                  // The AI Engine response is nested under `data`
-                  const aiEngineData = axiosResponse.data;
+              return this.httpService
+                .post<any>(aiEngineUrl, aiEngineRequest)
+                .pipe(
+                  switchMap(async (axiosResponse: AxiosResponse<any>) => {
+                    // The AI Engine response is nested under `data`
+                    const aiEngineData = axiosResponse.data;
 
-                  // Parse the workflow response
-                  const parsedResponse = this.parseAiEngineResponse(
-                    aiEngineData.data.result,
-                  );
-
-                  console.log('[BACKEND] Parsed workflow response:', parsedResponse);
-
-                  const transformed = this.transformAiEngineToOpenAI(
-                    parsedResponse,
-                    chatRequest,
-                  );
-
-                  if (chatRequest.session_id) {
-                    await this.chatHistoryService.addMessage(
-                      chatRequest.session_id,
-                      userId,
-                      'user',
-                      aiEngineRequest.inputs.user_query
-                    );
-                    await this.chatHistoryService.addMessage(
-                      chatRequest.session_id,
-                      userId,
-                      'assistant',
-                      transformed.choices[0].message.content,
-                      transformed.citations
+                    // Parse the workflow response
+                    const parsedResponse = this.parseAiEngineResponse(
+                      aiEngineData.data.result,
                     );
 
-                    const unsummarized = await this.chatHistoryService.getUnsummarizedMessages(
-                      chatRequest.session_id,
-                      sessionData?.lastSummarizedMessageId
+                    console.log(
+                      '[BACKEND] Parsed workflow response:',
+                      parsedResponse,
                     );
-                    if (unsummarized.length >= 6) {
-                      this.summarizeContext(unsummarized, existingSummary).then(async (newFullSummary) => {
-                        if (newFullSummary) {
-                          const lastId = unsummarized[unsummarized.length - 1].id;
-                          await this.chatHistoryService.updateSessionSummary(
-                            sessionId,
-                            newFullSummary,
-                            lastId
-                          );
-                          console.log(`[BACKEND] Session ${sessionId} summarized.`);
-                        }
-                      });
+
+                    const transformed = this.transformAiEngineToOpenAI(
+                      parsedResponse,
+                      chatRequest,
+                    );
+
+                    if (chatRequest.session_id) {
+                      await this.chatHistoryService.addMessage(
+                        chatRequest.session_id,
+                        userId,
+                        'user',
+                        aiEngineRequest.inputs.user_query,
+                      );
+                      await this.chatHistoryService.addMessage(
+                        chatRequest.session_id,
+                        userId,
+                        'assistant',
+                        transformed.choices[0].message.content,
+                        transformed.citations,
+                      );
+
+                      const unsummarized =
+                        await this.chatHistoryService.getUnsummarizedMessages(
+                          chatRequest.session_id,
+                          sessionData?.lastSummarizedMessageId,
+                        );
+                      if (unsummarized.length >= 6) {
+                        this.summarizeContext(
+                          unsummarized,
+                          existingSummary,
+                        ).then(async (newFullSummary) => {
+                          if (newFullSummary) {
+                            const lastId =
+                              unsummarized[unsummarized.length - 1].id;
+                            await this.chatHistoryService.updateSessionSummary(
+                              sessionId,
+                              newFullSummary,
+                              lastId,
+                            );
+                            console.log(
+                              `[BACKEND] Session ${sessionId} summarized.`,
+                            );
+                          }
+                        });
+                      }
                     }
-                  }
 
-                  return transformed;
-                }),
-              );
+                    return transformed;
+                  }),
+                );
             }),
           );
         }),
@@ -177,7 +192,9 @@ export class ChatService {
   ): Promise<string> {
     try {
       const aiEngineBaseUrl = this.getAiEngineBaseUrl();
-      const modelId = this.configService.get<string>('aiService.defaultModel') || 'gpt-4o-mini';
+      const modelId =
+        this.configService.get<string>('aiService.defaultModel') ||
+        'gpt-4o-mini';
 
       const prompt = `
       Please summarize the following conversation history into a concise, single paragraph memory.
@@ -186,7 +203,7 @@ export class ChatService {
       "${existingSummary}"
 
       New Messages:
-      ${messages.map(m => `${m.role}: ${m.content}`).join('\n')}
+      ${messages.map((m) => `${m.role}: ${m.content}`).join('\n')}
 
       Instructions:
       1. Merge the "Existing Memory" and "New Messages" into a SINGLE cohesive paragraph.
@@ -198,12 +215,15 @@ export class ChatService {
 
       const request = {
         messages: [
-          { role: 'system', content: 'You are an expert summarizer for AI memory systems.' },
-          { role: 'user', content: prompt }
+          {
+            role: 'system',
+            content: 'You are an expert summarizer for AI memory systems.',
+          },
+          { role: 'user', content: prompt },
         ],
         config: {
           temperature: 0.3,
-        }
+        },
       };
 
       const url = `${aiEngineBaseUrl}/api/v1/models/${modelId}/completion`;
@@ -225,10 +245,10 @@ export class ChatService {
   } {
     // Handle the new CompletionData format
     if (data) {
-      let response = data.final_answer || '';
-      let response_type = 'DIRECT';
-      let sources_used: any[] = data.file_path || [];
-      let language = 'en';
+      const response = data.final_answer || '';
+      const response_type = 'DIRECT';
+      const sources_used: any[] = data.file_path || [];
+      const language = 'en';
 
       return {
         response,
@@ -343,21 +363,21 @@ export class ChatService {
     const citations: CitationDto[] | undefined =
       aiEngineResponse.sources_used && aiEngineResponse.sources_used.length > 0
         ? aiEngineResponse.sources_used.map((source: any, index: number) => {
-          if (typeof source === 'string') {
+            if (typeof source === 'string') {
+              return {
+                id: `citation-${index}`,
+                title: source,
+                platform: 'AI Engine',
+                content: '',
+              };
+            }
             return {
-              id: `citation-${index}`,
-              title: source,
-              platform: 'AI Engine',
-              content: '',
+              id: source.id || `citation-${index}`,
+              title: source.title || source.name || `Source ${index + 1}`,
+              platform: source.platform || source.source || 'AI Engine',
+              content: source.content || source.description || '',
             };
-          }
-          return {
-            id: source.id || `citation-${index}`,
-            title: source.title || source.name || `Source ${index + 1}`,
-            platform: source.platform || source.source || 'AI Engine',
-            content: source.content || source.description || '',
-          };
-        })
+          })
         : undefined;
 
     return {

@@ -12,7 +12,8 @@ export const DRIZZLE = 'DRIZZLE';
     {
       provide: DRIZZLE,
       useFactory: (configService: ConfigService) => {
-        const dbPath = configService.get<string>('DATABASE_PATH') || 'sqlite.db';
+        const dbPath =
+          configService.get<string>('DATABASE_PATH') || 'sqlite.db';
         const sqlite = new Database(dbPath);
         return drizzle(sqlite, { schema });
       },
@@ -21,4 +22,4 @@ export const DRIZZLE = 'DRIZZLE';
   ],
   exports: [DRIZZLE],
 })
-export class DrizzleModule { }
+export class DrizzleModule {}
