@@ -8,16 +8,20 @@ import {
   IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MessageDto } from './chat-request.dto';
 
 // Citation structure
 export class CitationDto {
+  @ApiProperty({ description: 'Unique identifier for the citation' })
   @IsString()
   id!: string;
 
+  @ApiProperty({ description: 'Title of the cited source' })
   @IsString()
   title!: string;
 
+  @ApiProperty({ description: 'The platform where the content was found' })
   @IsString()
   platform!: string;
 
@@ -54,18 +58,26 @@ export class UsageDto {
 
 // OpenAI-compatible chat completions response
 export class ChatCompletionsResponseDto {
+  @ApiProperty({ description: 'Unique identifier for the chat completion' })
   @IsString()
   id!: string;
 
+  @ApiProperty({ example: 'chat.completion', description: 'The object type' })
   @IsString()
   object!: string;
 
+  @ApiProperty({ description: 'The creation timestamp' })
   @IsNumber()
   created!: number;
 
+  @ApiProperty({ description: 'The model used for the completion' })
   @IsString()
   model!: string;
 
+  @ApiProperty({
+    type: [ChoiceDto],
+    description: 'A list of chat completion choices',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ChoiceDto)
@@ -76,6 +88,9 @@ export class ChatCompletionsResponseDto {
   usage!: UsageDto;
 
   // Additional fields for our system
+  @ApiPropertyOptional({
+    description: 'The session ID associated with this completion',
+  })
   @IsOptional()
   @IsString()
   session_id?: string;
