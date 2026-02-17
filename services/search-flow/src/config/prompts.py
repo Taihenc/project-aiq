@@ -63,5 +63,6 @@ class TaskPrompts:
     # OUTPUT (Format Requirement)
     Return ONLY a JSON object:
     
-    *Note: Group chunks by file_path and sort by page_number ascending. Include ONLY citations and chunks that are directly relevant to answering '{{query}}'.*
+    - **citations**: Only include for 'search' or 'lookup' actions. For 'chat' and 'reject', set citations to null.
+    - Group chunks by file_path and sort by page_number ascending. Include ONLY citations directly relevant to '{{query}}'.
     """

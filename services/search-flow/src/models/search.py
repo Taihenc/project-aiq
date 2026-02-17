@@ -20,15 +20,6 @@ class FileRef(BaseModel):
     )
 
 
-class Citation(FileRef):
-    """
-    Represents a citation in the final response.
-    It is structurally identical to FileRef (file + list of chunks).
-    """
-
-    pass
-
-
 # === Internal models (fed to LLM — includes text) ===
 
 
@@ -44,12 +35,3 @@ class FileContent(BaseModel):
     chunks: List[ChunkContent] = Field(
         ..., description="List of chunks with text content."
     )
-
-
-# === Logging ===
-
-
-class SearchResultLog(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    summary: str = Field(description="The synthesized answer text.")
-    citations: List[Citation] = Field(description="List of file-based citations.")
