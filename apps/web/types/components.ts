@@ -13,6 +13,7 @@ export interface ChatMessageProps {
   content: string;
   citations?: Citation[];
   timestamp?: string;
+  status?: string;
 }
 
 export interface ChatInputProps {

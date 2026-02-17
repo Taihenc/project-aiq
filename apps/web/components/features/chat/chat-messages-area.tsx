@@ -8,19 +8,34 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   messages,
   messagesEndRef,
   isLoading,
-}) => (
-  <ScrollArea className="h-full">
-    <div className="mx-auto max-w-3xl space-y-6 pb-28">
-      {messages.map((message) => (
-        <ChatMessage
-          key={message.id}
-          role={message.role}
-          content={message.content}
-          citations={message.citations}
-        />
-      ))}
-      {isLoading && <ThinkingIndicator />}
-      <div ref={messagesEndRef} />
-    </div>
-  </ScrollArea>
-);
+}) => {
+  // Check if we already have an assistant message that is "thinking" or "streaming"
+  const hasThinkingAssistantMessage = messages.some(
+    (m) => m.role === 'assistant' && (m.status || !m.content),
+  );
+
+  return (
+    <ScrollArea className="h-full">
+      <div className="mx-auto max-w-3xl space-y-6 pb-28">
+        {messages.map((message) => (
+          <ChatMessage
+            key={message.id}
+            role={message.role}
+            content={message.content}
+            citations={message.citations}
+            status={message.status}
+          />
+        ))}
+        {isLoading && !hasThinkingAssistantMessage && (
+          <ChatMessage
+            key="loading-placeholder"
+            role="assistant"
+            content=""
+            status="Thinking..."
+          />
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+    </ScrollArea>
+  );
+};

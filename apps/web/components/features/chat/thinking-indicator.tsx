@@ -4,46 +4,62 @@ import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import BlurText from '@/components/BlurText';
 
-export const ThinkingIndicator: React.FC = () => {
-  const [messageIndex, setMessageIndex] = React.useState(0);
+interface ThinkingIndicatorProps {
+  status?: string;
+}
 
-  const messages = [
+export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
+  status,
+}) => {
+  console.log('ThinkingIndicator Status Prop:', status);
+  const [messageIndex, setMessageIndex] = React.useState(0);
+  const [history, setHistory] = React.useState<string[]>([]);
+  const lastStatusRef = React.useRef<string | undefined>(undefined);
+
+  const defaultMessages = [
     'AINGO is thinking...',
-    'Searching through files...',
-    'Generating response...',
+    'Searching through relevant documents...',
+    'Analyzing context...',
+    'Synthesizing information...',
+    'Drafting a comprehensive response...',
   ];
 
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [messages.length]);
+  const isDefaultStatus = !status || status === 'initializing';
 
-  const currentMessage = messages[messageIndex];
+  React.useEffect(() => {
+    if (isDefaultStatus) {
+      const interval = setInterval(() => {
+        setMessageIndex((prev) => (prev + 1) % defaultMessages.length);
+      }, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [isDefaultStatus, defaultMessages.length]);
+
+  React.useEffect(() => {
+    if (status && !isDefaultStatus && status !== lastStatusRef.current) {
+      setHistory((prev) => {
+        // Only add if it's different from the last one in history
+        if (prev[0] === status) return prev;
+        return [status, ...prev].slice(0, 3);
+      });
+      lastStatusRef.current = status;
+    }
+  }, [status, isDefaultStatus]);
+
+  const currentDisplayName = isDefaultStatus ? defaultMessages[messageIndex] : status;
 
   return (
-    <div className="flex gap-4">
-      <Avatar className="h-8 w-8">
-        <AvatarImage
-          src="/images/backgrounds/ai-profile.png"
-          alt="AI Assistant"
-        />
-        <AvatarFallback className="bg-gradient-to-br from-[#a18fff] to-[#6f5deb] text-xs font-semibold uppercase text-white">
-          AI
-        </AvatarFallback>
-      </Avatar>
-
-      <div className="flex items-center gap-3 self-start transition-all duration-500 ease-in-out pt-1.5">
+    <div className="flex flex-col gap-2 transition-all duration-500 ease-in-out">
+      <div className="flex items-center gap-3 h-8">
         <div className="flex gap-1.5 items-center">
           <div className="w-1.5 h-1.5 rounded-full bg-[#7C68FF] animate-bounce [animation-delay:-0.3s]" />
           <div className="w-1.5 h-1.5 rounded-full bg-[#B19EEF] animate-bounce [animation-delay:-0.15s]" />
           <div className="w-1.5 h-1.5 rounded-full bg-[#FF9FFC] animate-bounce" />
         </div>
         <BlurText
-          key={currentMessage}
-          text={currentMessage}
-          delay={50}
+          key={currentDisplayName}
+          text={currentDisplayName}
+          delay={30}
           animateBy="words"
           className="m-0 select-none loading-gradient-text text-sm font-bold"
           animateInView={false}
@@ -55,6 +71,20 @@ export const ThinkingIndicator: React.FC = () => {
           ]}
         />
       </div>
+
+      {history.length > 1 && (
+        <div className="flex flex-col gap-1 ml-9 overflow-hidden">
+          {history.slice(1).map((item, i) => (
+            <div
+              key={`${item}-${i}`}
+              className="text-[10px] text-muted-foreground/60 font-medium animate-in fade-in slide-in-from-left-2 duration-500"
+            >
+              <span className="opacity-50 mr-2">✓</span>
+              {item}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
