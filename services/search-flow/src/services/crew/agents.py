@@ -5,7 +5,7 @@ from src.services.crew.tools.mcp import MCPTool
 
 
 def get_llm():
-    return LLM(model=settings.azure_model_name, temperature=0)
+    return LLM(model=settings.azure_model_name)
 
 
 def create_manager_agent(tools: list = []) -> Agent:
