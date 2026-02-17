@@ -1,5 +1,8 @@
-from typing import List, Optional, Union, Dict
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
+
+
+# === Output models (sent back to user — no text) ===
 
 
 class ChunkMetadata(BaseModel):
@@ -17,14 +20,6 @@ class FileRef(BaseModel):
     )
 
 
-class FileContent(FileRef):
-    model_config = ConfigDict(extra="forbid")
-    # Content mapping: chunk_id -> text content
-    chunk_contents: Dict[str, str] = Field(
-        default_factory=dict, description="Map of chunk_id to its text content."
-    )
-
-
 class Citation(FileRef):
     """
     Represents a citation in the final response.
@@ -32,6 +27,26 @@ class Citation(FileRef):
     """
 
     pass
+
+
+# === Internal models (fed to LLM — includes text) ===
+
+
+class ChunkContent(ChunkMetadata):
+    """ChunkMetadata enriched with the actual text content."""
+
+    text: str = Field("", description="Text content of this chunk.")
+
+
+class FileContent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    file_path: str = Field(..., description="Path or name of the source file.")
+    chunks: List[ChunkContent] = Field(
+        ..., description="List of chunks with text content."
+    )
+
+
+# === Logging ===
 
 
 class SearchResultLog(BaseModel):
