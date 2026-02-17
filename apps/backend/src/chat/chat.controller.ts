@@ -29,9 +29,10 @@ export class ChatController {
     @Request() req,
     @Body() chatRequest: ChatCompletionsRequestDto,
   ): Promise<ChatCompletionsResponseDto> {
-    const aiResponse = await this.chatService
-      .chatWithAiEngine(chatRequest, req.user.userId)
-      .toPromise();
+    const aiResponse = await this.chatService.chatWithAiEngine(
+      chatRequest,
+      req.user.userId,
+    );
 
     if (!aiResponse) {
       throw new HttpException(
@@ -49,9 +50,10 @@ export class ChatController {
     @Request() req,
     @Body() chatRequest: ChatRequestDto,
   ): Promise<ChatResponseDto> {
-    const aiResponse = await this.chatService
-      .chatWithAi(chatRequest, req.user.userId)
-      .toPromise();
+    const aiResponse = await this.chatService.chatWithAi(
+      chatRequest,
+      req.user.userId,
+    );
 
     if (!aiResponse) {
       throw new HttpException(

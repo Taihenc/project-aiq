@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
-import { Observable, from } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { firstValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
 import {
   ChatRequestDto,
@@ -48,141 +47,165 @@ export class ChatService {
   }
 
   // Legacy method for backward compatibility
-  chatWithAi(
+  async chatWithAi(
     chatRequest: ChatRequestDto,
     userId: string,
-  ): Observable<ChatResponseDto> {
+  ): Promise<ChatResponseDto> {
     const aiServiceBaseUrl = this.getAiServiceBaseUrl();
     const aiServiceUrl = `${aiServiceBaseUrl}/v1/chat/`;
-    return this.httpService
-      .post<ChatResponseDto>(aiServiceUrl, chatRequest)
-      .pipe(
-        map(
-          (axiosResponse: AxiosResponse<ChatResponseDto>) => axiosResponse.data,
-        ),
-      );
+    const axiosResponse = await firstValueFrom(
+      this.httpService.post<ChatResponseDto>(aiServiceUrl, chatRequest),
+    );
+    return axiosResponse.data;
   }
 
   // OpenAI-compatible method with adapter logic using AI Engine workflows
-  chatWithAiEngine(
+  async chatWithAiEngine(
     chatRequest: ChatCompletionsRequestDto,
     userId: string,
-  ): Observable<ChatCompletionsResponseDto> {
+  ): Promise<ChatCompletionsResponseDto> {
     try {
-      const aiEngineBaseUrl = this.getAiEngineBaseUrl();
-      const crew = this.getDefaultCrew();
-
-      // Transform OpenAI format to AI Engine format (CrewRequest shape)
-      const chatHistory = chatRequest.messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
-      const lastUserMessage = [...chatRequest.messages]
-        .reverse()
-        .find((m) => m.role === 'user');
       const sessionId = chatRequest.session_id || '';
-      return from(this.chatHistoryService.getSessionSummary(sessionId)).pipe(
-        switchMap((sessionData) => {
-          const existingSummary = sessionData?.summary || '';
 
-          return from(
-            this.chatHistoryService.getUnsummarizedMessages(
-              sessionId,
-              sessionData?.lastSummarizedMessageId,
-            ),
-          ).pipe(
-            switchMap((unsummarizedMessages) => {
-              const historyFromDb = unsummarizedMessages.map((msg) => ({
-                role: msg.role,
-                content: msg.content,
-              }));
+      // 1. Get History Context
+      const sessionData =
+        await this.chatHistoryService.getSessionSummary(sessionId);
+      const existingSummary = sessionData?.summary || '';
 
-              const aiEngineRequest = {
-                inputs: {
-                  user_query: lastUserMessage
-                    ? lastUserMessage.content
-                    : chatRequest.messages.slice(-1)[0]?.content || '',
-                  chat_history: historyFromDb,
-                  context: [existingSummary],
-                },
-              };
+      const unsummarizedMessages =
+        await this.chatHistoryService.getUnsummarizedMessages(
+          sessionId,
+          sessionData?.lastSummarizedMessageId,
+        );
 
-              const aiEngineUrl = `${aiEngineBaseUrl}/api/v1/workflows/${crew}/completion`;
-
-              return this.httpService
-                .post<any>(aiEngineUrl, aiEngineRequest)
-                .pipe(
-                  switchMap(async (axiosResponse: AxiosResponse<any>) => {
-                    // The AI Engine response is nested under `data`
-                    const aiEngineData = axiosResponse.data;
-
-                    // Parse the workflow response
-                    const parsedResponse = this.parseAiEngineResponse(
-                      aiEngineData.data.result,
-                    );
-
-                    console.log(
-                      '[BACKEND] Parsed workflow response:',
-                      parsedResponse,
-                    );
-
-                    const transformed = this.transformAiEngineToOpenAI(
-                      parsedResponse,
-                      chatRequest,
-                    );
-
-                    if (chatRequest.session_id) {
-                      await this.chatHistoryService.addMessage(
-                        chatRequest.session_id,
-                        userId,
-                        'user',
-                        aiEngineRequest.inputs.user_query,
-                      );
-                      await this.chatHistoryService.addMessage(
-                        chatRequest.session_id,
-                        userId,
-                        'assistant',
-                        transformed.choices[0].message.content,
-                        transformed.citations,
-                      );
-
-                      const unsummarized =
-                        await this.chatHistoryService.getUnsummarizedMessages(
-                          chatRequest.session_id,
-                          sessionData?.lastSummarizedMessageId,
-                        );
-                      if (unsummarized.length >= 6) {
-                        this.summarizeContext(
-                          unsummarized,
-                          existingSummary,
-                        ).then(async (newFullSummary) => {
-                          if (newFullSummary) {
-                            const lastId =
-                              unsummarized[unsummarized.length - 1].id;
-                            await this.chatHistoryService.updateSessionSummary(
-                              sessionId,
-                              newFullSummary,
-                              lastId,
-                            );
-                            console.log(
-                              `[BACKEND] Session ${sessionId} summarized.`,
-                            );
-                          }
-                        });
-                      }
-                    }
-
-                    return transformed;
-                  }),
-                );
-            }),
-          );
-        }),
+      // 2. Prepare and Call AI Engine
+      const aiEngineRequest = this.prepareAiEngineRequest(
+        chatRequest,
+        unsummarizedMessages,
+        existingSummary,
       );
+
+      const aiEngineUrl = this.getAiEngineCompletionUrl();
+      const axiosResponse = await firstValueFrom(
+        this.httpService.post<any>(aiEngineUrl, aiEngineRequest),
+      );
+
+      // 3. Transform Response
+      const transformed = this.transformAiEngineToOpenAI(
+        this.parseAiEngineResponse(axiosResponse.data.data.result),
+        chatRequest,
+      );
+
+      // 4. Post-Chat Actions
+      if (sessionId) {
+        await this.handlePostChatActions(
+          sessionId,
+          userId,
+          aiEngineRequest.inputs.user_query,
+          transformed,
+          sessionData?.lastSummarizedMessageId ?? undefined,
+          existingSummary,
+        );
+      }
+
+      return transformed;
     } catch (error) {
       console.error('Error in chatWithAiEngine:', error);
       throw error;
+    }
+  }
+
+  private getAiEngineCompletionUrl(): string {
+    const aiEngineBaseUrl = this.getAiEngineBaseUrl();
+    const crew = this.getDefaultCrew();
+    return `${aiEngineBaseUrl}/api/v1/workflows/${crew}/completion`;
+  }
+
+  private prepareAiEngineRequest(
+    chatRequest: ChatCompletionsRequestDto,
+    unsummarizedMessages: any[],
+    existingSummary: string,
+  ) {
+    const lastUserMessage = [...chatRequest.messages]
+      .reverse()
+      .find((m) => m.role === 'user');
+
+    const historyFromDb = unsummarizedMessages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
+    return {
+      inputs: {
+        user_query:
+          lastUserMessage?.content ||
+          chatRequest.messages.slice(-1)[0]?.content ||
+          '',
+        chat_history: historyFromDb,
+        context: [existingSummary],
+      },
+    };
+  }
+
+  private async handlePostChatActions(
+    sessionId: string,
+    userId: string,
+    userQuery: string,
+    transformedResponse: ChatCompletionsResponseDto,
+    lastSummarizedMessageId: string | undefined,
+    existingSummary: string,
+  ): Promise<void> {
+    const assistantContent = transformedResponse.choices[0].message.content;
+
+    // Save messages to history
+    await this.chatHistoryService.addMessage(
+      sessionId,
+      userId,
+      'user',
+      userQuery,
+    );
+    await this.chatHistoryService.addMessage(
+      sessionId,
+      userId,
+      'assistant',
+      assistantContent,
+      transformedResponse.citations,
+    );
+
+    // Trigger summarization if needed
+    const unsummarized = await this.chatHistoryService.getUnsummarizedMessages(
+      sessionId,
+      lastSummarizedMessageId,
+    );
+
+    if (unsummarized.length >= 6) {
+      this.summarizeAndSaveSession(
+        sessionId,
+        unsummarized,
+        existingSummary,
+      ).catch((err) =>
+        console.error(`[BACKEND] Summarization failed for ${sessionId}:`, err),
+      );
+    }
+  }
+
+  private async summarizeAndSaveSession(
+    sessionId: string,
+    messages: any[],
+    existingSummary: string,
+  ): Promise<void> {
+    const newFullSummary = await this.summarizeContext(
+      messages,
+      existingSummary,
+    );
+    if (newFullSummary) {
+      const lastId = messages[messages.length - 1].id;
+      await this.chatHistoryService.updateSessionSummary(
+        sessionId,
+        newFullSummary,
+        lastId,
+      );
+      console.log(`[BACKEND] Session ${sessionId} summarized.`);
     }
   }
 
