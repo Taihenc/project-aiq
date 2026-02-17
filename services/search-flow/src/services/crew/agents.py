@@ -10,7 +10,7 @@ def get_llm():
 
 def create_manager_agent(tools: list = []) -> Agent:
     return Agent(
-        role="Search Manager",
+        role=AgentPrompts.MANAGER_ROLE,
         goal=AgentPrompts.MANAGER_GOAL,
         backstory=AgentPrompts.MANAGER_BACKSTORY,
         tools=tools,
