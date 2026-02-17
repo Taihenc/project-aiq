@@ -6,6 +6,9 @@ import {
   HttpStatus,
   UseGuards,
   Request,
+  Sse,
+  MessageEvent,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,12 +26,13 @@ import {
   ChatResponseDto,
   ChatCompletionsResponseDto,
 } from './dto/chat-response.dto';
+import { Observable } from 'rxjs';
 
 @ApiTags('chat')
 @ApiBearerAuth()
 @Controller()
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(private readonly chatService: ChatService) { }
 
   // OpenAI-compatible endpoint
   @ApiOperation({
@@ -55,6 +59,45 @@ export class ChatController {
       );
     }
     return aiResponse;
+  }
+
+  @ApiOperation({
+    summary: 'OpenAI-compatible chat completions with streaming',
+    description:
+      'Provides real-time status updates and incremental results via SSE.',
+  })
+  @Post('completions/stream')
+  @UseGuards(AuthGuard('jwt'))
+  async chatCompletionsStream(
+    @Request() req,
+    @Body() chatRequest: ChatCompletionsRequestDto,
+    @Res() res: any,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const observable = await this.chatService.chatWithAiEngineStream(
+      chatRequest,
+      req.user.userId,
+    );
+
+    const subscription = observable.subscribe({
+      next: (event) => {
+        res.write(`data: ${event.data}\n\n`);
+      },
+      error: (err) => {
+        res.end();
+      },
+      complete: () => {
+        res.end();
+      },
+    });
+
+    req.on('close', () => {
+      subscription.unsubscribe();
+    });
   }
 
   // Legacy endpoint for backward compatibility

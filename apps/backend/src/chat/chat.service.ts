@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, MessageEvent } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
 import {
   ChatRequestDto,
@@ -25,7 +25,7 @@ export class ChatService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly chatHistoryService: ChatHistoryService,
-  ) {}
+  ) { }
 
   getAiServiceBaseUrl(): string {
     return (
@@ -131,6 +131,111 @@ export class ChatService {
     }
   }
 
+  async chatWithAiEngineStream(
+    chatRequest: ChatCompletionsRequestDto,
+    userId: string,
+  ): Promise<Observable<MessageEvent>> {
+    try {
+      const sessionId = chatRequest.session_id || '';
+      const sessionData =
+        await this.chatHistoryService.getSessionSummary(sessionId);
+      const existingSummary = sessionData?.summary || '';
+      const unsummarizedMessages =
+        await this.chatHistoryService.getUnsummarizedMessages(
+          sessionId,
+          sessionData?.lastSummarizedMessageId,
+        );
+
+      const aiEngineRequest = this.prepareAiEngineRequest(
+        chatRequest,
+        unsummarizedMessages,
+        existingSummary,
+      );
+
+      const aiEngineUrl = this.getAiEngineStreamUrl();
+      this.logger.debug(`Streaming from AI Engine at: ${aiEngineUrl}`);
+
+      return new Observable<MessageEvent>((subscriber) => {
+        this.httpService
+          .post(aiEngineUrl, aiEngineRequest, { responseType: 'stream' })
+          .subscribe({
+            next: (response) => {
+              const stream = response.data;
+              let fullResult: any = null;
+
+              let buffer = '';
+              stream.on('data', (chunk: Buffer) => {
+                buffer += chunk.toString();
+                const lines = buffer.split('\n');
+
+                // The last element is either empty (if chunk ended with \n)
+                // or a partial JSON string. Buffer it for next chunk.
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  if (!line.trim()) continue;
+
+                  try {
+                    const json = JSON.parse(line);
+                    this.logger.verbose(`Relaying AI Engine Event: ${json.type}`);
+
+                    if (json.type === 'result') {
+                      fullResult = json;
+                    }
+
+                    subscriber.next({ data: JSON.stringify(json) } as MessageEvent);
+                  } catch (e) {
+                    this.logger.warn(`Failed to parse AI Engine line: ${line.substring(0, 100)}...`);
+                  }
+                }
+              });
+
+              stream.on('end', async () => {
+                if (fullResult && sessionId) {
+                  // Properly parse the result content which might be an object
+                  const parsedResponse = this.parseAiEngineResponse(fullResult.content);
+                  const transformed = this.transformAiEngineToOpenAI(
+                    parsedResponse,
+                    chatRequest,
+                  );
+
+                  await this.handlePostChatActions(
+                    sessionId,
+                    userId,
+                    aiEngineRequest.inputs.user_query,
+                    transformed,
+                    sessionData?.lastSummarizedMessageId ?? undefined,
+                    existingSummary,
+                  ).catch((err) =>
+                    this.logger.error('Streaming post-chat actions failed', err),
+                  );
+                }
+                subscriber.complete();
+              });
+
+              stream.on('error', (err) => {
+                this.logger.error('AI Engine stream error', err);
+                subscriber.error(err);
+              });
+            },
+            error: (err) => {
+              this.logger.error('Failed to connect to AI Engine stream', err);
+              subscriber.error(err);
+            },
+          });
+      });
+    } catch (error) {
+      this.logger.error('Error in chatWithAiEngineStream:', error);
+      throw error;
+    }
+  }
+
+  private getAiEngineStreamUrl(): string {
+    const aiEngineBaseUrl = this.getAiEngineBaseUrl();
+    const crew = this.getDefaultCrew();
+    return `${aiEngineBaseUrl}/api/v1/workflows/${crew}/completion/stream`;
+  }
+
   private getAiEngineCompletionUrl(): string {
     const aiEngineBaseUrl = this.getAiEngineBaseUrl();
     const crew = this.getDefaultCrew();
@@ -171,22 +276,33 @@ export class ChatService {
     lastSummarizedMessageId: string | undefined,
     existingSummary: string,
   ): Promise<void> {
-    const assistantContent = transformedResponse.choices[0].message.content;
+    this.logger.debug(`Post-chat actions for session: ${sessionId}, user: ${userId}`);
+
+    const assistantContent = transformedResponse.choices[0].message.content || '';
+    const userQueryContent = userQuery || '';
+
+    this.logger.verbose(`User query: ${userQueryContent.substring(0, 50)}...`);
+    this.logger.verbose(`Assistant content length: ${assistantContent.length}`);
 
     // Save messages to history
-    await this.chatHistoryService.addMessage(
-      sessionId,
-      userId,
-      'user',
-      userQuery,
-    );
-    await this.chatHistoryService.addMessage(
-      sessionId,
-      userId,
-      'assistant',
-      assistantContent,
-      transformedResponse.citations,
-    );
+    try {
+      await this.chatHistoryService.addMessage(
+        sessionId,
+        userId,
+        'user',
+        userQueryContent,
+      );
+      await this.chatHistoryService.addMessage(
+        sessionId,
+        userId,
+        'assistant',
+        assistantContent,
+        transformedResponse.citations,
+      );
+    } catch (err: any) {
+      this.logger.error(`Failed to add messages in handlePostChatActions: ${err.message}`, err.stack);
+      throw err;
+    }
 
     // Trigger summarization if needed
     const unsummarized = await this.chatHistoryService.getUnsummarizedMessages(
@@ -201,7 +317,7 @@ export class ChatService {
         sessionId,
         unsummarized,
         existingSummary,
-      ).catch((err) =>
+      ).catch((err: any) =>
         this.logger.error(`Summarization failed for ${sessionId}:`, err),
       );
     }
@@ -404,21 +520,21 @@ export class ChatService {
     const citations: CitationDto[] | undefined =
       aiEngineResponse.sources_used && aiEngineResponse.sources_used.length > 0
         ? aiEngineResponse.sources_used.map((source: any, index: number) => {
-            if (typeof source === 'string') {
-              return {
-                id: `citation-${index}`,
-                title: source,
-                platform: 'AI Engine',
-                content: '',
-              };
-            }
+          if (typeof source === 'string') {
             return {
-              id: source.id || `citation-${index}`,
-              title: source.title || source.name || `Source ${index + 1}`,
-              platform: source.platform || source.source || 'AI Engine',
-              content: source.content || source.description || '',
+              id: `citation-${index}`,
+              title: source,
+              platform: 'AI Engine',
+              content: '',
             };
-          })
+          }
+          return {
+            id: source.id || `citation-${index}`,
+            title: source.title || source.name || `Source ${index + 1}`,
+            platform: source.platform || source.source || 'AI Engine',
+            content: source.content || source.description || '',
+          };
+        })
         : undefined;
 
     return {
