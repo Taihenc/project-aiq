@@ -13,10 +13,14 @@ export class AuthService {
   constructor(
     @Inject(DRIZZLE) private db: BetterSQLite3Database,
     private jwtService: JwtService,
-  ) { }
+  ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
-    const result = this.db.select().from(users).where(eq(users.email, email)).all();
+    const result = this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .all();
     const user = result[0];
 
     if (user && user.password && (await bcrypt.compare(pass, user.password))) {
@@ -30,7 +34,7 @@ export class AuthService {
     const payload = {
       email: user.email,
       sub: user.id,
-      authProvider: user.authProvider
+      authProvider: user.authProvider,
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -38,12 +42,16 @@ export class AuthService {
         id: user.id,
         email: user.email,
         displayName: user.displayName,
-      }
+      },
     };
   }
 
   async register(email: string, pass: string, displayName?: string) {
-    const existing = this.db.select().from(users).where(eq(users.email, email)).all();
+    const existing = this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .all();
     if (existing.length > 0) {
       throw new Error('User already exists');
     }
@@ -51,13 +59,16 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(pass, 10);
     const id = uuidv4();
 
-    this.db.insert(users).values({
-      id,
-      email,
-      password: hashedPassword,
-      displayName: displayName || email.split('@')[0],
-      authProvider: 'local'
-    }).run();
+    this.db
+      .insert(users)
+      .values({
+        id,
+        email,
+        password: hashedPassword,
+        displayName: displayName || email.split('@')[0],
+        authProvider: 'local',
+      })
+      .run();
 
     const newUser = this.db.select().from(users).where(eq(users.id, id)).get();
     if (!newUser) throw new Error('Failed to create user');

@@ -8,7 +8,7 @@ import { encode } from 'gpt-tokenizer';
 
 @Injectable()
 export class ChatHistoryService {
-  constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) { }
+  constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) {}
 
   async getHistory(userId: string) {
     return this.db
@@ -23,7 +23,9 @@ export class ChatHistoryService {
     const session = this.db
       .select()
       .from(chatSessions)
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+      .where(
+        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+      )
       .get();
 
     if (!session) {
@@ -42,60 +44,94 @@ export class ChatHistoryService {
 
   async createSession(userId: string, title: string = 'New Chat') {
     const id = uuidv4();
-    this.db.insert(chatSessions).values({
-      id,
-      title,
-      userId,
-      createdAt: Date.now(),
-    }).run();
-    return this.db.select().from(chatSessions).where(eq(chatSessions.id, id)).get();
+    this.db
+      .insert(chatSessions)
+      .values({
+        id,
+        title,
+        userId,
+        createdAt: Date.now(),
+      })
+      .run();
+    return this.db
+      .select()
+      .from(chatSessions)
+      .where(eq(chatSessions.id, id))
+      .get();
   }
 
-  async addMessage(sessionId: string, userId: string, role: string, content: string, citations?: any) {
+  async addMessage(
+    sessionId: string,
+    userId: string,
+    role: string,
+    content: string,
+    citations?: any,
+  ) {
     // Verify ownership first
     const session = this.db
       .select()
       .from(chatSessions)
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+      .where(
+        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+      )
       .get();
 
     if (!session) {
-      throw new NotFoundException('Session not found or search ownership failed');
+      throw new NotFoundException(
+        'Session not found or search ownership failed',
+      );
     }
 
     const id = uuidv4();
-    this.db.insert(chatMessages).values({
-      id,
-      sessionId,
-      role,
-      content,
-      citations: citations ? JSON.stringify(citations) : null,
-      createdAt: Date.now(),
-    }).run();
+    this.db
+      .insert(chatMessages)
+      .values({
+        id,
+        sessionId,
+        role,
+        content,
+        citations: citations ? JSON.stringify(citations) : null,
+        createdAt: Date.now(),
+      })
+      .run();
 
-    this.db.update(chatSessions)
+    this.db
+      .update(chatSessions)
       .set({ updatedAt: Date.now() })
       .where(eq(chatSessions.id, sessionId))
       .run();
 
-    return this.db.select().from(chatMessages).where(eq(chatMessages.id, id)).get();
+    return this.db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.id, id))
+      .get();
   }
 
   async deleteSession(sessionId: string, userId: string) {
     const session = this.db
       .select()
       .from(chatSessions)
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+      .where(
+        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+      )
       .get();
 
     if (!session) return false;
 
-    this.db.delete(chatMessages).where(eq(chatMessages.sessionId, sessionId)).run();
+    this.db
+      .delete(chatMessages)
+      .where(eq(chatMessages.sessionId, sessionId))
+      .run();
     this.db.delete(chatSessions).where(eq(chatSessions.id, sessionId)).run();
     return true;
   }
 
-  async getRecentMessages(sessionId: string, limit: number, tokenLimit?: number) {
+  async getRecentMessages(
+    sessionId: string,
+    limit: number,
+    tokenLimit?: number,
+  ) {
     const messages = this.db
       .select()
       .from(chatMessages)
@@ -131,7 +167,7 @@ export class ChatHistoryService {
     const session = this.db
       .select({
         summary: chatSessions.summary,
-        lastSummarizedMessageId: chatSessions.lastSummarizedMessageId
+        lastSummarizedMessageId: chatSessions.lastSummarizedMessageId,
       })
       .from(chatSessions)
       .where(eq(chatSessions.id, sessionId))
@@ -139,18 +175,26 @@ export class ChatHistoryService {
     return session;
   }
 
-  async updateSessionSummary(sessionId: string, summary: string, lastMessageId: string) {
-    this.db.update(chatSessions)
+  async updateSessionSummary(
+    sessionId: string,
+    summary: string,
+    lastMessageId: string,
+  ) {
+    this.db
+      .update(chatSessions)
       .set({
         summary,
         lastSummarizedMessageId: lastMessageId,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       })
       .where(eq(chatSessions.id, sessionId))
       .run();
   }
 
-  async getUnsummarizedMessages(sessionId: string, lastSummarizedId?: string | null) {
+  async getUnsummarizedMessages(
+    sessionId: string,
+    lastSummarizedId?: string | null,
+  ) {
     const allMessages = this.db
       .select()
       .from(chatMessages)
@@ -160,7 +204,7 @@ export class ChatHistoryService {
 
     if (!lastSummarizedId) return allMessages;
 
-    const index = allMessages.findIndex(m => m.id === lastSummarizedId);
+    const index = allMessages.findIndex((m) => m.id === lastSummarizedId);
     if (index === -1) return allMessages;
 
     return allMessages.slice(index + 1);
