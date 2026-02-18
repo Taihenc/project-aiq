@@ -16,6 +16,7 @@ import { useHistory } from '@/hooks/useHistory';
 import { useChatStore } from '@/lib/store/chat-store';
 import { useAuth } from '@/lib/auth/auth-context';
 import { NotFoundScreen } from '@/components/features/chat/not-found-screen';
+import { ThemeToggle } from '@/components/custom/theme-toggle';
 import type { FileRef, ChatHistoryItem } from '@/types';
 
 interface ChatLayoutProps {
@@ -185,6 +186,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
           onOpenChange={setCitationsPanelOpen}
           citations={extractCitations(messages)}
         />
+        <div className="fixed bottom-6 right-6 z-[100]">
+          <ThemeToggle className="h-10 w-10 rounded-full border border-purple-light shadow-button bg-background hover:bg-surface-light" />
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

@@ -26,7 +26,7 @@ export function CitationsPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[420px] border-l border-[#e4dfff] bg-white/96 p-6 sm:w-[560px]">
+      <SheetContent className="w-[420px] border-l border-brand-border-soft bg-background dark:bg-[var(--brand-surface-purple)] p-6 sm:w-[560px]">
         <SheetHeader className="px-0">
           <SheetTitle className="text-primary-dark font-kiona">
             Sources & Citations
@@ -41,10 +41,10 @@ export function CitationsPanel({
         <div className="mt-6 flex flex-col gap-4">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#b0a7e7]" />
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--brand-fg-muted)]" />
             <Input
               placeholder="Search citation..."
-              className="rounded-card border-[#e5e0ff] bg-[#f9f8ff] pl-11 text-sm text-[#3d366b] placeholder:text-[#b7afea]"
+              className="rounded-card border-brand-border-lighter bg-brand-surface-light pl-11 text-sm text-[var(--brand-code-text)] placeholder:text-[var(--brand-fg-muted)]"
             />
           </div>
 
@@ -53,7 +53,7 @@ export function CitationsPanel({
             <Button
               variant="outline"
               size="sm"
-              className="border-purple-light text-primary-light rounded-pill gap-2 bg-white hover:bg-[#f4f2ff]"
+              className="border-purple-light text-primary-light rounded-pill gap-2 bg-background hover:bg-brand-source-hover-bg"
             >
               <FileText className="h-4 w-4" />
               All Sources
@@ -61,7 +61,7 @@ export function CitationsPanel({
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-pill text-[#7c72c9] hover:bg-[#f4f2ff]"
+              className="rounded-pill text-[var(--brand-blockquote-text)] hover:bg-brand-source-hover-bg"
             >
               Sort
             </Button>
@@ -76,12 +76,12 @@ export function CitationsPanel({
                 displayCitations.map((citation) => (
                   <Card
                     key={citation.id}
-                    className="shadow-card-lg rounded-card border-[#e5dffb] bg-white/95 p-6"
+                    className="shadow-card-lg rounded-card border-brand-border-soft bg-card dark:bg-[var(--brand-card-purple)] p-6"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-[#7e74d4]" />
+                          <FileText className="h-4 w-4 text-[var(--brand-source-icon)]" />
                           <h4 className="text-primary-medium text-sm font-semibold">
                             {citation.title}
                           </h4>
@@ -94,7 +94,7 @@ export function CitationsPanel({
 
                     <Separator className="border-purple-soft my-4" />
 
-                    <p className="text-sm leading-relaxed text-[#7c73b7]">
+                    <p className="text-sm leading-relaxed text-[var(--brand-content-text)]">
                       {citation.content || 'No content available'}
                     </p>
 
@@ -102,7 +102,7 @@ export function CitationsPanel({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-primary-light rounded-pill h-9 gap-2 hover:bg-[#f4f2ff]"
+                        className="text-primary-light rounded-pill h-9 gap-2 hover:bg-brand-source-hover-bg"
                       >
                         <Copy className="h-3 w-3" />
                         Copy
@@ -110,7 +110,7 @@ export function CitationsPanel({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-primary-light rounded-pill h-9 gap-2 hover:bg-[#f4f2ff]"
+                        className="text-primary-light rounded-pill h-9 gap-2 hover:bg-brand-source-hover-bg"
                       >
                         <ExternalLink className="h-3 w-3" />
                         Open
@@ -120,13 +120,13 @@ export function CitationsPanel({
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="rounded-full bg-[#f4f2ff] p-4 mb-4">
-                    <FileText className="h-8 w-8 text-[#7e74d4]" />
+                  <div className="rounded-full bg-brand-icon-purple-bg p-4 mb-4">
+                    <FileText className="h-8 w-8 text-[var(--brand-source-icon)]" />
                   </div>
-                  <h3 className="text-lg font-semibold text-[#3d366b] mb-2">
+                  <h3 className="text-lg font-semibold text-[var(--brand-code-text)] mb-2">
                     No Sources Available
                   </h3>
-                  <p className="text-sm text-[#7c73b7] max-w-sm">
+                  <p className="text-sm text-[var(--brand-content-text)] max-w-sm">
                     This conversation doesn&apos;t have any sources to display
                     yet.
                   </p>

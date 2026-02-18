@@ -15,7 +15,7 @@ function FeatureCard({
 }: FeatureCardProps) {
   return (
     <Card
-      className="group border-brand-border-soft shadow-[0_8px_30px_-12px_rgba(102,88,204,0.15)] rounded-4xl flex cursor-pointer flex-col gap-3 bg-card/95 p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(102,88,204,0.3)] hover:border-brand-border-lighter"
+      className="group border-brand-border-soft shadow-[0_8px_30px_-12px_rgba(102,88,204,0.15)] dark:shadow-none rounded-4xl flex cursor-pointer flex-col gap-3 bg-card/95 dark:bg-card p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(102,88,204,0.3)] dark:hover:shadow-none hover:border-brand-border-lighter"
       onClick={onClick}
     >
       {/* Top part - icon and title side by side */}

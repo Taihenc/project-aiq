@@ -4,7 +4,6 @@ import { BookOpen } from 'lucide-react';
 import React from 'react';
 import { ChatHeaderProps } from '@/types';
 import SplitText from '@/components/SplitText';
-import { ThemeToggle } from '@/components/custom/theme-toggle';
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onViewSources,
@@ -28,7 +27,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       </div>
     </div>
     <div className="flex items-center gap-2">
-      <ThemeToggle className="rounded-pill border border-purple-light text-primary-light shadow-button hover:bg-surface-light h-9 w-9 sm:h-10 sm:w-10" />
       <Button
         variant="outline"
         size="sm"

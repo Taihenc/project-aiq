@@ -45,7 +45,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { MoreVertical } from 'lucide-react';
-import { ThemeToggle } from '@/components/custom/theme-toggle';
 
 export function Sidebar({
   chatHistory = [],
@@ -245,10 +244,7 @@ export function Sidebar({
       <SidebarFooter className="px-6 pb-6">
         {user && (
           <>
-            <div className="flex justify-center mb-1">
-              <ThemeToggle className="w-full rounded-card hover:bg-brand-new-chat-bg" />
-            </div>
-            <div className="shadow-profile rounded-card flex items-center gap-3 bg-card/70 p-3">
+            <div className="shadow-profile rounded-card flex items-center gap-3 bg-card/70 dark:bg-card p-3">
               <Avatar className="h-10 w-10">
                 <AvatarImage
                   src={`https://ui-avatars.com/api/?name=${user.displayName}`}

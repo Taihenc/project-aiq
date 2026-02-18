@@ -48,7 +48,7 @@ export function ChatInput({
     <div className="flex flex-col gap-2">
       <div
         className={cn(
-          'flex items-center gap-3 border-purple-light rounded-[32px] bg-background/95 shadow-[0_24px_70px_-38px_rgba(102,88,204,1)] transition-all duration-300 ease-[cubic-bezier(0.68,0.02,0.21,1.67)]',
+          'flex items-center gap-3 border-purple-light rounded-[32px] bg-background/95 dark:bg-card shadow-[0_24px_70px_-38px_rgba(102,88,204,1)] dark:shadow-[0_2px_16px_rgba(0,0,0,0.5)] transition-all duration-300 ease-[cubic-bezier(0.68,0.02,0.21,1.67)]',
           isExpanded ? 'p-4' : 'p-3',
         )}
       >
@@ -82,7 +82,7 @@ export function ChatInput({
                     <HoverCardContent
                       side="top"
                       align="start"
-                      className="w-80 max-h-60 overflow-y-auto rounded-xl border-[var(--brand-source-border)] bg-card/98 p-3 shadow-[0_20px_60px_-20px_rgba(102,88,204,0.3)]"
+                      className="w-80 max-h-60 overflow-y-auto rounded-xl border-[var(--brand-source-border)] bg-card/98 dark:bg-card p-3 shadow-[0_20px_60px_-20px_rgba(102,88,204,0.3)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.5)]"
                     >
                       <p className="text-xs font-semibold text-[var(--brand-source-text)] mb-1">
                         {att.file_path.split('/').pop()}

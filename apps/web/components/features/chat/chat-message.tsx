@@ -155,7 +155,7 @@ export function ChatMessage({
             ) : (
               <Card
                 ref={cardRef}
-                className="shadow-card-md rounded-bubble border-[var(--brand-code-border)] bg-card/95 p-5 text-sm leading-relaxed text-[var(--brand-code-text)]"
+                className="shadow-card-md rounded-bubble border-[var(--brand-code-border)] bg-card/95 dark:bg-card p-5 text-sm leading-relaxed text-[var(--brand-code-text)]"
               >
                 <div className="markdown-content">
                   <ReactMarkdown
@@ -387,10 +387,10 @@ function SourceCard({
       className={cn(
         'rounded-card overflow-hidden transition-colors duration-200',
         isAttached
-          ? 'border-[#c3e6cb] bg-[#f0faf3] shadow-[0_20px_60px_-48px_rgba(72,187,120,0.4)]'
-          : 'border-[var(--brand-source-border)] bg-card/95 shadow-[0_20px_60px_-48px_rgba(102,88,204,0.6)]',
+          ? 'border-brand-attached-border bg-brand-attached-bg shadow-[0_20px_60px_-48px_rgba(72,187,120,0.4)] dark:shadow-none'
+          : 'border-[var(--brand-source-border)] bg-card/95 dark:bg-card shadow-[0_20px_60px_-48px_rgba(102,88,204,0.6)] dark:shadow-none',
         !isOpen && !isAttached && 'hover:bg-[var(--brand-source-hover-bg)]',
-        !isOpen && isAttached && 'hover:bg-[#e6f7ec]',
+        !isOpen && isAttached && 'hover:bg-brand-attached-hover-bg',
       )}
     >
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -421,7 +421,7 @@ function SourceCard({
               className={cn(
                 'mr-2 h-7 w-7 shrink-0 rounded-full',
                 isAttached
-                  ? 'text-[#48bb78] hover:bg-[#e6f7ec] hover:text-[#38a169]'
+                  ? 'text-brand-attached-text hover:bg-brand-attached-hover-bg hover:text-brand-attached-text-hover'
                   : 'text-[var(--brand-source-icon)] hover:bg-[var(--brand-source-attach-bg)] hover:text-[var(--brand-link)]',
               )}
               onClick={handleToggleAttach}

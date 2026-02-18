@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/custom/theme-toggle';
 import DarkVeil from '@/components/DarkVeil';
 import WhiteVeil from '@/components/WhiteVeil';
 
@@ -128,6 +129,9 @@ export default function LoginPage() {
             </a>
           </div>
         </div>
+      </div>
+      <div className="fixed bottom-6 right-6 z-[100]">
+        <ThemeToggle className="h-10 w-10 rounded-full border border-purple-light shadow-button bg-background hover:bg-surface-light" />
       </div>
     </div>
   );
