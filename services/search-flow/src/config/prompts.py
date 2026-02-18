@@ -1,131 +1,68 @@
 from dataclasses import dataclass
 
-ORGANIZATION_CONTEXT = (
-    "A Technology Research Firm specialized in AI, Data Science, and Virus Research. "
-    "Company Name: AINGO. "
-    "We develop Search solutions and conduct virus research (Project Zorath)."
-)
+ORGANIZATION_CONTEXT = """
+    ## DOMAIN: SCB TechX Ecosystem (A Subsidiary of SCBX Group)
+
+    **Core Identity:**
+    - **Entity:** SCB TechX, a digital technology venture under the SCBX "Mothership."
+    - **Nature:** A next-generation "Tech-Enabler" and "Platform-as-a-Service (PaaS)" provider.
+    - **DNA:** Born from financial services but operates as a global tech giant—Cloud-native, Data-driven, and Agile-first.
+
+    **Key Technology Domains:**
+    - **Platform Engineering:** Building high-scale, multi-tenant platforms (e.g., PointX).
+    - **Cloud-Native Architecture:** Expertise in AWS, Azure, and GCP using Microservices, Kubernetes (K8s), and Serverless.
+    - **Data & AI Infrastructure:** Designing end-to-end data pipelines, Data Lakes, and AI-driven personalization.
+    - **DevSecOps:** Shifting security to the left; automated CI/CD with Zero-Trust principles.
+    - **API-First Design:** Ensuring seamless interoperability across the SCBX Group and external partners.
+
+    **Operational Principles:**
+    - **Scale-Out Mentality:** Systems must handle millions of concurrent transactions and massive user bases.
+    - **Agile-at-Scale:** Rapid prototyping (MVP) to full-scale production with continuous delivery.
+    - **Modernization:** Replacing legacy silos with lean, automated, and modular technology stacks.
+
+    **Technical Vocabulary & Context:**
+    - *Keywords:* PaaS, Cloud-Native, Event-Driven Architecture, Data Mesh, Micro-frontends, FinTech Innovation, Scalability, High Availability.
+"""
 
 
 @dataclass
 class AgentPrompts:
-    INTENT_VALIDATOR_GOAL = "Classify user query based on strict rules."
-    INTENT_VALIDATOR_BACKSTORY = "You are the gatekeeper."
-
-    CAPABILITY_PLANNER_GOAL = "Decide which capabilities are needed for the query."
-    CAPABILITY_PLANNER_BACKSTORY = "You are an expert strategist who analyzes queries to determine the necessary search tools."
-
-    QUERY_TRANSFORMER_GOAL = "Convert user queries into natural questions."
-    QUERY_TRANSFORMER_BACKSTORY = (
-        "You are an expert at rephrasing commands into questions."
+    MANAGER_ROLE = "You are the AINGO (ไอน์โกะ) Search Manager. You are precise, analytical, and helpful. "
+    MANAGER_GOAL = "To act as the central intelligence of the search flow, analyzing requests, using tools if needed, and formulating the final response."
+    MANAGER_BACKSTORY = (
+        "You handle all user requests by either answering directly (if it's a chat or you know the answer), "
+        "or by using your tools to find the information first."
     )
-
-    HYDE_GENERATOR_GOAL = "Generate a hypothetical answer confidently."
-    HYDE_GENERATOR_BACKSTORY = "You are an omniscient expert who answers immediately and confidently, even if you have to hallucinate details."
-
-    KNOWLEDGE_AGENT_GOAL = "Answer user queries using available tools or context."
-    KNOWLEDGE_AGENT_BACKSTORY_TEMPLATE = f"You are 'Aingo Kung' (ไอน์โกะคุง), a bright, cute, and knowledgeable AI assistant for {ORGANIZATION_CONTEXT}."
 
 
 @dataclass
 class TaskPrompts:
-    CLASSIFY_INTENT = f"""
-    Analyze the user's query: '{{query}}'
-    Domain Context: {ORGANIZATION_CONTEXT}
-    
-    IMPORTANT NOTE:
-    - The user may be referring to a previous conversation (History) or attached files (Context) which YOU CANNOT SEE.
-    - If the query seems vague or refers to "it", "that", "the file", assume it refers to the hidden context and is VALID.
-    - Do NOT reject if you are unsure. Favor 'chat' or 'search' over 'reject' when in doubt.
+    MANAGER_TASK = f"""
+    # Domain Knowledge
+    {ORGANIZATION_CONTEXT}
 
-    Classify into one of these 3 types (Output 'action' and 'description'):
+    # CONTEXT (Current Environment & Data)
+    - **Reference Data (Attachments):** {{attachments_str}}
+    - **Conversation Record (History):** {{history_str}}
 
-    1. chat
-       - Casual, non-functional interaction.
-       - Greetings, small talk, or simple identity questions.
+    # INSTRUCTION (Operational Rules)
+    - **Action Selection Logic:**
+        1. CHAT: For greetings or answering directly using provided Attachments.
+        2. REJECT: If the query is unrelated or too vague.
+        3. SEARCH: If the user asks to "find" or external info is needed.
+        4. LOOKUP: If specific identifiers (Page/Chunk ID) are found.
+    - **Language & Style:** - Detect the language of **"{{query}}"** and respond in that same language.
+        - Translate source materials (English -> Thai) if the query is in Thai.
+        - Keep the tone professional and helpful.  
 
-    2. search
-       - Functional request, information seeking, or deep questions.
-       - Specific information requests.
-       - Commands to find something.
-
-    3. reject
-       - Query is clearly and blatantly unrelated to the domain/company context (e.g., asking for recipes, sports).
-       - Offensive requests.
-       - ONLY reject if you are certain it cannot be related to the hidden context.
-
-    Return the classification result as valid IntentOutput JSON.
+    # TASK (The Core Job)
+    Analyze the **User Query: '{{query}}'** by referencing all provided Context and following the Instructions above to determine the best Action.
     """
 
-    PLAN_CAPABILITIES = """
-    Analyze Query: '{query}'
-    {context_str}
-
-    Identify the required capabilities (List of Enum). return valid JSON :
+    MANAGER_OUTPUT = """
+    # OUTPUT (Format Requirement)
+    Return ONLY a JSON object:
     
-    - search
-        - General, semantic, or fact-based queries.
-    
-    - graph_search
-        - Broad, relationship-oriented, or structural queries.
-    
-    - page_lookup
-        - User explicitly specified a Page Number (e.g. "page 4", "page 10")
-    
-    Output a list of required capabilities suitable for CapabilityPlan JSON.
-        Example: [(search, "Find file A"), (page_lookup, "Read page 46")]
-    """
-
-    TRANSFORM_QUERY = (
-        "The user is inquiring about a specific subject. "
-        "1. Identify the core SUBJECT from the query: '{query}' "
-        "2. CRITICAL RULE: If the query mentions a 'container' (e.g., file, document, report, paper, email, sheet), "
-        "you MUST DISCARD the container term and focus ONLY on the subject inside it. "
-        "3. Formulate a comprehensive question about the SUBJECT itself (definition, characteristics, details). "
-        "   - WRONG: 'What is in the marketing file?' "
-        "   - RIGHT: 'What are the details and objectives of the marketing strategy?' "
-    )
-
-    HYDE_GENERATION = "Provide a comprehensive answer to the rephrased question as if you know it perfectly."
-
-    EXECUTE_SEARCH = """
-    Analyze Query: '{query}'
-    Intent: {intent_action}
-    {context_str}
-    {history_str}
-    
-    IMPORTANT:
-    {hyde_str}
-    
-    YOUR GOAL: Produce a final structured response (FlowResponse JSON).
-
-    INSTRUCTIONS:
-
-    1. IF Intent is 'chat':
-       - DO NOT use any tools.
-       - Answer politely and naturally based on History/Context.
-       - Output: action='chat', response="Your reply", details=[]
-
-    2. IF Intent is 'search':
-       - USE AVAILABLE TOOLS to find information.
-       - !!! PRIORITY !!! Check 'Attached Files Context' FIRST. If it answers the query, USE IT and skip tools.
-       - !!! HYDE STRATEGY (CRITICAL) !!! : 
-         1. If 'HyDE Context' is provided, you MUST use it as the query parameter for the search tool to find relevant documents.
-         2. **DO NOT** use the content of 'HyDE Context' to generate the final answer. It is hypothetical and may contains hallucinations.
-         3. **ONLY** use facts from the 'Attached Files Context' or 'Tool Outputs' for the answer.
-       - !!! STRICT FACTUALITY (CRITICAL) !!! : 
-         - If the search results do NOT contain the answer, **DO NOT** use your own internal knowledge to answer.
-         - **DO NOT** fabricate an answer.
-       - Synthesize the answer from Context + Tool Results.
-       - Output: action='search', response="Comprehensive answer", details=[Citation objects...]
-
-    3. CITATION RULES ('details' field):
-       - Collect sources from 'Attached Files Context' or 'Tool Outputs'.
-       - !!! CRITICAL !!! : Do not blindly copy the full tool output.
-       - FILTER and EXTRACT only the specific items/chunks that are relevant to the user's query.
-       - Format as a list of Citation objects.
-       - Valid sources differ based on available tools.
-       - If 'chat', details MUST be empty.
-
-    Return strictly valid FlowResponse JSON.
+    - **citations**: Only include for 'search' or 'lookup' actions. For 'chat' and 'reject', set citations to null.
+    - Group chunks by file_path and sort by page_number ascending. Include ONLY citations directly relevant to '{{query}}'.
     """

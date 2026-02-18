@@ -1,12 +1,15 @@
 import requests
 import json
+import re
 import sys
 from typing import List, Dict, Any
+from collections import defaultdict
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.table import Table
+from rich.tree import Tree
 from rich import print as rprint
 
 # Configuration
@@ -16,118 +19,196 @@ HEADERS = {"Content-Type": "application/json"}
 console = Console()
 
 
+def _build_chunk_index(all_files: List[Dict[str, Any]]):
+    """
+    Flatten all files into a list of (file_idx, chunk) tuples
+    and build a page-level index for page selection.
+    Returns:
+        rows:  [(row_idx, file_idx, file_path, chunk_dict), ...]
+        pages: {file_idx: {page_number: [row_idx, ...]}}
+    """
+    rows = []
+    pages: Dict[int, Dict[int, List[int]]] = defaultdict(lambda: defaultdict(list))
+    for fi, fref in enumerate(all_files):
+        for chunk in fref.get("chunks", []):
+            ri = len(rows)
+            rows.append((ri, fi, fref.get("file_path", "?"), chunk))
+            pg = chunk.get("page_number")
+            if pg is not None:
+                pages[fi][pg].append(ri)
+    return rows, pages
+
+
+def _rows_to_filerefs(rows, selected_indices: set) -> List[Dict[str, Any]]:
+    """Re-group selected chunk rows back into FileRef dicts."""
+    by_file: Dict[str, List[Dict]] = defaultdict(list)
+    # Maintain file order from rows
+    file_order = []
+    for ri, fi, fp, chunk in rows:
+        if ri in selected_indices:
+            if fp not in by_file:
+                file_order.append(fp)
+            by_file[fp].append(chunk)
+    return [{"file_path": fp, "chunks": by_file[fp]} for fp in file_order]
+
+
 class SearchClient:
     def __init__(self):
         self.history: List[str] = []
-        self.context: List[Dict[str, Any]] = []  # List of Citation objects
+        self.attachments: List[Dict[str, Any]] = []  # List of FileRef objects
         self.session = requests.Session()
 
-    def display_context(self):
-        """Displays the current active context."""
-        if not self.context:
-            console.print("[dim]No active context loaded.[/dim]")
+    def display_attachments(self):
+        """Displays the current active attachments (File-Based)."""
+        if not self.attachments:
+            console.print("[dim]No active attachments loaded.[/dim]")
             return
 
+        tree = Tree("[bold magenta]📎 Active Attachments[/bold magenta]")
+        for idx, item in enumerate(self.attachments):
+            fp = item.get("file_path", "unknown")
+            chunks = item.get("chunks", [])
+            file_node = tree.add(f"[cyan]{fp}[/cyan] ({len(chunks)} chunks)")
+            # group by page
+            by_page: Dict[int, list] = defaultdict(list)
+            for c in chunks:
+                by_page[c.get("page_number", 0)].append(c)
+            for pg in sorted(by_page):
+                pg_chunks = by_page[pg]
+                pg_node = file_node.add(
+                    f"[yellow]Page {pg}[/yellow] ({len(pg_chunks)} chunks)"
+                )
+                for c in pg_chunks:
+                    cid = c.get("chunk_id", "?")
+                    score = c.get("score", "?")
+                    pg_node.add(f"[dim]{cid[:8]}… score:{score}[/dim]")
+        console.print(tree)
+
+    def select_attachments(self, new_citations: List[Dict[str, Any]]):
+        """
+        Granular selection: user can pick by file, page, or individual chunk.
+        Syntax:
+            all / none / keep_old    — bulk shortcuts
+            f0                       — all chunks from file 0
+            f0p2                     — all chunks from file 0, page 2
+            0,3,5                    — individual chunk rows by row number
+            f0,3,f1p1               — mix of file, page, and chunk selections
+        """
+        if not new_citations and not self.attachments:
+            return
+
+        console.print("\n[bold yellow]󰋚 Attachments Management[/bold yellow]")
+
+        # Combine existing and new
+        all_candidates = self.attachments + new_citations
+        old_count = len(self.attachments)
+
+        # Build flat index
+        rows, pages = _build_chunk_index(all_candidates)
+
+        if not rows:
+            console.print("[dim]No chunks available.[/dim]")
+            return
+
+        # ── Display Table ──
         table = Table(
-            title="Active Context (Attached to next request)",
-            show_header=True,
-            header_style="bold magenta",
+            show_header=True, header_style="bold blue", show_lines=False, padding=(0, 1)
         )
-        table.add_column("Index", style="dim", width=6)
-        table.add_column("Source", style="cyan", width=12)
-        table.add_column("Type/Summary", style="green")
+        table.add_column("Row", style="bold white", width=4)
+        table.add_column("File (fN)", style="bold cyan", width=6)
+        table.add_column("Pg", style="bold yellow", width=4)
+        table.add_column("Origin", style="dim", width=6)
+        table.add_column("File Path", style="magenta", max_width=40)
+        table.add_column("Chunk ID", style="dim", max_width=12)
+        table.add_column("Score", style="green", width=7)
 
-        for idx, item in enumerate(self.context):
-            source = item.get("source", "unknown")
-            content = item.get("data", {})  # Citation uses 'data'
-            ctype = content.get("type", "unknown")
-
-            summary = ""
-            if ctype == "page":
-                summary = (
-                    f"Page {content.get('page_number')} from {content.get('file_path')}"
-                )
-            elif ctype == "chunk":
-                summary = f"Chunk {content.get('chunk_id')}"
-            elif ctype == "search":
-                # Show file path and snippet
-                fpath = content.get("file_path", "unknown")
-                text = content.get("content", "")
-                summary = f"[bold]{fpath}[/bold]\n{text}"
-            else:
-                summary = str(content)
-
-            table.add_row(str(idx), source, summary)
+        prev_fi = None
+        for ri, fi, fp, chunk in rows:
+            origin = "OLD" if fi < old_count else "NEW"
+            pg = str(chunk.get("page_number", "?"))
+            cid = chunk.get("chunk_id", "?")[:12]
+            score = str(chunk.get("score", "?"))
+            # Show file path only on first row of each file
+            show_fp = fp if fi != prev_fi else ""
+            show_fi = f"f{fi}" if fi != prev_fi else ""
+            table.add_row(str(ri), show_fi, pg, origin, show_fp, cid, score)
+            prev_fi = fi
 
         console.print(table)
 
-    def select_context(self, new_citations: List[Dict[str, Any]]):
-        """Interactively allows user to select context to keep."""
-        if not new_citations and not self.context:
-            return
+        # ── Help ──
+        rprint("\n[bold white]Select what to KEEP:[/bold white]")
+        rprint("[dim]  all / none / keep_old[/dim]")
+        rprint("[dim]  f0          → entire file 0[/dim]")
+        rprint("[dim]  f0p2        → file 0, page 2 only[/dim]")
+        rprint("[dim]  0,3,5       → chunk rows 0, 3, 5[/dim]")
+        rprint("[dim]  f0,3,f1p1   → mix allowed[/dim]")
 
-        console.print("\n[bold yellow]󰋚 Context Management[/bold yellow]")
-
-        # Combine existing and new for selection
-        all_candidates = self.context + new_citations
-
-        # Display candidates
-        table = Table(show_header=True, header_style="bold blue", box=None)
-        table.add_column("ID", style="bold white", width=4)
-        table.add_column("Origin", style="bold cyan", width=8)
-        table.add_column("Type", style="bold magenta", width=12)
-        table.add_column("Summary", style="italic green")
-
-        for idx, item in enumerate(all_candidates):
-            origin = "OLD" if idx < len(self.context) else "NEW"
-            content = item.get("data", {})
-            ctype = content.get("type", "unknown")
-
-            # Generate Summary
-            summary = ""
-            if ctype == "page":
-                summary = (
-                    f"Page {content.get('page_number')} | {content.get('file_path')}"
-                )
-            elif ctype == "chunk":
-                summary = f"ID: {content.get('chunk_id')}"
-            elif ctype == "search":
-                # Show file path and snippet
-                fpath = content.get("file_path", "unknown")
-                text = content.get("content", "")
-                summary = f"[bold]{fpath}[/bold]\n{text}"
-            else:
-                summary = f"Raw: {str(content)}"
-
-            table.add_row(str(idx), origin, ctype.upper(), summary)
-
-        console.print(table)
-
-        # Selection Loop
-        rprint("[bold white]Select items to KEEP for the next turn.[/bold white]")
-        rprint("[dim]Enter IDs (0,2), 'all', 'none', or 'keep_old'[/dim]")
-
-        choice = Prompt.ask("Selection", default="all")
+        choice = Prompt.ask("Selection", default="all").strip()
 
         if choice.lower() == "all":
-            self.context = all_candidates
+            self.attachments = all_candidates
+            self._print_result()
+            return
         elif choice.lower() == "none":
-            self.context = []
+            self.attachments = []
+            self._print_result()
+            return
         elif choice.lower() == "keep_old":
-            pass
-        else:
-            try:
-                indices = [
-                    int(x.strip()) for x in choice.split(",") if x.strip().isdigit()
-                ]
-                self.context = [
-                    all_candidates[i] for i in indices if 0 <= i < len(all_candidates)
-                ]
-            except Exception as e:
-                console.print(f"[red]Error: {e}. Keeping old context.[/red]")
+            # keep self.attachments as-is
+            self._print_result()
+            return
 
+        # ── Parse mixed selection ──
+        selected: set = set()
+        tokens = [t.strip() for t in choice.split(",") if t.strip()]
+
+        # Regex patterns
+        pat_file_page = re.compile(r"^f(\d+)p(\d+)$", re.IGNORECASE)
+        pat_file = re.compile(r"^f(\d+)$", re.IGNORECASE)
+        pat_row = re.compile(r"^\d+$")
+
+        for tok in tokens:
+            m = pat_file_page.match(tok)
+            if m:
+                fi_sel, pg_sel = int(m.group(1)), int(m.group(2))
+                if fi_sel in pages and pg_sel in pages[fi_sel]:
+                    selected.update(pages[fi_sel][pg_sel])
+                else:
+                    console.print(
+                        f"[red]⚠ f{fi_sel}p{pg_sel} not found, skipping[/red]"
+                    )
+                continue
+
+            m = pat_file.match(tok)
+            if m:
+                fi_sel = int(m.group(1))
+                # select all rows for this file
+                for ri, fi, fp, chunk in rows:
+                    if fi == fi_sel:
+                        selected.add(ri)
+                continue
+
+            m = pat_row.match(tok)
+            if m:
+                ri_sel = int(tok)
+                if 0 <= ri_sel < len(rows):
+                    selected.add(ri_sel)
+                else:
+                    console.print(f"[red]⚠ Row {ri_sel} out of range, skipping[/red]")
+                continue
+
+            console.print(f"[red]⚠ Unknown token '{tok}', skipping[/red]")
+
+        # Rebuild FileRefs from selected rows
+        self.attachments = _rows_to_filerefs(rows, selected)
+        self._print_result()
+
+    def _print_result(self):
+        total_chunks = sum(len(a.get("chunks", [])) for a in self.attachments)
+        total_files = len(self.attachments)
         rprint(
-            f"[bold green]✓ Context updated. {len(self.context)} items active.[/bold green]\n"
+            f"[bold green]✓ {total_files} file(s), {total_chunks} chunk(s) active.[/bold green]\n"
         )
 
     def chat_loop(self):
@@ -136,13 +217,15 @@ class SearchClient:
             "chat": "green",
             "search": "yellow",
             "reject": "red",
+            "lookup": "blue",
+            "ask": "blue",
             "no_skill": "magenta",
             "unknown": "white",
         }
 
         console.print(
             Panel.fit(
-                "[bold cyan]AINGO SEARCH FLOW[/bold cyan]\n[dim]AI-Powered Intelligence Intelligence Engine[/dim]",
+                "[bold cyan]AINGO SEARCH FLOW[/bold cyan]\n[dim]AI-Powered Intelligence Engine[/dim]",
                 subtitle="Type 'exit' to quit",
                 border_style="cyan",
                 padding=(1, 2),
@@ -151,7 +234,7 @@ class SearchClient:
 
         while True:
             # 1. Input Phase
-            self.display_context()
+            self.display_attachments()
             query = Prompt.ask("\n[bold cyan]YOU[/bold cyan]")
 
             if query.lower() in ("exit", "quit"):
@@ -161,35 +244,31 @@ class SearchClient:
                 continue
 
             # 2. Sending Request
-            # Extract 'data' from Citation objects for the payload
-            context_payload = [c.get("data") for c in self.context if c.get("data")]
             payload = {
                 "query": query,
                 "history": self.history,
-                "context": context_payload,
+                "attachments": self.attachments,
             }
 
             try:
                 with console.status(
                     "[bold cyan]Processing...[/bold cyan]", spinner="bouncingBar"
                 ):
-                    response = self.session.post(API_URL, json=payload, timeout=60)
+                    response = self.session.post(API_URL, json=payload, timeout=120)
                     response.raise_for_status()
                     api_response = response.json()
                     data = api_response.get("data", {})
 
                 # 3. Output Phase
-                # data structure: FlowResponse(action, response, details)
                 action = data.get("action", "unknown")
-                responseText = data.get("response", "")
-                details = data.get("details", [])
+                response_text = data.get("response", "")
+                citations = data.get("citations") or []
 
                 color = ACTION_COLORS.get(action, "white")
 
-                # Wrapped response in a Panel
-                console.print(
+                rprint(
                     Panel(
-                        Markdown(responseText),
+                        response_text,
                         title=f"[bold {color}]AGENT ACTION: {action.upper()}[/bold {color}]",
                         title_align="left",
                         border_style=color,
@@ -198,19 +277,19 @@ class SearchClient:
                 )
 
                 # Update History
-                self.history.append(f"User: {query}")
-                self.history.append(f"Agent: {responseText}")
+                if action != "unknown":
+                    self.history.append(f"User: {query}")
+                    self.history.append(f"Agent: {response_text}")
 
-                # 4. Context Selection Phase
-                if details:
-                    console.print(
-                        f"\n[bold yellow]󰋚 System collected {len(details)} references.[/bold yellow]"
+                # 4. Attachments Selection Phase
+                if citations:
+                    rprint(
+                        f"\n[bold yellow]󰋚 System collected {len(citations)} file reference(s).[/bold yellow]"
                     )
-                    self.select_context(details)
-                elif self.context:
-                    # Allow user to clear/modify context even if no new details came back
-                    if Confirm.ask("Manage current context?", default=False):
-                        self.select_context([])
+                    self.select_attachments(citations)
+                elif self.attachments:
+                    if Confirm.ask("Manage current attachments?", default=False):
+                        self.select_attachments([])
 
             except requests.exceptions.ConnectionError:
                 console.print(

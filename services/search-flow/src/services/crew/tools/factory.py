@@ -6,49 +6,82 @@ from mcp.client.sse import sse_client
 from src.config.settings import settings
 from src.services.crew.tools.mcp import MCPTool
 
-# Mapping from JSON Schema types to Python types
-TYPE_MAPPING = {
-    "string": str,
-    "integer": int,
-    "number": float,
-    "boolean": bool,
-    "array": list,
-    "object": dict,
-}
 
-
-def _json_schema_to_pydantic_fields(schema: Dict[str, Any]) -> Dict[str, Any]:
+# Robust JSON Schema to Pydantic Converter
+def _create_pydantic_model_from_schema(
+    schema: Dict[str, Any], model_name: str
+) -> Type[BaseModel]:
     """
-    Convert JSON Schema properties to Pydantic field definitions.
-    This is a simplified converter.
+    Recursively converts a JSON Schema to a dynamic Pydantic model.
+    Handles nested objects, arrays, and standard types.
     """
-    fields = {}
-    properties = schema.get("properties", {})
-    required = schema.get("required", [])
+    json_type = schema.get("type", "object")
 
-    for name, prop in properties.items():
-        json_type = prop.get("type", "string")
-        python_type = TYPE_MAPPING.get(json_type, str)
-        description = prop.get("description", "")
+    # 1. Handle Objects (Recursive)
+    if json_type == "object":
+        fields = {}
+        properties = schema.get("properties", {})
+        required_fields = set(schema.get("required", []))
 
-        # Handle simple array types if possible (e.g., array of strings)
-        if json_type == "array" and "items" in prop:
-            item_type = prop["items"].get("type")
-            if item_type in TYPE_MAPPING:
-                python_type = List[TYPE_MAPPING[item_type]]
+        for field_name, field_schema in properties.items():
+            field_type = str
+            field_default = ...  # Required by default
 
-        default_value = prop.get("default", ...)
+            # Determine Type (Recursive)
+            if field_schema.get("type") == "object":
+                # Create nested model
+                nested_model_name = (
+                    f"{model_name}_{field_name.title().replace('_', '')}"
+                )
+                field_type = _create_pydantic_model_from_schema(
+                    field_schema, nested_model_name
+                )
+            elif field_schema.get("type") == "array":
+                # Handle Arrays
+                items_schema = field_schema.get("items", {})
+                item_type = str  # Default fallback
+                if items_schema.get("type") == "object":
+                    nested_item_name = f"{model_name}_{field_name}_Item"
+                    item_type = _create_pydantic_model_from_schema(
+                        items_schema, nested_item_name
+                    )
+                else:
+                    item_type = _get_python_type(items_schema.get("type", "string"))
+                field_type = List[item_type]
+            else:
+                # Basic Types
+                field_type = _get_python_type(field_schema.get("type", "string"))
 
-        if name not in required and default_value is ...:
-            default_value = None
-            # Optional field
+            # Determine Optionality/Default
+            if field_name not in required_fields:
+                field_default = None  # Make it optional
+                # Update type hint to Optional if not already (Pydantic handles Optional via default=None usually, but explicit is better)
+                # For dynamic creation, default=None makes it optional in validation.
 
-        fields[name] = (
-            python_type,
-            Field(default=default_value, description=description),
-        )
+            # Extract description
+            description = field_schema.get("description", "")
 
-    return fields
+            fields[field_name] = (
+                field_type,
+                Field(default=field_default, description=description),
+            )
+
+        return create_model(model_name, **fields, __base__=BaseModel)
+
+    # Fallback for non-object top-level schemas (unlikely for Tool args, but possible)
+    return create_model(model_name, __base__=BaseModel)  # Empty model as fallback
+
+
+def _get_python_type(json_type: str) -> Type:
+    type_mapping = {
+        "string": str,
+        "integer": int,
+        "number": float,
+        "boolean": bool,
+        "array": list,
+        "object": dict,
+    }
+    return type_mapping.get(json_type, str)
 
 
 class MCPToolFactory:
@@ -74,15 +107,10 @@ class MCPToolFactory:
                         tool_desc = mcp_tool.description or "No description provided."
                         input_schema = mcp_tool.inputSchema
 
-                        # Generate Pydantic Model for args_schema
-                        fields = _json_schema_to_pydantic_fields(input_schema)
-
-                        # Create dynamic model class
-                        # Model name should be unique-ish
+                        # Generate Pydantic Model for args_schema (Robust & Recursive)
                         model_name = f"{tool_name.title().replace('_', '')}Input"
-
-                        DynamicSchema = create_model(
-                            model_name, **fields, __base__=BaseModel
+                        DynamicSchema = _create_pydantic_model_from_schema(
+                            input_schema, model_name
                         )
 
                         # Create CrewAI Tool instance

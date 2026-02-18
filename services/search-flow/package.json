@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "install": "uv sync",
-    "dev": "uv run uvicorn src.main:app --reload",
-    "start": "uv run uvicorn src.main:app",
+    "dev": "uv run python -m src.main",
+    "start": "uv run python -m src.main",
     "test": "uv run pytest"
   },
   "keywords": [],
