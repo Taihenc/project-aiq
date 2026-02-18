@@ -108,6 +108,39 @@ export class ChatCompletionsRequestDto {
   @IsOptional()
   @IsNumber()
   top_k?: number;
+
+  @ApiPropertyOptional({
+    description: 'Citation attachments to include as context (FileRef format)',
+    type: 'array',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FileRefDto)
+  attachments?: FileRefDto[];
+}
+
+// Search-flow FileRef DTOs
+export class ChunkMetadataDto {
+  @IsString()
+  chunk_id!: string;
+
+  @IsNumber()
+  page_number!: number;
+
+  @IsOptional()
+  @IsNumber()
+  score?: number;
+}
+
+export class FileRefDto {
+  @IsString()
+  file_path!: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChunkMetadataDto)
+  chunks!: ChunkMetadataDto[];
 }
 
 // Legacy DTOs for backward compatibility with AI service

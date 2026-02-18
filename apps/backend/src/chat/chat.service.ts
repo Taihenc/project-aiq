@@ -125,8 +125,18 @@ export class ChatService {
       });
     }
 
-    if (content.citations) content.citations = enrichedCitations;
-    if (content.sources_used) content.sources_used = enrichedCitations;
+    // Deduplicate citations by ID to prevent frontend key errors
+    const uniqueCitations: any[] = [];
+    const seenIds = new Set<string>();
+    for (const citation of enrichedCitations) {
+      if (!seenIds.has(citation.id)) {
+        seenIds.add(citation.id);
+        uniqueCitations.push(citation);
+      }
+    }
+
+    if (content.citations) content.citations = uniqueCitations;
+    if (content.sources_used) content.sources_used = uniqueCitations;
 
     this.logger.debug('Citations enriched successfully');
     return { ...resultEvent, content };
@@ -417,7 +427,7 @@ export class ChatService {
         chatRequest.messages.slice(-1)[0]?.content ||
         '',
       history: historyStrings,
-      attachments: [], // search-flow handles enrichment if we pass FileRefs
+      attachments: chatRequest.attachments || [],
     };
   }
 
