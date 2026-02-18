@@ -14,6 +14,8 @@ export interface ChatMessageProps {
   citations?: Citation[];
   timestamp?: string;
   status?: string;
+  statusHistory?: string[];
+  isEmpty?: boolean;
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
   attachments?: FileRef[];

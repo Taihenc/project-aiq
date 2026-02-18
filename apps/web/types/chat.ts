@@ -26,5 +26,7 @@ export interface UIMessage {
     completion_tokens: number;
     total_tokens: number;
   };
-  status?: string; // Real-time status update (e.g., "Searching...", "Thinking...")
+  status?: string; // Latest real-time status update
+  statusHistory?: string[]; // All status updates accumulated during streaming
+  isEmpty?: boolean; // True when the AI returned an empty response
 }
