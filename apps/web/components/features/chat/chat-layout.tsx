@@ -35,13 +35,14 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   const { history } = useHistory();
 
-  const { messages, isLoading, sendMessage } = useChatMessages({
+  const { messages, isLoading, sendMessage, sessionId } = useChatMessages({
     isDemoMode,
     initialMessages: [],
     chatId: currentChatId,
   });
 
-  const messagesEndRef = useAutoScroll([messages, isLoading]);
+  const shouldAutoScroll = !!currentChatId || !!sessionId;
+  const messagesEndRef = useAutoScroll([messages, isLoading], shouldAutoScroll);
   const showWelcomeScreen = !currentChatId && messages.length === 0;
 
   const handleNewChat = () => {

@@ -14,7 +14,14 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const router = useRouter();
   const { isDemoMode = false, initialMessages = [], chatId } = options;
 
-  const [messages, setMessages] = useState<UIMessage[]>(initialMessages);
+  // Initialize messages from cache immediately to avoid flash on navigation
+  const [messages, setMessages] = useState<UIMessage[]>(() => {
+    if (chatId) {
+      const cached = useChatStore.getState().getTransitionalMessages(chatId);
+      if (cached && cached.length > 0) return cached;
+    }
+    return initialMessages;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>(chatId);
   const sessionIdRef = useRef(sessionId);
@@ -30,7 +37,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       const cachedMessages =
         useChatStore.getState().getTransitionalMessages(chatId);
       if (cachedMessages && cachedMessages.length > 0) {
-        setMessages(cachedMessages);
+        // Already initialized from cache in useState, just refresh from backend silently
         loadMessages(chatId, false);
       } else {
         loadMessages(chatId);
@@ -173,11 +180,11 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
               let finalContent = '';
               let citations = event.sources_used;
 
-              // Parse content if it's an object with final_answer (AI Engine format)
+              // Parse content if it's an object
               if (typeof event.content === 'object' && event.content !== null) {
+                // Formatting for OLD AI Engine
                 if ('final_answer' in event.content) {
                   finalContent = event.content.final_answer;
-
                   // Handle file_path as citations if present
                   if (Array.isArray(event.content.file_path)) {
                     citations = event.content.file_path.map((path: string, index: number) => ({
@@ -187,7 +194,20 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                       content: '',
                     }));
                   }
-                } else {
+                }
+                // Formatting for NEW Search Flow
+                else if ('response' in event.content) {
+                  finalContent = event.content.response;
+                  if (Array.isArray(event.content.citations)) {
+                    citations = event.content.citations.map((ref: any, index: number) => ({
+                      id: `citation-${index}`,
+                      title: ref.file_path ? (ref.file_path.split('/').pop() || ref.file_path) : 'Document',
+                      platform: 'File',
+                      content: '',
+                    }));
+                  }
+                }
+                else {
                   finalContent = JSON.stringify(event.content);
                 }
               } else {
@@ -211,7 +231,11 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
               if (sessionIdRef.current === currentSessionId) {
                 useChatStore.getState().fetchHistory();
                 if (!sessionId && currentSessionId) {
-                  router.push(`/c/${currentSessionId}`);
+                  // Delay navigation slightly to ensure cache is written first
+                  // This prevents the flash of empty messages on re-mount
+                  setTimeout(() => {
+                    router.push(`/c/${currentSessionId}`);
+                  }, 100);
                 }
               }
             }
