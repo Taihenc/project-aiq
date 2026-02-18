@@ -3,6 +3,41 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Theme-switch ripple (View Transitions) ──────────────────────── */
+
+/* Disable browser's default crossfade. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Old snapshot stays under; new theme reveals on top. */
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+  /* Promote to its own GPU compositor layer so clip-path runs at full fps. */
+  will-change: clip-path;
+  transform: translateZ(0);
+}
+
+/*
+  While a view-transition is active, :root gets the :active-view-transition
+  pseudo-class. Muting ALL CSS transitions prevents Tailwind / component
+  transitions from firing during the snapshot phase — the primary cause
+  of the "low framerate" / stuttery appearance.
+*/
+:root:active-view-transition *,
+:root:active-view-transition *::before,
+:root:active-view-transition *::after {
+  transition: none !important;
+  animation-play-state: paused !important;
+}
+/* ─────────────────────────────────────────────────────────────────── */
+
 @keyframes collapse-down {
   from {
     height: 0;
