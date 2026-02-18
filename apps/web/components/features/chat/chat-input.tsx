@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Paperclip, Globe, ArrowUp } from 'lucide-react';
+import { Paperclip, Globe, ArrowUp, X } from 'lucide-react';
 import { useState, useRef } from 'react';
 import {
   Tooltip,
@@ -9,15 +9,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
 import type { ChatInputProps } from '@/types';
 
-export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
+export function ChatInput({ onSendMessage, disabled = false, attachments = [], onRemoveAttachment }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
-  const isExpanded = isFocused || message.length > 0;
+  const isExpanded = isFocused || message.length > 0 || attachments.length > 0;
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
@@ -42,8 +47,48 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
           isExpanded ? 'p-4' : 'p-3',
         )}
       >
-        {/* Left part - contains textarea (upper) and tools (lower) */}
+        {/* Left part - contains attachments, textarea (upper) and tools (lower) */}
         <div className="flex flex-1 flex-col gap-3">
+          {/* Attachment badges */}
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-1 px-2">
+              {attachments.map((att, index) => (
+                <HoverCard key={att.chunks[0]?.chunk_id || `att-${index}`} openDelay={300} closeDelay={100}>
+                  <HoverCardTrigger asChild>
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-[#f3f1ff] px-2 py-0.5 text-[11px] font-medium text-[#6b5ae0] border border-[#dcd3ff] whitespace-nowrap cursor-pointer hover:bg-[#ece8ff] transition-colors"
+                    >
+                      <Paperclip className="h-3 w-3" />
+                      {(att.file_path.split('/').pop() || att.file_path)}
+                      {att.chunks[0]?.page_number != null && ` (Page ${att.chunks[0].page_number})`}
+                      <button
+                        type="button"
+                        onClick={() => onRemoveAttachment?.(index)}
+                        className="ml-0.5 rounded-full p-0.5 hover:bg-[#dcd3ff] transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  </HoverCardTrigger>
+                  {att.content && (
+                    <HoverCardContent
+                      side="top"
+                      align="start"
+                      className="w-80 max-h-60 overflow-y-auto rounded-xl border-[#e8e2ff] bg-white/98 p-3 shadow-[0_20px_60px_-20px_rgba(102,88,204,0.3)]"
+                    >
+                      <p className="text-xs font-semibold text-[#3f386e] mb-1">
+                        {att.file_path.split('/').pop()}
+                        {att.chunks[0]?.page_number != null && ` — Page ${att.chunks[0].page_number}`}
+                      </p>
+                      <p className="text-xs leading-relaxed text-[#7c73b7] whitespace-pre-wrap">
+                        {att.content}
+                      </p>
+                    </HoverCardContent>
+                  )}
+                </HoverCard>
+              ))}
+            </div>
+          )}
           {/* Upper part - textarea */}
           <textarea
             ref={textAreaRef}
