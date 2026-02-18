@@ -8,6 +8,9 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   messages,
   messagesEndRef,
   isLoading,
+  onAddAttachment,
+  onRemoveAttachment,
+  attachments,
 }) => {
   // Check if we already have an assistant message that is "thinking" or "streaming"
   const hasThinkingAssistantMessage = messages.some(
@@ -24,6 +27,9 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
             content={message.content}
             citations={message.citations}
             status={message.status}
+            onAddAttachment={onAddAttachment}
+            onRemoveAttachment={onRemoveAttachment}
+            attachments={attachments}
           />
         ))}
         {isLoading && !hasThinkingAssistantMessage && (

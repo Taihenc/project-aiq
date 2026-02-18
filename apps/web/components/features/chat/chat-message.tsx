@@ -9,12 +9,12 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Plus, Check } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
-import { ChatMessageProps, Citation } from '@/types';
+import { ChatMessageProps, Citation, FileRef } from '@/types';
 import Image from 'next/image';
 import { ThinkingIndicator } from './thinking-indicator';
 
@@ -23,6 +23,9 @@ export function ChatMessage({
   content,
   citations: rawCitations = [],
   status,
+  onAddAttachment,
+  onRemoveAttachment,
+  attachments,
 }: ChatMessageProps) {
   const citations = rawCitations || [];
   const isUser = role === 'user';
@@ -303,7 +306,12 @@ export function ChatMessage({
                               : '0ms',
                           }}
                         >
-                          <SourceCard source={citation} />
+                          <SourceCard
+                            source={citation}
+                            onAddAttachment={onAddAttachment}
+                            onRemoveAttachment={onRemoveAttachment}
+                            attachments={attachments}
+                          />
                         </div>
                       ))}
                     </div>
@@ -318,36 +326,98 @@ export function ChatMessage({
   );
 }
 
-function SourceCard({ source }: { source: Citation }) {
+function SourceCard({
+  source,
+  onAddAttachment,
+  onRemoveAttachment,
+  attachments = []
+}: {
+  source: Citation;
+  onAddAttachment?: (attachment: FileRef) => void;
+  onRemoveAttachment?: (index: number) => void;
+  attachments?: FileRef[]
+}) {
   const [isOpen, setIsOpen] = useState(false);
+  const isAttached = attachments.some((a) => a.chunks[0]?.chunk_id === source.id);
+
+  const handleToggleAttach = (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (isAttached) {
+      if (!onRemoveAttachment) return;
+      const index = attachments.findIndex((a) => a.chunks[0]?.chunk_id === source.id);
+      if (index !== -1) {
+        onRemoveAttachment(index);
+      }
+      return;
+    }
+
+    if (!onAddAttachment) return;
+
+    // Parse "file_path (Page N)" from title back to FileRef
+    const pageMatch = source.title.match(/^(.+?)\s*\(Page\s+(\d+|\?)\)$/);
+    const filePath = pageMatch ? pageMatch[1].trim() : source.title;
+    const pageNumber = pageMatch && pageMatch[2] !== '?' ? parseInt(pageMatch[2], 10) : 1;
+
+    onAddAttachment({
+      file_path: filePath,
+      chunks: [{
+        chunk_id: source.id,
+        page_number: pageNumber,
+      }],
+      content: source.content,
+    });
+  };
 
   return (
     <Card
       className={cn(
-        'rounded-card overflow-hidden border-[#e8e2ff] bg-white/95 shadow-[0_20px_60px_-48px_rgba(102,88,204,1)] transition-colors duration-200',
-        !isOpen && 'hover:bg-[#f4f2ff]',
+        'rounded-card overflow-hidden transition-colors duration-200',
+        isAttached
+          ? 'border-[#c3e6cb] bg-[#f0faf3] shadow-[0_20px_60px_-48px_rgba(72,187,120,0.4)]'
+          : 'border-[#e8e2ff] bg-white/95 shadow-[0_20px_60px_-48px_rgba(102,88,204,1)]',
+        !isOpen && !isAttached && 'hover:bg-[#f4f2ff]',
+        !isOpen && isAttached && 'hover:bg-[#e6f7ec]',
       )}
     >
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <Button
-            variant="ghost"
-            className="group rounded-card flex w-full items-center justify-between bg-transparent hover:bg-transparent px-4 py-3 text-[#3f386e] transition-colors duration-200 "
-          >
-            <div className="flex items-center gap-2">
-              <ExternalLink className="h-4 w-4 text-[#8175d4]" />
-              <div className="flex flex-col items-start">
-                <span className="text-primary-medium text-sm font-medium">
-                  {source.title}
-                </span>
-                <span className="text-xs text-[#aba3e3]">
-                  {source.platform}
-                </span>
+        <div className="flex items-center">
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="group rounded-card flex flex-1 items-center justify-between bg-transparent hover:bg-transparent px-4 py-3 text-[#3f386e] transition-colors duration-200 "
+            >
+              <div className="flex items-center gap-2">
+                <ExternalLink className="h-4 w-4 text-[#8175d4]" />
+                <div className="flex flex-col items-start">
+                  <span className="text-primary-medium text-sm font-medium">
+                    {source.title}
+                  </span>
+                  <span className="text-xs text-[#aba3e3]">
+                    {source.platform}
+                  </span>
+                </div>
               </div>
-            </div>
-            <ChevronDown className="h-4 w-4 text-[#8175d4] transition-transform duration-200 group-data-[state=open]:rotate-180" />
-          </Button>
-        </CollapsibleTrigger>
+              <ChevronDown className="h-4 w-4 text-[#8175d4] transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </Button>
+          </CollapsibleTrigger>
+          {onAddAttachment && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={cn(
+                'mr-2 h-7 w-7 shrink-0 rounded-full',
+                isAttached
+                  ? 'text-[#48bb78] hover:bg-[#e6f7ec] hover:text-[#38a169]'
+                  : 'text-[#8175d4] hover:bg-[#f3f1ff] hover:text-[#6b5ae0]',
+              )}
+              onClick={handleToggleAttach}
+              title={isAttached ? 'Remove attachment' : 'Add as attachment'}
+            >
+              {isAttached ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+            </Button>
+          )}
+        </div>
 
         {source.content && (
           <CollapsibleContent className="data-[state=closed]:animate-[collapse-up_0.2s_ease-in-out] data-[state=open]:animate-[collapse-down_0.2s_ease-in-out]">
