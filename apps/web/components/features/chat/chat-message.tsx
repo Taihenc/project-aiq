@@ -32,8 +32,19 @@ export function ChatMessage({
   const userMsgRef = useRef<HTMLDivElement>(null);
   const [isLongUserMessage, setIsLongUserMessage] = useState(false);
   const [userMsgHeight, setUserMsgHeight] = useState<number>(0);
+  const [showCitations, setShowCitations] = useState(false);
 
   const isThinking = role === 'assistant' && !content;
+
+  // Delay citations appearance to avoid layout jitter
+  useEffect(() => {
+    if (citations.length > 0 && content) {
+      const timer = setTimeout(() => setShowCitations(true), 500);
+      return () => clearTimeout(timer);
+    } else {
+      setShowCitations(false);
+    }
+  }, [citations.length, content]);
 
   useEffect(() => {
     if (isUser && userMsgRef.current) {
@@ -262,17 +273,41 @@ export function ChatMessage({
             )}
 
             {citations && citations.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <Badge className="rounded-pill border border-[#dcd3ff] bg-[#f3f1ff] px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-[#6b5ae0]">
-                    Citations
-                  </Badge>
-                </div>
+              <div
+                className="grid transition-[grid-template-rows,opacity] duration-500 ease-out"
+                style={{
+                  gridTemplateRows: showCitations ? '1fr' : '0fr',
+                  opacity: showCitations ? 1 : 0,
+                }}
+              >
+                <div className="overflow-hidden">
+                  <div className="flex flex-col gap-2 pt-1">
+                    <div className="flex items-center gap-2">
+                      <Badge className="rounded-pill border border-[#dcd3ff] bg-[#f3f1ff] px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-[#6b5ae0]">
+                        Citations
+                      </Badge>
+                    </div>
 
-                <div className="flex flex-col gap-2">
-                  {citations.map((citation) => (
-                    <SourceCard key={citation.id} source={citation} />
-                  ))}
+                    <div className="flex flex-col gap-2">
+                      {citations.map((citation, index) => (
+                        <div
+                          key={citation.id}
+                          className="transition-all duration-300 ease-out"
+                          style={{
+                            opacity: showCitations ? 1 : 0,
+                            transform: showCitations
+                              ? 'translateY(0)'
+                              : 'translateY(8px)',
+                            transitionDelay: showCitations
+                              ? `${200 + index * 100}ms`
+                              : '0ms',
+                          }}
+                        >
+                          <SourceCard source={citation} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
