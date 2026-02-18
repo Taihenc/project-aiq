@@ -242,7 +242,7 @@ export function Sidebar({
       </AlertDialog>
 
       <SidebarFooter className="px-6 pb-6">
-        {user ? (
+        {user && (
           <div className="shadow-profile rounded-card flex items-center gap-3 bg-white/70 p-3">
             <Avatar className="h-10 w-10">
               <AvatarImage
@@ -265,27 +265,6 @@ export function Sidebar({
               className="text-gray-400 hover:text-red-500"
             >
               <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={async () => {
-                try {
-                  await login('demo@example.com', 'password');
-                } catch {
-                  // If login fails, try registering
-                  try {
-                    await register('demo@example.com', 'password', 'Demo User');
-                  } catch (e2) {
-                    console.error('Login/Register failed', e2);
-                    alert('Failed to login/register demo user');
-                  }
-                }
-              }}
-              className="w-full rounded-md bg-[#8c7ee1] py-2 text-sm font-medium text-white hover:bg-[#7c68e1]"
-            >
-              Login / Register (Demo)
             </button>
           </div>
         )}
