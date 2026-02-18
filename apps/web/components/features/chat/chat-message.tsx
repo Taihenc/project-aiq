@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Plus,
   Check,
+  AlertCircle,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -29,6 +30,8 @@ export function ChatMessage({
   content,
   citations: rawCitations = [],
   status,
+  statusHistory,
+  isEmpty,
   onAddAttachment,
   onRemoveAttachment,
   attachments,
@@ -43,17 +46,17 @@ export function ChatMessage({
   const [userMsgHeight, setUserMsgHeight] = useState<number>(0);
   const [showCitations, setShowCitations] = useState(false);
 
-  const isThinking = role === 'assistant' && !content;
+  const isThinking = role === 'assistant' && !content && !isEmpty;
 
   // Delay citations appearance to avoid layout jitter
   useEffect(() => {
-    if (citations.length > 0 && content) {
+    if (citations.length > 0 && (content || isEmpty)) {
       const timer = setTimeout(() => setShowCitations(true), 500);
       return () => clearTimeout(timer);
     } else {
       setShowCitations(false);
     }
-  }, [citations.length, content]);
+  }, [citations.length, content, isEmpty]);
 
   useEffect(() => {
     if (isUser && userMsgRef.current) {
@@ -151,7 +154,18 @@ export function ChatMessage({
         ) : (
           <div className="flex flex-col gap-3">
             {isThinking ? (
-              <ThinkingIndicator status={status} />
+              <ThinkingIndicator
+                status={status}
+                statusHistory={statusHistory}
+              />
+            ) : isEmpty ? (
+              <div className="flex items-center gap-2.5 rounded-bubble border border-dashed border-muted-foreground/25 bg-muted/30 px-4 py-3 text-sm text-muted-foreground/60 italic">
+                <AlertCircle className="size-4 shrink-0 text-muted-foreground/40" />
+                <span>
+                  The AI didn&apos;t return a response. Please try rephrasing
+                  your question.
+                </span>
+              </div>
             ) : (
               <Card
                 ref={cardRef}
