@@ -25,7 +25,7 @@ export class ChatService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly chatHistoryService: ChatHistoryService,
-  ) {}
+  ) { }
 
   getAiServiceBaseUrl(): string {
     return (
@@ -39,6 +39,78 @@ export class ChatService {
       this.configService.get<string>('aiService.aiEngineBaseUrl') ||
       'http://127.0.0.1:8000'
     );
+  }
+
+  getEmbeddingServiceUrl(): string {
+    return (
+      this.configService.get<string>('aiService.embeddingServiceUrl') ||
+      'http://127.0.0.1:8003'
+    );
+  }
+
+  async enrichResultWithCitations(resultEvent: any): Promise<any> {
+    if (resultEvent.type !== 'result' || !resultEvent.content) {
+      return resultEvent;
+    }
+
+    const content = resultEvent.content;
+    const citations = content.citations || content.sources_used;
+
+    if (!citations || !Array.isArray(citations) || citations.length === 0) {
+      return resultEvent;
+    }
+
+    this.logger.debug(
+      `Enriching ${citations.length} citations from embedding service...`,
+    );
+
+    const embeddingUrl = this.getEmbeddingServiceUrl();
+    const enrichedCitations: any[] = [];
+
+    for (const citation of citations) {
+      const enrichedCitation = { ...citation };
+
+      // Handle FileRef structure with chunks
+      if (citation.chunks && Array.isArray(citation.chunks)) {
+        const enrichedChunks: any[] = [];
+        for (const chunk of citation.chunks) {
+          const enrichedChunk = { ...chunk };
+          try {
+            // Fetch text content using GET /v1/get/{id}
+            const response = await firstValueFrom(
+              this.httpService.get(
+                `${embeddingUrl}/v1/get/${chunk.chunk_id}`,
+                { validateStatus: () => true },
+              ),
+            );
+
+            if (response.status === 200 && response.data) {
+              const text = response.data.text || '';
+              if (text) {
+                enrichedChunk.text = text;
+                enrichedChunk.content = text;
+              }
+            } else {
+              this.logger.warn(`Chunk not found: ${chunk.chunk_id}, status: ${response.status}`);
+            }
+          } catch (e: any) {
+            this.logger.warn(
+              `Failed to fetch chunk ${chunk.chunk_id}: ${e.message}`,
+            );
+          }
+          enrichedChunks.push(enrichedChunk);
+        }
+        enrichedCitation.chunks = enrichedChunks;
+      }
+
+      enrichedCitations.push(enrichedCitation);
+    }
+
+    if (content.citations) content.citations = enrichedCitations;
+    if (content.sources_used) content.sources_used = enrichedCitations;
+
+    this.logger.debug('Citations enriched successfully');
+    return { ...resultEvent, content };
   }
 
   getDefaultCrew(): string {
@@ -168,35 +240,54 @@ export class ChatService {
               let fullResult: any = null;
 
               let buffer = '';
-              stream.on('data', (chunk: Buffer) => {
-                buffer += chunk.toString();
-                const lines = buffer.split('\n');
+              stream.on('data', async (chunk: Buffer) => {
+                stream.pause();
+                try {
+                  buffer += chunk.toString();
+                  const lines = buffer.split('\n');
 
-                // The last element is either empty (if chunk ended with \n)
-                // or a partial JSON string. Buffer it for next chunk.
-                buffer = lines.pop() || '';
+                  // The last element is either empty (if chunk ended with \n)
+                  // or a partial JSON string. Buffer it for next chunk.
+                  buffer = lines.pop() || '';
 
-                for (const line of lines) {
-                  if (!line.trim()) continue;
+                  for (const line of lines) {
+                    if (!line.trim()) continue;
 
-                  try {
-                    const json = JSON.parse(line);
-                    this.logger.verbose(
-                      `Relaying AI Engine Event: ${json.type}`,
-                    );
+                    try {
+                      let json = JSON.parse(line);
+                      this.logger.verbose(
+                        `Relaying AI Engine Event: ${json.type}`,
+                      );
 
-                    if (json.type === 'result') {
-                      fullResult = json;
+                      if (json.type === 'result') {
+                        // Enrich result with citation content before sending to frontend
+                        try {
+                          json = await this.enrichResultWithCitations(json);
+                          this.logger.debug(
+                            `Enriched result with citations: ${JSON.stringify(json)}`,
+                          );
+                        } catch (err: any) {
+                          this.logger.warn(
+                            `Failed to enrich citations: ${err.message}`,
+                          );
+                        }
+                        fullResult = json;
+                      }
+
+                      subscriber.next({
+                        data: JSON.stringify(json),
+                      } as MessageEvent);
+                    } catch (e: any) {
+                      this.logger.warn(
+                        `Failed to parse/process AI Engine line: ${line.substring(
+                          0,
+                          100,
+                        )}... Error: ${e.message}`,
+                      );
                     }
-
-                    subscriber.next({
-                      data: JSON.stringify(json),
-                    } as MessageEvent);
-                  } catch (e) {
-                    this.logger.warn(
-                      `Failed to parse AI Engine line: ${line.substring(0, 100)}...`,
-                    );
                   }
+                } finally {
+                  stream.resume();
                 }
               });
 
@@ -588,7 +679,7 @@ export class ChatService {
               id: chunk.chunk_id || `citation-${index}-${chunkIndex}`,
               title: `${source.file_path} (Page ${chunk.page_number || '?'})`,
               platform: 'AI Engine',
-              content: '', // Content is mapped back on the business layer if needed
+              content: chunk.content || chunk.text || '',
             });
           });
           return;
