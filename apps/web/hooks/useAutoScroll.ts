@@ -28,6 +28,9 @@ export function useAutoScroll<T>(dependency: T, enabled: boolean = true) {
     const isContentArrived =
       lastContent.length > 0 && prevLastContentRef.current.length === 0;
 
+    // Detect initial load: messages jump from 0 to many (e.g. opening old chat)
+    const isInitialLoad = prevCountRef.current === 0 && count > 1;
+
     prevCountRef.current = count;
     prevLastContentRef.current = lastContent;
 
@@ -43,11 +46,19 @@ export function useAutoScroll<T>(dependency: T, enabled: boolean = true) {
       clearTimeout(timerRef.current);
     }
 
-    timerRef.current = setTimeout(() => {
+    if (isInitialLoad) {
+      // Instant scroll for history load — no animation, no delay
       requestAnimationFrame(() => {
-        scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+        scrollRef.current?.scrollIntoView({ behavior: 'instant' });
       });
-    }, DEBOUNCE_MS);
+    } else {
+      // Smooth debounced scroll for live conversation
+      timerRef.current = setTimeout(() => {
+        requestAnimationFrame(() => {
+          scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+        });
+      }, DEBOUNCE_MS);
+    }
   }, [dependency, enabled]);
 
   // Cleanup on unmount

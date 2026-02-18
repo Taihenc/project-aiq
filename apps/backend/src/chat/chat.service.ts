@@ -67,16 +67,16 @@ export class ChatService {
     const embeddingUrl = this.getEmbeddingServiceUrl();
     const enrichedCitations: any[] = [];
 
-    for (const citation of citations) {
-      const enrichedCitation = { ...citation };
+    for (let i = 0; i < citations.length; i++) {
+      const citation = citations[i];
 
-      // Handle FileRef structure with chunks
-      if (citation.chunks && Array.isArray(citation.chunks)) {
-        const enrichedChunks: any[] = [];
-        for (const chunk of citation.chunks) {
-          const enrichedChunk = { ...chunk };
+      // Handle FileRef structure with chunks → flatten to per-chunk citations
+      if (citation.file_path && citation.chunks && Array.isArray(citation.chunks)) {
+        for (let ci = 0; ci < citation.chunks.length; ci++) {
+          const chunk = citation.chunks[ci];
+          let chunkContent = '';
+
           try {
-            // Fetch text content using GET /v1/get/{id}
             const response = await firstValueFrom(
               this.httpService.get(
                 `${embeddingUrl}/v1/get/${chunk.chunk_id}`,
@@ -85,11 +85,7 @@ export class ChatService {
             );
 
             if (response.status === 200 && response.data) {
-              const text = response.data.text || '';
-              if (text) {
-                enrichedChunk.text = text;
-                enrichedChunk.content = text;
-              }
+              chunkContent = response.data.text || '';
             } else {
               this.logger.warn(`Chunk not found: ${chunk.chunk_id}, status: ${response.status}`);
             }
@@ -98,12 +94,35 @@ export class ChatService {
               `Failed to fetch chunk ${chunk.chunk_id}: ${e.message}`,
             );
           }
-          enrichedChunks.push(enrichedChunk);
+
+          enrichedCitations.push({
+            id: chunk.chunk_id || `citation-${i}-${ci}`,
+            title: `${citation.file_path} (Page ${chunk.page_number || '?'})`,
+            platform: 'AI Engine',
+            content: chunkContent,
+          });
         }
-        enrichedCitation.chunks = enrichedChunks;
+        continue;
       }
 
-      enrichedCitations.push(enrichedCitation);
+      // Handle simple string (legacy)
+      if (typeof citation === 'string') {
+        enrichedCitations.push({
+          id: `citation-${i}`,
+          title: citation,
+          platform: 'AI Engine',
+          content: '',
+        });
+        continue;
+      }
+
+      // Handle generic object
+      enrichedCitations.push({
+        id: citation.id || `citation-${i}`,
+        title: citation.title || citation.name || citation.file_path || `Source ${i + 1}`,
+        platform: citation.platform || 'AI Engine',
+        content: citation.content || '',
+      });
     }
 
     if (content.citations) content.citations = enrichedCitations;
@@ -178,9 +197,24 @@ export class ChatService {
 
       this.logger.verbose('Received raw response from AI Engine');
 
-      // 3. Transform Response
+      // 3. Parse and Enrich Response
+      const parsed = this.parseAiEngineResponse(axiosResponse.data.data);
+
+      // Enrich citations with content from embedding service
+      if (parsed.sources_used && parsed.sources_used.length > 0) {
+        try {
+          const enrichedResult = await this.enrichResultWithCitations({
+            type: 'result',
+            content: { citations: parsed.sources_used },
+          });
+          parsed.sources_used = enrichedResult.content.citations || parsed.sources_used;
+        } catch (err: any) {
+          this.logger.warn(`Failed to enrich citations (non-stream): ${err.message}`);
+        }
+      }
+
       const transformed = this.transformAiEngineToOpenAI(
-        this.parseAiEngineResponse(axiosResponse.data.data),
+        parsed,
         chatRequest,
       );
 
@@ -240,9 +274,10 @@ export class ChatService {
               let fullResult: any = null;
 
               let buffer = '';
-              stream.on('data', async (chunk: Buffer) => {
-                stream.pause();
-                try {
+              let processingPromise: Promise<void> = Promise.resolve();
+
+              stream.on('data', (chunk: Buffer) => {
+                const processChunk = async () => {
                   buffer += chunk.toString();
                   const lines = buffer.split('\n');
 
@@ -286,12 +321,15 @@ export class ChatService {
                       );
                     }
                   }
-                } finally {
-                  stream.resume();
-                }
+                };
+                // Chain promises so end handler can await all processing
+                processingPromise = processingPromise.then(processChunk);
               });
 
               stream.on('end', async () => {
+                // Wait for any in-flight data processing (enrichment) to finish
+                await processingPromise;
+
                 if (fullResult && sessionId) {
                   // Properly parse the result content which might be an object
                   const parsedResponse = this.parseAiEngineResponse(
@@ -301,6 +339,7 @@ export class ChatService {
                     parsedResponse,
                     chatRequest,
                   );
+
                   this.logger.verbose(
                     `Raw AI Engine Response: ${JSON.stringify(fullResult)}`,
                   );

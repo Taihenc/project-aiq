@@ -291,7 +291,7 @@ export function ChatMessage({
                     <div className="flex flex-col gap-2">
                       {citations.map((citation, index) => (
                         <div
-                          key={citation.id}
+                          key={citation.id || `citation-${index}`}
                           className="transition-all duration-300 ease-out"
                           style={{
                             opacity: showCitations ? 1 : 0,

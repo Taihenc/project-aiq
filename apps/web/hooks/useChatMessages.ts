@@ -198,13 +198,9 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                 // Formatting for NEW Search Flow
                 else if ('response' in event.content) {
                   finalContent = event.content.response;
+                  // Pass through enriched citations directly from backend
                   if (Array.isArray(event.content.citations)) {
-                    citations = event.content.citations.map((ref: any, index: number) => ({
-                      id: `citation-${index}`,
-                      title: ref.file_path ? (ref.file_path.split('/').pop() || ref.file_path) : 'Document',
-                      platform: 'File',
-                      content: '',
-                    }));
+                    citations = event.content.citations;
                   }
                 }
                 else {
@@ -220,7 +216,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                     ? {
                       ...m,
                       content: finalContent,
-                      citations: citations,
+                      citations: Array.isArray(citations) && citations.length > 0 ? citations : undefined,
                       status: undefined,
                     }
                     : m,
