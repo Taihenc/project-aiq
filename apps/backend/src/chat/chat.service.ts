@@ -427,7 +427,19 @@ export class ChatService {
         chatRequest.messages.slice(-1)[0]?.content ||
         '',
       history: historyStrings,
-      attachments: chatRequest.attachments || [],
+      attachments: (chatRequest.attachments || []).map((att) => ({
+        file_path: att.file_path,
+        chunks: (att.chunks || []).map((chunk) => {
+          // Explicitly construct ChunkMetadata to drop extra fields
+          // AI Engine Pydantic models are strict (extra='forbid')
+          const cleanChunk: any = {
+            chunk_id: chunk.chunk_id,
+            page_number: chunk.page_number,
+          };
+          if (chunk.score !== undefined) cleanChunk.score = chunk.score;
+          return cleanChunk;
+        }),
+      })),
     };
   }
 
