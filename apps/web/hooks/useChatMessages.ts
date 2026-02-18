@@ -4,6 +4,7 @@ import type { UIMessage, UseChatMessagesOptions, BackendMessage, FileRef } from 
 import { streamChatCompletions } from '@/lib/api/chat';
 import { historyApi } from '@/lib/api/history';
 import { useChatStore } from '@/lib/store/chat-store';
+import { useAuth } from '@/lib/auth/auth-context';
 import {
   createUserMessage,
   createErrorMessage,
@@ -12,6 +13,7 @@ import {
 
 export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isDemoMode = false, initialMessages = [], chatId } = options;
 
   // Initialize messages from cache immediately to avoid flash on navigation
@@ -34,8 +36,17 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       setSessionId(chatId);
       sessionIdRef.current = chatId;
 
-      const cachedMessages =
-        useChatStore.getState().getTransitionalMessages(chatId);
+      const store = useChatStore.getState();
+
+      // Wait for auth and history to be ready
+      if (isAuthLoading || !isAuthenticated || store.isLoadingHistory) return;
+
+      // Verify the chat exists in the local history before attempting to fetch
+      // This prevents 404 errors in the console for non-existent/unauthorized chats
+      const chatExists = store.history.some(h => h.id === chatId);
+      if (!chatExists) return;
+
+      const cachedMessages = store.getTransitionalMessages(chatId);
       if (cachedMessages && cachedMessages.length > 0) {
         // Already initialized from cache in useState, just refresh from backend silently
         loadMessages(chatId, false);
@@ -47,7 +58,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       sessionIdRef.current = undefined;
       setMessages([]);
     }
-  }, [chatId]);
+  }, [chatId, isAuthenticated, isAuthLoading]);
 
   const loadMessages = async (id: string, showLoadingState = true) => {
     if (showLoadingState) setIsLoading(true);

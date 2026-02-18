@@ -14,7 +14,9 @@ import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { extractCitations } from '@/lib/utils/citations';
 import { useHistory } from '@/hooks/useHistory';
 import { useChatStore } from '@/lib/store/chat-store';
-import type { FileRef } from '@/types';
+import { useAuth } from '@/lib/auth/auth-context';
+import { NotFoundScreen } from '@/components/features/chat/not-found-screen';
+import type { FileRef, ChatHistoryItem } from '@/types';
 
 interface ChatLayoutProps {
   initialChatId?: string;
@@ -22,7 +24,9 @@ interface ChatLayoutProps {
 
 export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
   const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
   const [attachments, setAttachments] = useState<FileRef[]>([]);
 
@@ -35,7 +39,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     useChatStore.getState().setCurrentChatId(initialChatId);
   }, [initialChatId]);
 
-  const { history } = useHistory();
+  const { history, isLoading: isLoadingHistory } = useHistory();
 
   const { messages, isLoading, sendMessage, sessionId } = useChatMessages({
     isDemoMode,
@@ -43,13 +47,35 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     chatId: currentChatId,
   });
 
+  // Authentication & Session Guard logic
+  // ---------------------------------------------------------
+
+  // Decide what screen to show
+  const isHistoryEmpty = history.length === 0;
+  const isDeterminingAccess = isAuthLoading || (initialChatId && isLoadingHistory && isHistoryEmpty);
+
+  // A chat is "not found/unauthorized" if:
+  // 1. We are authenticated but the chat ID is not in our history
+  // 2. We are NOT authenticated but are trying to access a specific chat URL (to avoid leaking existence/ownership)
+  const chatExistsInHistory = history.some((h) => h.id === initialChatId);
+  const showNotFound = !isDeterminingAccess && !!initialChatId && (
+    !isAuthenticated || !chatExistsInHistory
+  );
+
+  // Immediate redirect only for the ROOT path when not authenticated
+  useEffect(() => {
+    if (!isAuthLoading && !isAuthenticated && !initialChatId) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, isAuthLoading, initialChatId, router]);
+
+  // Find the current chat title from history
+  const currentChat = history.find((h: ChatHistoryItem) => h.id === currentChatId);
+  const currentTitle = currentChat?.title;
+
   const shouldAutoScroll = !!currentChatId || !!sessionId;
   const messagesEndRef = useAutoScroll([messages, isLoading], shouldAutoScroll);
   const showWelcomeScreen = !currentChatId && messages.length === 0;
-
-  // Find the current chat title from history
-  const currentChat = history.find((h) => h.id === currentChatId);
-  const currentTitle = currentChat?.title;
 
   const handleAddAttachment = useCallback((attachment: FileRef) => {
     setAttachments((prev) => {
@@ -77,6 +103,24 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     router.push(`/c/${id}`);
   };
 
+  // 1. Loading State Guard
+  if (isAuthLoading || (initialChatId && isLoadingHistory && history.length === 0)) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="size-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
+          <p className="text-sm font-medium text-purple-600/60 animate-pulse">Initializing AINGO Forge...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Not Found Guard
+  if (showNotFound) {
+    return <NotFoundScreen message="This chat either doesn't exist or you don't have permission to access it." />;
+  }
+
+  // 3. Main Interface
   return (
     <SidebarProvider className="bg-surface-purple">
       <Sidebar
@@ -127,3 +171,4 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     </SidebarProvider>
   );
 }
+
