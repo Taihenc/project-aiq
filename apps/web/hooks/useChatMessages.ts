@@ -163,6 +163,10 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         // Keep the last partial line in the buffer
         lineBuffer = lines.pop() || '';
 
+        // Collect all statuses from this chunk before calling setMessages
+        // React batches synchronous setState calls, so we must do ONE update per chunk.
+        const pendingStatuses: string[] = [];
+
         for (const line of lines) {
           const trimmedLine = line.trim();
           if (!trimmedLine) continue;
@@ -185,13 +189,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                   ? event.content
                   : JSON.stringify(event.content);
               console.log('[SSE] Setting status:', statusContent.substring(0, 80));
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMessageId
-                    ? { ...m, status: statusContent }
-                    : m,
-                ),
-              );
+              pendingStatuses.push(statusContent);
             } else if (event.type === 'result') {
               console.log('[SSE] AI Result Received');
 
@@ -228,6 +226,8 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                 finalContent = event.content;
               }
 
+              const isEmptyResponse = !finalContent || finalContent.trim() === '';
+
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMessageId
@@ -236,6 +236,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                       content: finalContent,
                       citations: Array.isArray(citations) && citations.length > 0 ? citations : undefined,
                       status: undefined,
+                      isEmpty: isEmptyResponse,
                     }
                     : m,
                 ),
@@ -256,6 +257,23 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
           } catch (e) {
             console.warn('[SSE] JSON parse error:', e, 'Raw data:', rawData.substring(0, 100));
           }
+        }
+
+        // Flush all status updates from this chunk in one setMessages call.
+        // This prevents React's automatic batching from dropping intermediate statuses.
+        if (pendingStatuses.length > 0) {
+          const lastStatus = pendingStatuses[pendingStatuses.length - 1];
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId
+                ? {
+                    ...m,
+                    status: lastStatus,
+                    statusHistory: [...(m.statusHistory || []), ...pendingStatuses],
+                  }
+                : m,
+            ),
+          );
         }
       }
     } catch (error) {
