@@ -56,9 +56,13 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         loadMessages(chatId);
       }
     } else {
-      setSessionId(undefined);
-      sessionIdRef.current = undefined;
-      setMessages([]);
+      // Guard: if sessionIdRef has a value, we're inside or just after a sendMessage
+      // that created a new session. The router.push('/c/{id}') is imminent.
+      // Clearing messages here would flash the welcome screen for ~100ms.
+      if (!sessionIdRef.current) {
+        setSessionId(undefined);
+        setMessages([]);
+      }
     }
   }, [chatId, isAuthenticated, isAuthLoading, storeHistory, storeIsLoadingHistory]);
 
@@ -274,6 +278,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const clearMessages = () => {
     setMessages([]);
     setSessionId(undefined);
+    sessionIdRef.current = undefined;
   };
 
   // Cache latest messages per session to avoid flicker on navigation
