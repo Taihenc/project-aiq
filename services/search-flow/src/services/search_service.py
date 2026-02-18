@@ -14,34 +14,81 @@ from src.services.crew.tools.factory import MCPToolFactory
 class SearchFlowService:
     @observe(name="search_flow", as_type="generation")
     async def execute_workflow(self, request: SearchChatRequest) -> FlowResponse:
-        # 2. Initialize Flow with Tools
+        # ... (stays same as before but uses execute_workflow_stream internally or just remains as is)
+        # For simplicity, keeping existing method but adding stream below
         flow = SearchCrewFlow()
-
         enriched_attachments = await self._enrich_attachments(request.attachments)
-
         context_dicts = [item.model_dump() for item in enriched_attachments]
         inputs = {
             "query": request.query,
             "context": context_dicts,
             "history": request.history,
         }
-
         try:
-            # Flow handles tool loading internally
-            # Use async kickoff
             await flow.kickoff_async(inputs=inputs)
         except Exception as e:
             print(f"❌ Error during flow execution: {e}")
             return FlowResponse(
                 action="reject", response=f"Error executing search flow: {str(e)}"
             )
-
         if flow.state.final_response:
             return flow.state.final_response
-
         return FlowResponse(
             action="reject", response="Error: No response generated from the flow."
         )
+
+    async def execute_workflow_stream(self, request: SearchChatRequest):
+        import asyncio
+        import json
+        from src.services.crew.callbacks import create_agent_step_callback
+
+        event_queue = asyncio.Queue()
+
+        def report_status(msg):
+            event_queue.put_nowait({"type": "status", "content": msg})
+
+        step_callback = create_agent_step_callback(report_status)
+        flow = SearchCrewFlow(step_callback=step_callback)
+
+        enriched_attachments = await self._enrich_attachments(request.attachments)
+
+        # Manually set state inputs because passing them to kickoff might not auto-populate
+        # flow.state before the @start method runs in some CrewAI versions
+        flow.state.query = request.query
+        flow.state.context = enriched_attachments
+        flow.state.history = request.history
+
+        async def run_flow():
+            try:
+                # We don't need to pass inputs to kickoff_async if we set state manually above,
+                # but passing them is also fine as a fallback.
+                await flow.kickoff_async()
+
+                if flow.state.final_response:
+                    await event_queue.put({
+                        "type": "result",
+                        "content": flow.state.final_response.model_dump()
+                    })
+                else:
+                    await event_queue.put({
+                        "type": "error",
+                        "content": "Flow finished but no final response was generated."
+                    })
+
+            except Exception as e:
+                print(f"❌ Async Flow Error: {e}")
+                await event_queue.put({"type": "error", "content": str(e)})
+            finally:
+                await event_queue.put(None)
+
+        # Run the flow in a background asyncio task
+        asyncio.create_task(run_flow())
+
+        while True:
+            event = await event_queue.get()
+            if event is None:
+                break
+            yield json.dumps(event) + "\n"
 
     # TODO: Temporary method
     async def _enrich_attachments(self, attachments: List[Any]) -> List[FileContent]:
