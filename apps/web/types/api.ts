@@ -35,6 +35,20 @@ export interface Citation {
   content?: string;
 }
 
+// Search-flow attachment types (matching SearchChatRequest schema)
+export interface ChunkMetadata {
+  chunk_id: string;
+  page_number: number;
+  score?: number;
+}
+
+export interface FileRef {
+  file_path: string;
+  chunks: ChunkMetadata[];
+  /** Display-only: chunk content for hover preview */
+  content?: string;
+}
+
 // OpenAI-compatible chat completions request
 export interface ChatCompletionsRequest {
   messages: APIMessage[];
@@ -52,6 +66,7 @@ export interface ChatCompletionsRequest {
   request_source?: string;
   provider?: string;
   top_k?: number;
+  attachments?: FileRef[];
 }
 
 // OpenAI-compatible chat completions response
