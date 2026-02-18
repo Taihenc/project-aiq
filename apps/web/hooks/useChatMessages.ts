@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import type { UIMessage, UseChatMessagesOptions, BackendMessage } from '@/types';
+import type { UIMessage, UseChatMessagesOptions, BackendMessage, FileRef } from '@/types';
 import { streamChatCompletions } from '@/lib/api/chat';
 import { historyApi } from '@/lib/api/history';
 import { useChatStore } from '@/lib/store/chat-store';
@@ -76,7 +76,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     }
   };
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, attachments?: FileRef[]) => {
     const userMessage = createUserMessage(content);
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
@@ -123,6 +123,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         requestSource: 'frontend',
         temperature: 0.7,
         maxTokens: 1000,
+        attachments,
       });
 
       const reader = stream.getReader();

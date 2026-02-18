@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Citation } from './api';
+import type { Citation, FileRef } from './api';
 import type { UIMessage } from './chat';
 
 /**
@@ -14,26 +14,37 @@ export interface ChatMessageProps {
   citations?: Citation[];
   timestamp?: string;
   status?: string;
+  onAddAttachment?: (attachment: FileRef) => void;
+  onRemoveAttachment?: (index: number) => void;
+  attachments?: FileRef[];
 }
 
 export interface ChatInputProps {
   onSendMessage?: (message: string) => void;
   disabled?: boolean;
+  attachments?: FileRef[];
+  onRemoveAttachment?: (index: number) => void;
 }
 
 export interface ChatInputAreaProps {
   onSendMessage: (message: string) => void;
   isLoading: boolean;
+  attachments?: FileRef[];
+  onRemoveAttachment?: (index: number) => void;
 }
 
 export interface ChatMessagesAreaProps {
   messages: UIMessage[];
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   isLoading?: boolean;
+  onAddAttachment?: (attachment: FileRef) => void;
+  onRemoveAttachment?: (index: number) => void;
+  attachments?: FileRef[];
 }
 
 export interface ChatHeaderProps {
   onViewSources: () => void;
+  title?: string;
 }
 
 export interface ChatWelcomeProps {
