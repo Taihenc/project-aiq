@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Dict, Any, Type
+from typing import List, Dict, Any, Type, Optional, Callable
 from pydantic import BaseModel, create_model, Field
 from mcp import ClientSession
 from mcp.client.sse import sse_client
@@ -86,7 +86,7 @@ def _get_python_type(json_type: str) -> Type:
 
 class MCPToolFactory:
     @staticmethod
-    async def get_tools() -> List[MCPTool]:
+    async def get_tools(status_callback: Optional[Callable] = None) -> List[MCPTool]:
         """
         Connects to the MCP server, lists available tools,
         and converts them into CrewAI-compatible MCPTool instances
@@ -119,6 +119,7 @@ class MCPToolFactory:
                             description=tool_desc,
                             args_schema=DynamicSchema,
                             mcp_tool_name=tool_name,
+                            status_callback=status_callback,
                         )
 
                         tools.append(crew_tool)
