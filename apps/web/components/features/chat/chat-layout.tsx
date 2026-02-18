@@ -52,15 +52,17 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   // Decide what screen to show
   const isHistoryEmpty = history.length === 0;
-  const isDeterminingAccess = isAuthLoading || (initialChatId && isLoadingHistory && isHistoryEmpty);
+  const isDeterminingAccess =
+    isAuthLoading || (initialChatId && isLoadingHistory && isHistoryEmpty);
 
   // A chat is "not found/unauthorized" if:
   // 1. We are authenticated but the chat ID is not in our history
   // 2. We are NOT authenticated but are trying to access a specific chat URL (to avoid leaking existence/ownership)
   const chatExistsInHistory = history.some((h) => h.id === initialChatId);
-  const showNotFound = !isDeterminingAccess && !!initialChatId && (
-    !isAuthenticated || !chatExistsInHistory
-  );
+  const showNotFound =
+    !isDeterminingAccess &&
+    !!initialChatId &&
+    (!isAuthenticated || !chatExistsInHistory);
 
   // Immediate redirect only for the ROOT path when not authenticated
   useEffect(() => {
@@ -70,7 +72,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   }, [isAuthenticated, isAuthLoading, initialChatId, router]);
 
   // Find the current chat title from history
-  const currentChat = history.find((h: ChatHistoryItem) => h.id === currentChatId);
+  const currentChat = history.find(
+    (h: ChatHistoryItem) => h.id === currentChatId,
+  );
   const currentTitle = currentChat?.title;
 
   const shouldAutoScroll = !!currentChatId || !!sessionId;
@@ -81,7 +85,8 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     setAttachments((prev) => {
       // Avoid duplicates by chunk_id
       const newChunkId = attachment.chunks[0]?.chunk_id;
-      if (newChunkId && prev.some((a) => a.chunks[0]?.chunk_id === newChunkId)) return prev;
+      if (newChunkId && prev.some((a) => a.chunks[0]?.chunk_id === newChunkId))
+        return prev;
       return [...prev, attachment];
     });
   }, []);
@@ -90,10 +95,13 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleSendMessage = useCallback((message: string) => {
-    sendMessage(message, attachments);
-    setAttachments([]);
-  }, [sendMessage, attachments]);
+  const handleSendMessage = useCallback(
+    (message: string) => {
+      sendMessage(message, attachments);
+      setAttachments([]);
+    },
+    [sendMessage, attachments],
+  );
 
   const handleNewChat = () => {
     router.push('/');
@@ -104,12 +112,17 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   };
 
   // 1. Loading State Guard
-  if (isAuthLoading || (initialChatId && isLoadingHistory && history.length === 0)) {
+  if (
+    isAuthLoading ||
+    (initialChatId && isLoadingHistory && history.length === 0)
+  ) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
+      <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
         <div className="flex flex-col items-center gap-4">
-          <div className="size-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
-          <p className="text-sm font-medium text-purple-600/60 animate-pulse">Initializing AINGO Forge...</p>
+          <div className="size-8 border-4 border-[var(--brand-border-lighter)] border-t-[var(--brand-fg-light)] rounded-full animate-spin" />
+          <p className="text-sm font-medium text-brand-fg-light/60 animate-pulse">
+            Initializing AINGO Forge...
+          </p>
         </div>
       </div>
     );
@@ -117,7 +130,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   // 2. Not Found Guard
   if (showNotFound) {
-    return <NotFoundScreen message="This chat either doesn't exist or you don't have permission to access it." />;
+    return (
+      <NotFoundScreen message="This chat either doesn't exist or you don't have permission to access it." />
+    );
   }
 
   // 3. Main Interface
@@ -130,10 +145,13 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
         onNewChat={handleNewChat}
       />
 
-      <SidebarInset className="relative flex h-screen flex-1 flex-col overflow-hidden bg-white">
+      <SidebarInset className="relative flex h-screen flex-1 flex-col overflow-hidden bg-background">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
-        <ChatHeader onViewSources={() => setCitationsPanelOpen(true)} title={currentTitle} />
+        <ChatHeader
+          onViewSources={() => setCitationsPanelOpen(true)}
+          title={currentTitle}
+        />
 
         <div className="relative z-0 flex flex-1 min-h-0 flex-col px-6 pt-2 sm:px-10 lg:px-12">
           {showWelcomeScreen ? (
@@ -149,7 +167,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
             />
           )}
           {!showWelcomeScreen && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-white/70 via-white/40 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-background/70 via-background/40 to-transparent" />
           )}
         </div>
 
@@ -171,4 +189,3 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     </SidebarProvider>
   );
 }
-

@@ -4,12 +4,16 @@ import { BookOpen } from 'lucide-react';
 import React from 'react';
 import { ChatHeaderProps } from '@/types';
 import SplitText from '@/components/SplitText';
+import { ThemeToggle } from '@/components/custom/theme-toggle';
 
-export const ChatHeader: React.FC<ChatHeaderProps> = ({ onViewSources, title }) => (
+export const ChatHeader: React.FC<ChatHeaderProps> = ({
+  onViewSources,
+  title,
+}) => (
   <div className="relative z-10 flex items-center justify-between px-6 pb-3 pt-4 sm:px-10 lg:px-12">
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <SidebarTrigger className="border-purple-light text-primary-light shadow-button hover:bg-surface-light rounded-pill border bg-white h-9 w-9 sm:h-10 sm:w-10" />
+        <SidebarTrigger className="border-purple-light text-primary-light shadow-button hover:bg-surface-light rounded-pill border bg-background h-9 w-9 sm:h-10 sm:w-10" />
         <SplitText
           tag="h1"
           splitType="words"
@@ -23,14 +27,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onViewSources, title }) 
         />
       </div>
     </div>
-    <Button
-      variant="outline"
-      size="sm"
-      className="border-purple-light text-primary-light shadow-button hover:bg-surface-light rounded-pill relative gap-2 bg-white px-5 py-2"
-      onClick={onViewSources}
-    >
-      <BookOpen className="h-4 w-4" />
-      View sources
-    </Button>
+    <div className="flex items-center gap-2">
+      <ThemeToggle className="rounded-pill border border-purple-light text-primary-light shadow-button hover:bg-surface-light h-9 w-9 sm:h-10 sm:w-10" />
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-purple-light text-primary-light shadow-button hover:bg-surface-light rounded-pill relative gap-2 bg-background px-5 py-2"
+        onClick={onViewSources}
+      >
+        <BookOpen className="h-4 w-4" />
+        View sources
+      </Button>
+    </div>
   </div>
 );

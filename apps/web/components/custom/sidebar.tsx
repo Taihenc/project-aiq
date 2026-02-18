@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { MoreVertical } from 'lucide-react';
+import { ThemeToggle } from '@/components/custom/theme-toggle';
 
 export function Sidebar({
   chatHistory = [],
@@ -60,7 +61,7 @@ export function Sidebar({
   return (
     <SidebarPrimitive
       collapsible="offcanvas"
-      className="border-purple-lighter bg-[#fcfcfc] border-r"
+      className="border-purple-lighter bg-brand-sidebar-bg border-r"
     >
       <SidebarHeader className="gap-0 px-6 pb-4 pt-6">
         <div className="flex items-center gap-3">
@@ -68,7 +69,7 @@ export function Sidebar({
             <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-[0.2em] text-[#8c7ee1]">
+            <span className="text-xs uppercase tracking-[0.2em] text-[var(--brand-logo-label)]">
               AIQ
             </span>
             <span className="text-primary-dark font-kiona text-lg font-semibold">
@@ -86,7 +87,7 @@ export function Sidebar({
                 <SidebarMenuButton
                   tooltip="Start a new chat"
                   onClick={onNewChat}
-                  className="text-primary-light rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-[#efe9ff] px-4 py-3 shadow-none transition-colors hover:bg-[#e5dfff]"
+                  className="text-primary-light rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-brand-new-chat-bg px-4 py-3 shadow-none transition-colors hover:bg-brand-new-chat-hover"
                 >
                   <MessageSquare className="h-4 w-4" />
                   <span className="font-medium">New Chat</span>
@@ -96,7 +97,7 @@ export function Sidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Browse sources"
-                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-white/60"
+                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-background/60"
                 >
                   <FileText className="h-4 w-4" />
                   <span>Source</span>
@@ -106,7 +107,7 @@ export function Sidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Open prompt library"
-                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-white/60"
+                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-background/60"
                 >
                   <Sparkles className="h-4 w-4" />
                   <span>Prompt Library</span>
@@ -117,7 +118,7 @@ export function Sidebar({
         </SidebarGroup>
 
         <SidebarGroup className="gap-3">
-          <SidebarGroupLabel className="text-[#9a92d8]">
+          <SidebarGroupLabel className="text-[var(--brand-history-label)]">
             Chat History
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -125,15 +126,15 @@ export function Sidebar({
               <AnimatePresence initial={false}>
                 {displayHistory.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="bg-purple-50 rounded-full p-3 mb-3">
-                      <MessageSquare className="h-5 w-5 text-purple-300" />
+                    <div className="bg-brand-card-purple rounded-full p-3 mb-3">
+                      <MessageSquare className="h-5 w-5 text-brand-fg-muted" />
                     </div>
-                    <span className="text-xs font-medium text-gray-500 mb-1">
+                    <span className="text-xs font-medium text-muted-foreground mb-1">
                       No history yet
                     </span>
                     <button
                       onClick={onNewChat}
-                      className="text-[10px] text-purple-500 hover:text-purple-600 transition-colors cursor-pointer"
+                      className="text-[10px] text-brand-fg-accent hover:text-brand-fg-light transition-colors cursor-pointer"
                     >
                       Start a new chat
                     </button>
@@ -156,17 +157,17 @@ export function Sidebar({
                           isActive={isActive}
                           onClick={() => onChatSelect?.(chat.id)}
                           className={cn(
-                            'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[#dcd3ff] hover:bg-white/70',
+                            'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-card/70',
                             isActive &&
-                              'shadow-elevated border-[#d4c9ff] bg-white text-primary-medium',
+                              'shadow-elevated border-[var(--brand-citation-border)] bg-card text-primary-medium',
                           )}
                         >
-                          <MessageSquare className="h-4 w-4 text-[#8175d4]" />
+                          <MessageSquare className="h-4 w-4 text-[var(--brand-chat-icon)]" />
                           <div className="flex min-w-0 flex-1 flex-col">
                             <span className="text-primary-medium truncate font-medium">
                               {chat.title}
                             </span>
-                            <span className="text-xs text-[#a19ad9]">
+                            <span className="text-xs text-[var(--brand-chat-time)]">
                               {chat.timestamp}
                             </span>
                           </div>
@@ -175,7 +176,7 @@ export function Sidebar({
                           <DropdownMenuTrigger asChild>
                             <SidebarMenuAction
                               showOnHover
-                              className="text-[#b1a8e9] hover:text-[#8a77eb]"
+                              className="text-[var(--brand-action-menu)] hover:text-[var(--brand-action-menu-hover)]"
                             >
                               <MoreVertical className="h-4 w-4" />
                             </SidebarMenuAction>
@@ -243,30 +244,35 @@ export function Sidebar({
 
       <SidebarFooter className="px-6 pb-6">
         {user && (
-          <div className="shadow-profile rounded-card flex items-center gap-3 bg-white/70 p-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage
-                src={`https://ui-avatars.com/api/?name=${user.displayName}`}
-              />
-              <AvatarFallback className="bg-gradient-to-br from-[#9b88ff] to-[#6f5deb] text-white">
-                {user.displayName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-sm font-semibold text-[#363161] truncate">
-                {user.displayName}
-              </span>
-              <span className="text-xs text-[#a19ad9] truncate">
-                {user.email}
-              </span>
+          <>
+            <div className="flex justify-center mb-1">
+              <ThemeToggle className="w-full rounded-card hover:bg-brand-new-chat-bg" />
             </div>
-            <button
-              onClick={logout}
-              className="text-gray-400 hover:text-red-500"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
+            <div className="shadow-profile rounded-card flex items-center gap-3 bg-card/70 p-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage
+                  src={`https://ui-avatars.com/api/?name=${user.displayName}`}
+                />
+                <AvatarFallback className="bg-gradient-to-br from-[#9b88ff] to-[#6f5deb] text-white">
+                  {user.displayName.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm font-semibold text-[var(--brand-user-name)] truncate">
+                  {user.displayName}
+                </span>
+                <span className="text-xs text-[var(--brand-chat-time)] truncate">
+                  {user.email}
+                </span>
+              </div>
+              <button
+                onClick={logout}
+                className="text-gray-400 hover:text-red-500"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </>
         )}
       </SidebarFooter>
     </SidebarPrimitive>

@@ -17,7 +17,12 @@ import {
 import { cn } from '@/lib/utils';
 import type { ChatInputProps } from '@/types';
 
-export function ChatInput({ onSendMessage, disabled = false, attachments = [], onRemoveAttachment }: ChatInputProps) {
+export function ChatInput({
+  onSendMessage,
+  disabled = false,
+  attachments = [],
+  onRemoveAttachment,
+}: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -43,7 +48,7 @@ export function ChatInput({ onSendMessage, disabled = false, attachments = [], o
     <div className="flex flex-col gap-2">
       <div
         className={cn(
-          'flex items-center gap-3 border-purple-light rounded-[32px] bg-white/95 shadow-[0_24px_70px_-38px_rgba(102,88,204,1)] transition-all duration-300 ease-[cubic-bezier(0.68,0.02,0.21,1.67)]',
+          'flex items-center gap-3 border-purple-light rounded-[32px] bg-background/95 shadow-[0_24px_70px_-38px_rgba(102,88,204,1)] transition-all duration-300 ease-[cubic-bezier(0.68,0.02,0.21,1.67)]',
           isExpanded ? 'p-4' : 'p-3',
         )}
       >
@@ -53,18 +58,21 @@ export function ChatInput({ onSendMessage, disabled = false, attachments = [], o
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-1 px-2">
               {attachments.map((att, index) => (
-                <HoverCard key={att.chunks[0]?.chunk_id || `att-${index}`} openDelay={300} closeDelay={100}>
+                <HoverCard
+                  key={att.chunks[0]?.chunk_id || `att-${index}`}
+                  openDelay={300}
+                  closeDelay={100}
+                >
                   <HoverCardTrigger asChild>
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full bg-[#f3f1ff] px-2 py-0.5 text-[11px] font-medium text-[#6b5ae0] border border-[#dcd3ff] whitespace-nowrap cursor-pointer hover:bg-[#ece8ff] transition-colors"
-                    >
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-card-purple)] px-2 py-0.5 text-[11px] font-medium text-[var(--brand-link)] border border-[var(--brand-citation-border)] whitespace-nowrap cursor-pointer hover:bg-[var(--brand-new-chat-hover)] transition-colors">
                       <Paperclip className="h-3 w-3" />
-                      {(att.file_path.split('/').pop() || att.file_path)}
-                      {att.chunks[0]?.page_number != null && ` (Page ${att.chunks[0].page_number})`}
+                      {att.file_path.split('/').pop() || att.file_path}
+                      {att.chunks[0]?.page_number != null &&
+                        ` (Page ${att.chunks[0].page_number})`}
                       <button
                         type="button"
                         onClick={() => onRemoveAttachment?.(index)}
-                        className="ml-0.5 rounded-full p-0.5 hover:bg-[#dcd3ff] transition-colors"
+                        className="ml-0.5 rounded-full p-0.5 hover:bg-[var(--brand-border-light)] transition-colors"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -74,13 +82,14 @@ export function ChatInput({ onSendMessage, disabled = false, attachments = [], o
                     <HoverCardContent
                       side="top"
                       align="start"
-                      className="w-80 max-h-60 overflow-y-auto rounded-xl border-[#e8e2ff] bg-white/98 p-3 shadow-[0_20px_60px_-20px_rgba(102,88,204,0.3)]"
+                      className="w-80 max-h-60 overflow-y-auto rounded-xl border-[var(--brand-source-border)] bg-card/98 p-3 shadow-[0_20px_60px_-20px_rgba(102,88,204,0.3)]"
                     >
-                      <p className="text-xs font-semibold text-[#3f386e] mb-1">
+                      <p className="text-xs font-semibold text-[var(--brand-source-text)] mb-1">
                         {att.file_path.split('/').pop()}
-                        {att.chunks[0]?.page_number != null && ` — Page ${att.chunks[0].page_number}`}
+                        {att.chunks[0]?.page_number != null &&
+                          ` — Page ${att.chunks[0].page_number}`}
                       </p>
-                      <p className="text-xs leading-relaxed text-[#7c73b7] whitespace-pre-wrap">
+                      <p className="text-xs leading-relaxed text-[var(--brand-content-text)] whitespace-pre-wrap">
                         {att.content}
                       </p>
                     </HoverCardContent>
@@ -116,7 +125,7 @@ export function ChatInput({ onSendMessage, disabled = false, attachments = [], o
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="rounded-pill h-9 w-9 text-[#8175d4] hover:bg-[#f1eeff]"
+                    className="rounded-pill h-9 w-9 text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]"
                   >
                     <Paperclip className="h-4 w-4" />
                   </Button>
@@ -133,7 +142,7 @@ export function ChatInput({ onSendMessage, disabled = false, attachments = [], o
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="rounded-pill h-9 w-9 text-[#8175d4] hover:bg-[#f1eeff]"
+                    className="rounded-pill h-9 w-9 text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]"
                   >
                     <Globe className="h-4 w-4" />
                   </Button>

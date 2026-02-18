@@ -9,7 +9,13 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, ExternalLink, Plus, Check } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Plus,
+  Check,
+} from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -126,7 +132,7 @@ export function ChatMessage({
             {isLongUserMessage && (
               <button
                 onClick={() => setIsUserMessageExpanded(!isUserMessageExpanded)}
-                className="flex items-center gap-1 text-xs font-medium text-[#8a77eb] hover:text-[#7566d9] transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-[var(--brand-action-menu-hover)] hover:text-[var(--brand-fg-light)] transition-colors"
               >
                 {isUserMessageExpanded ? (
                   <>
@@ -149,7 +155,7 @@ export function ChatMessage({
             ) : (
               <Card
                 ref={cardRef}
-                className="shadow-card-md rounded-bubble border-[#e6e0ff] bg-white/95 p-5 text-sm leading-relaxed text-[#3d366b]"
+                className="shadow-card-md rounded-bubble border-[var(--brand-code-border)] bg-card/95 p-5 text-sm leading-relaxed text-[var(--brand-code-text)]"
               >
                 <div className="markdown-content">
                   <ReactMarkdown
@@ -190,11 +196,11 @@ export function ChatMessage({
                         const match = /language-(\w+)/.exec(className || '');
                         const isInline = !match;
                         return !isInline ? (
-                          <div className="my-3 overflow-hidden rounded-md border border-[#e6e0ff]">
-                            <div className="flex items-center justify-between bg-[#f8f7ff] px-4 py-1.5 text-[10px] font-medium text-[#8a77eb]">
+                          <div className="my-3 overflow-hidden rounded-md border border-[var(--brand-code-border)]">
+                            <div className="flex items-center justify-between bg-[var(--brand-code-header-bg)] px-4 py-1.5 text-[10px] font-medium text-[var(--brand-code-header-text)]">
                               <span>{match![1].toUpperCase()}</span>
                             </div>
-                            <pre className="overflow-x-auto bg-[#fafaff] p-4 text-xs leading-relaxed text-[#3d366b]">
+                            <pre className="overflow-x-auto bg-[var(--brand-code-pre-bg)] p-4 text-xs leading-relaxed text-[var(--brand-code-text)]">
                               <code className={className} {...props}>
                                 {children}
                               </code>
@@ -203,7 +209,7 @@ export function ChatMessage({
                         ) : (
                           <code
                             className={cn(
-                              'rounded bg-[#f0efff] px-1.5 py-0.5 text-xs font-semibold text-[#6b5ae0]',
+                              'rounded bg-[var(--brand-inline-code-bg)] px-1.5 py-0.5 text-xs font-semibold text-[var(--brand-inline-code-text)]',
                               className,
                             )}
                             {...props}
@@ -213,7 +219,7 @@ export function ChatMessage({
                         );
                       },
                       blockquote: ({ children }) => (
-                        <blockquote className="mb-3 border-l-4 border-[#dcd3ff] pl-4 italic text-[#7c73b7]">
+                        <blockquote className="mb-3 border-l-4 border-[var(--brand-blockquote-border)] pl-4 italic text-[var(--brand-blockquote-text)]">
                           {children}
                         </blockquote>
                       ),
@@ -222,36 +228,36 @@ export function ChatMessage({
                           href={href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-0.5 font-medium text-[#6b5ae0] hover:underline"
+                          className="inline-flex items-center gap-0.5 font-medium text-[var(--brand-link)] hover:underline"
                         >
                           {children}
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       ),
                       table: ({ children }) => (
-                        <div className="my-4 overflow-x-auto rounded-lg border border-[#e6e0ff]">
+                        <div className="my-4 overflow-x-auto rounded-lg border border-[var(--brand-code-border)]">
                           <table className="w-full border-collapse text-left text-xs">
                             {children}
                           </table>
                         </div>
                       ),
                       thead: ({ children }) => (
-                        <thead className="bg-[#f8f7ff] text-[#8a77eb]">
+                        <thead className="bg-[var(--brand-table-head-bg)] text-[var(--brand-table-head-text)]">
                           {children}
                         </thead>
                       ),
                       th: ({ children }) => (
-                        <th className="border-b border-[#e6e0ff] px-4 py-2 font-semibold">
+                        <th className="border-b border-[var(--brand-code-border)] px-4 py-2 font-semibold">
                           {children}
                         </th>
                       ),
                       td: ({ children }) => (
-                        <td className="border-b border-[#f0edff] px-4 py-2 text-[#5a528f]">
+                        <td className="border-b border-[var(--brand-table-row-border)] px-4 py-2 text-[var(--brand-table-row-text)]">
                           {children}
                         </td>
                       ),
                       hr: () => (
-                        <hr className="my-6 border-t border-[#e6e0ff]" />
+                        <hr className="my-6 border-t border-[var(--brand-code-border)]" />
                       ),
                       img: ({
                         src,
@@ -262,7 +268,7 @@ export function ChatMessage({
                           alt={alt || ''}
                           width={500}
                           height={300}
-                          className="my-4 max-w-full rounded-lg border border-[#e6e0ff] shadow-sm"
+                          className="my-4 max-w-full rounded-lg border border-[var(--brand-code-border)] shadow-sm"
                         />
                       ),
                     }}
@@ -286,7 +292,7 @@ export function ChatMessage({
                 <div className="overflow-hidden">
                   <div className="flex flex-col gap-2 pt-1">
                     <div className="flex items-center gap-2">
-                      <Badge className="rounded-pill border border-[#dcd3ff] bg-[#f3f1ff] px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-[#6b5ae0]">
+                      <Badge className="rounded-pill border border-[var(--brand-citation-border)] bg-[var(--brand-citation-bg)] px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--brand-citation-text)]">
                         Citations
                       </Badge>
                     </div>
@@ -330,22 +336,26 @@ function SourceCard({
   source,
   onAddAttachment,
   onRemoveAttachment,
-  attachments = []
+  attachments = [],
 }: {
   source: Citation;
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
-  attachments?: FileRef[]
+  attachments?: FileRef[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const isAttached = attachments.some((a) => a.chunks[0]?.chunk_id === source.id);
+  const isAttached = attachments.some(
+    (a) => a.chunks[0]?.chunk_id === source.id,
+  );
 
   const handleToggleAttach = (e: React.MouseEvent) => {
     e.stopPropagation();
 
     if (isAttached) {
       if (!onRemoveAttachment) return;
-      const index = attachments.findIndex((a) => a.chunks[0]?.chunk_id === source.id);
+      const index = attachments.findIndex(
+        (a) => a.chunks[0]?.chunk_id === source.id,
+      );
       if (index !== -1) {
         onRemoveAttachment(index);
       }
@@ -357,14 +367,17 @@ function SourceCard({
     // Parse "file_path (Page N)" from title back to FileRef
     const pageMatch = source.title.match(/^(.+?)\s*\(Page\s+(\d+|\?)\)$/);
     const filePath = pageMatch ? pageMatch[1].trim() : source.title;
-    const pageNumber = pageMatch && pageMatch[2] !== '?' ? parseInt(pageMatch[2], 10) : 1;
+    const pageNumber =
+      pageMatch && pageMatch[2] !== '?' ? parseInt(pageMatch[2], 10) : 1;
 
     onAddAttachment({
       file_path: filePath,
-      chunks: [{
-        chunk_id: source.id,
-        page_number: pageNumber,
-      }],
+      chunks: [
+        {
+          chunk_id: source.id,
+          page_number: pageNumber,
+        },
+      ],
       content: source.content,
     });
   };
@@ -375,8 +388,8 @@ function SourceCard({
         'rounded-card overflow-hidden transition-colors duration-200',
         isAttached
           ? 'border-[#c3e6cb] bg-[#f0faf3] shadow-[0_20px_60px_-48px_rgba(72,187,120,0.4)]'
-          : 'border-[#e8e2ff] bg-white/95 shadow-[0_20px_60px_-48px_rgba(102,88,204,1)]',
-        !isOpen && !isAttached && 'hover:bg-[#f4f2ff]',
+          : 'border-[var(--brand-source-border)] bg-card/95 shadow-[0_20px_60px_-48px_rgba(102,88,204,0.6)]',
+        !isOpen && !isAttached && 'hover:bg-[var(--brand-source-hover-bg)]',
         !isOpen && isAttached && 'hover:bg-[#e6f7ec]',
       )}
     >
@@ -385,20 +398,20 @@ function SourceCard({
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
-              className="group rounded-card flex flex-1 items-center justify-between bg-transparent hover:bg-transparent px-4 py-3 text-[#3f386e] transition-colors duration-200 "
+              className="group rounded-card flex flex-1 items-center justify-between bg-transparent hover:bg-transparent px-4 py-3 text-[var(--brand-source-text)] transition-colors duration-200 "
             >
               <div className="flex items-center gap-2">
-                <ExternalLink className="h-4 w-4 text-[#8175d4]" />
+                <ExternalLink className="h-4 w-4 text-[var(--brand-source-icon)]" />
                 <div className="flex flex-col items-start">
                   <span className="text-primary-medium text-sm font-medium">
                     {source.title}
                   </span>
-                  <span className="text-xs text-[#aba3e3]">
+                  <span className="text-xs text-[var(--brand-source-time)]">
                     {source.platform}
                   </span>
                 </div>
               </div>
-              <ChevronDown className="h-4 w-4 text-[#8175d4] transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              <ChevronDown className="h-4 w-4 text-[var(--brand-source-icon)] transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </Button>
           </CollapsibleTrigger>
           {onAddAttachment && (
@@ -409,12 +422,16 @@ function SourceCard({
                 'mr-2 h-7 w-7 shrink-0 rounded-full',
                 isAttached
                   ? 'text-[#48bb78] hover:bg-[#e6f7ec] hover:text-[#38a169]'
-                  : 'text-[#8175d4] hover:bg-[#f3f1ff] hover:text-[#6b5ae0]',
+                  : 'text-[var(--brand-source-icon)] hover:bg-[var(--brand-source-attach-bg)] hover:text-[var(--brand-link)]',
               )}
               onClick={handleToggleAttach}
               title={isAttached ? 'Remove attachment' : 'Add as attachment'}
             >
-              {isAttached ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              {isAttached ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
             </Button>
           )}
         </div>
@@ -422,7 +439,7 @@ function SourceCard({
         {source.content && (
           <CollapsibleContent className="data-[state=closed]:animate-[collapse-up_0.2s_ease-in-out] data-[state=open]:animate-[collapse-down_0.2s_ease-in-out]">
             <div className="px-4 py-3">
-              <div className="markdown-content text-sm leading-relaxed text-[#7c73b7]">
+              <div className="markdown-content text-sm leading-relaxed text-[var(--brand-content-text)]">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -434,41 +451,46 @@ function SourceCard({
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[#6b5ae0] hover:underline"
+                        className="text-[var(--brand-link)] hover:underline"
                       >
                         {children}
                       </a>
                     ),
                     table: ({ children }) => (
-                      <div className="my-3 overflow-x-auto rounded-md border border-[#e6e0ff]">
+                      <div className="my-3 overflow-x-auto rounded-md border border-[var(--brand-code-border)]">
                         <table className="w-full border-collapse text-left text-xs">
                           {children}
                         </table>
                       </div>
                     ),
                     thead: ({ children }) => (
-                      <thead className="bg-[#f8f7ff] text-[#8a77eb]">
+                      <thead className="bg-[var(--brand-table-head-bg)] text-[var(--brand-table-head-text)]">
                         {children}
                       </thead>
                     ),
                     th: ({ children }) => (
-                      <th className="border-b border-[#e6e0ff] px-3 py-1.5 font-semibold">
+                      <th className="border-b border-[var(--brand-code-border)] px-3 py-1.5 font-semibold">
                         {children}
                       </th>
                     ),
                     td: ({ children }) => (
-                      <td className="border-b border-[#f0edff] px-3 py-1.5 text-[#5a528f]">
+                      <td className="border-b border-[var(--brand-table-row-border)] px-3 py-1.5 text-[var(--brand-table-row-text)]">
                         {children}
                       </td>
                     ),
-                    hr: () => <hr className="my-4 border-t border-[#e6e0ff]" />,
-                    img: ({ src, alt }: React.ComponentPropsWithoutRef<'img'>) => (
+                    hr: () => (
+                      <hr className="my-4 border-t border-[var(--brand-code-border)]" />
+                    ),
+                    img: ({
+                      src,
+                      alt,
+                    }: React.ComponentPropsWithoutRef<'img'>) => (
                       <Image
-                        src={src as string || ''}
+                        src={(src as string) || ''}
                         alt={alt || ''}
                         width={500}
                         height={300}
-                        className="my-3 max-w-full rounded-md border border-[#e6e0ff]"
+                        className="my-3 max-w-full rounded-md border border-[var(--brand-code-border)]"
                       />
                     ),
                   }}
