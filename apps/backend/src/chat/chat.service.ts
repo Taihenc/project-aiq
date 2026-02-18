@@ -25,7 +25,7 @@ export class ChatService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly chatHistoryService: ChatHistoryService,
-  ) { }
+  ) {}
 
   getAiServiceBaseUrl(): string {
     return (
@@ -37,7 +37,7 @@ export class ChatService {
   getAiEngineBaseUrl(): string {
     return (
       this.configService.get<string>('aiService.aiEngineBaseUrl') ||
-      'http://127.0.0.1:8001'
+      'http://127.0.0.1:8000'
     );
   }
 
@@ -108,7 +108,7 @@ export class ChatService {
 
       // 3. Transform Response
       const transformed = this.transformAiEngineToOpenAI(
-        this.parseAiEngineResponse(axiosResponse.data.data.result),
+        this.parseAiEngineResponse(axiosResponse.data.data),
         chatRequest,
       );
 
@@ -117,7 +117,7 @@ export class ChatService {
         await this.handlePostChatActions(
           sessionId,
           userId,
-          aiEngineRequest.inputs.user_query,
+          aiEngineRequest.query,
           transformed,
           sessionData?.lastSummarizedMessageId ?? undefined,
           existingSummary,
@@ -125,8 +125,12 @@ export class ChatService {
       }
 
       return transformed;
-    } catch (error) {
-      this.logger.error('Error in chatWithAiEngine:', error);
+    } catch (error: any) {
+      const errorMsg =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message;
+      this.logger.error(`Error in chatWithAiEngine: ${errorMsg}`);
       throw error;
     }
   }
@@ -177,15 +181,21 @@ export class ChatService {
 
                   try {
                     const json = JSON.parse(line);
-                    this.logger.verbose(`Relaying AI Engine Event: ${json.type}`);
+                    this.logger.verbose(
+                      `Relaying AI Engine Event: ${json.type}`,
+                    );
 
                     if (json.type === 'result') {
                       fullResult = json;
                     }
 
-                    subscriber.next({ data: JSON.stringify(json) } as MessageEvent);
+                    subscriber.next({
+                      data: JSON.stringify(json),
+                    } as MessageEvent);
                   } catch (e) {
-                    this.logger.warn(`Failed to parse AI Engine line: ${line.substring(0, 100)}...`);
+                    this.logger.warn(
+                      `Failed to parse AI Engine line: ${line.substring(0, 100)}...`,
+                    );
                   }
                 }
               });
@@ -193,33 +203,51 @@ export class ChatService {
               stream.on('end', async () => {
                 if (fullResult && sessionId) {
                   // Properly parse the result content which might be an object
-                  const parsedResponse = this.parseAiEngineResponse(fullResult.content);
+                  const parsedResponse = this.parseAiEngineResponse(
+                    fullResult.content,
+                  );
                   const transformed = this.transformAiEngineToOpenAI(
                     parsedResponse,
                     chatRequest,
+                  );
+                  this.logger.verbose(
+                    `Raw AI Engine Response: ${JSON.stringify(fullResult)}`,
                   );
 
                   await this.handlePostChatActions(
                     sessionId,
                     userId,
-                    aiEngineRequest.inputs.user_query,
+                    aiEngineRequest.query,
                     transformed,
                     sessionData?.lastSummarizedMessageId ?? undefined,
                     existingSummary,
                   ).catch((err) =>
-                    this.logger.error('Streaming post-chat actions failed', err),
+                    this.logger.error(
+                      'Streaming post-chat actions failed',
+                      err,
+                    ),
                   );
                 }
                 subscriber.complete();
               });
 
-              stream.on('error', (err) => {
-                this.logger.error('AI Engine stream error', err);
+              stream.on('error', (err: any) => {
+                const errorMsg =
+                  err.response?.data?.detail ||
+                  err.response?.data?.message ||
+                  err.message;
+                this.logger.error(`AI Engine stream error: ${errorMsg}`);
                 subscriber.error(err);
               });
             },
-            error: (err) => {
-              this.logger.error('Failed to connect to AI Engine stream', err);
+            error: (err: any) => {
+              const errorMsg =
+                err.response?.data?.detail ||
+                err.response?.data?.message ||
+                err.message;
+              this.logger.error(
+                `Failed to connect to AI Engine stream: ${errorMsg}`,
+              );
               subscriber.error(err);
             },
           });
@@ -232,14 +260,12 @@ export class ChatService {
 
   private getAiEngineStreamUrl(): string {
     const aiEngineBaseUrl = this.getAiEngineBaseUrl();
-    const crew = this.getDefaultCrew();
-    return `${aiEngineBaseUrl}/api/v1/workflows/${crew}/completion/stream`;
+    return `${aiEngineBaseUrl}/api/v1/completions/stream`;
   }
 
   private getAiEngineCompletionUrl(): string {
     const aiEngineBaseUrl = this.getAiEngineBaseUrl();
-    const crew = this.getDefaultCrew();
-    return `${aiEngineBaseUrl}/api/v1/workflows/${crew}/completion`;
+    return `${aiEngineBaseUrl}/api/v1/completions`;
   }
 
   private prepareAiEngineRequest(
@@ -251,20 +277,17 @@ export class ChatService {
       .reverse()
       .find((m) => m.role === 'user');
 
-    const historyFromDb = unsummarizedMessages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    const historyStrings = unsummarizedMessages.map(
+      (msg) => `${msg.role === 'user' ? 'User' : 'Agent'}: ${msg.content}`,
+    );
 
     return {
-      inputs: {
-        user_query:
-          lastUserMessage?.content ||
-          chatRequest.messages.slice(-1)[0]?.content ||
-          '',
-        chat_history: historyFromDb,
-        context: [existingSummary],
-      },
+      query:
+        lastUserMessage?.content ||
+        chatRequest.messages.slice(-1)[0]?.content ||
+        '',
+      history: historyStrings,
+      attachments: [], // search-flow handles enrichment if we pass FileRefs
     };
   }
 
@@ -276,9 +299,12 @@ export class ChatService {
     lastSummarizedMessageId: string | undefined,
     existingSummary: string,
   ): Promise<void> {
-    this.logger.debug(`Post-chat actions for session: ${sessionId}, user: ${userId}`);
+    this.logger.debug(
+      `Post-chat actions for session: ${sessionId}, user: ${userId}`,
+    );
 
-    const assistantContent = transformedResponse.choices[0].message.content || '';
+    const assistantContent =
+      transformedResponse.choices[0].message.content || '';
     const userQueryContent = userQuery || '';
 
     this.logger.verbose(`User query: ${userQueryContent.substring(0, 50)}...`);
@@ -300,7 +326,10 @@ export class ChatService {
         transformedResponse.citations,
       );
     } catch (err: any) {
-      this.logger.error(`Failed to add messages in handlePostChatActions: ${err.message}`, err.stack);
+      this.logger.error(
+        `Failed to add messages in handlePostChatActions: ${err.message}`,
+        err.stack,
+      );
       throw err;
     }
 
@@ -400,8 +429,26 @@ export class ChatService {
     sources_used: any[];
     language: string;
   } {
-    // Handle the new CompletionData format
-    if (data) {
+    // Handle the new FlowResponse format from AIQ-164
+    if (data && (data.response !== undefined || data.action !== undefined)) {
+      const response = data.response || data.final_answer || '';
+      const response_type = data.action || 'DIRECT';
+      const sources_used: any[] = data.citations || data.file_path || [];
+      const language = data.language || 'en';
+
+      return {
+        response,
+        response_type: response_type.toUpperCase(),
+        sources_used,
+        language,
+      };
+    }
+
+    // Handle the CompletionData format (legacy/intermediate)
+    if (
+      data &&
+      (data.final_answer !== undefined || data.file_path !== undefined)
+    ) {
       const response = data.final_answer || '';
       const response_type = 'DIRECT';
       const sources_used: any[] = data.file_path || [];
@@ -517,25 +564,49 @@ export class ChatService {
     // right now the sources_used is only a array list of source name ex. "sources_used": ["stars_001", "stars_002", "stars_003"]
     // so for the citations title we will use the source name ex. "stars_001", "stars_002", "stars_003"
 
-    const citations: CitationDto[] | undefined =
-      aiEngineResponse.sources_used && aiEngineResponse.sources_used.length > 0
-        ? aiEngineResponse.sources_used.map((source: any, index: number) => {
-          if (typeof source === 'string') {
-            return {
-              id: `citation-${index}`,
-              title: source,
+    const citations: CitationDto[] = [];
+    if (
+      aiEngineResponse.sources_used &&
+      aiEngineResponse.sources_used.length > 0
+    ) {
+      aiEngineResponse.sources_used.forEach((source: any, index: number) => {
+        // Handle simple string (legacy)
+        if (typeof source === 'string') {
+          citations.push({
+            id: `citation-${index}`,
+            title: source,
+            platform: 'AI Engine',
+            content: '',
+          });
+          return;
+        }
+
+        // Handle FileRef structure from AIQ-164: { file_path: string, chunks: { chunk_id: string, ... }[] }
+        if (source && source.file_path && Array.isArray(source.chunks)) {
+          source.chunks.forEach((chunk: any, chunkIndex: number) => {
+            citations.push({
+              id: chunk.chunk_id || `citation-${index}-${chunkIndex}`,
+              title: `${source.file_path} (Page ${chunk.page_number || '?'})`,
               platform: 'AI Engine',
-              content: '',
-            };
-          }
-          return {
-            id: source.id || `citation-${index}`,
-            title: source.title || source.name || `Source ${index + 1}`,
-            platform: source.platform || source.source || 'AI Engine',
-            content: source.content || source.description || '',
-          };
-        })
-        : undefined;
+              content: '', // Content is mapped back on the business layer if needed
+            });
+          });
+          return;
+        }
+
+        // Handle generic object
+        citations.push({
+          id: source.id || `citation-${index}`,
+          title:
+            source.title ||
+            source.name ||
+            source.file_path ||
+            `Source ${index + 1}`,
+          platform: source.platform || source.source || 'AI Engine',
+          content: source.content || source.description || '',
+        });
+      });
+    }
 
     return {
       id: uuidv4(),
