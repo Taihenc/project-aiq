@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Cookies } from '@/lib/utils/cookies';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
@@ -11,7 +12,7 @@ export const client = axios.create({
 
 client.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    const token = Cookies.get('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -30,8 +31,7 @@ const BACKEND_URL_DIRECT =
     : process.env.NEXT_PUBLIC_BACKEND_URL) || 'http://localhost:3000';
 
 export const streamFetch = async (endpoint: string, body: any) => {
-  const token =
-    typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const token = Cookies.get('auth_token');
   const url = `${BACKEND_URL_DIRECT}/api/v1${endpoint}`;
   console.log('[streamFetch] Calling backend directly:', url);
   const response = await fetch(url, {

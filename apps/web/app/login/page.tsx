@@ -11,26 +11,46 @@ import DarkVeil from '@/components/DarkVeil';
 import WhiteVeil from '@/components/WhiteVeil';
 
 export default function LoginPage() {
-  const { login, register } = useAuth();
+  const { login, register, isAuthenticated } = useAuth();
   const router = useRouter();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [whiteHue] = useState(170);
   const [darkHue] = useState(338);
   useEffect(() => setMounted(true), []);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('[LoginPage] Authenticated! Redirecting to /');
+      window.location.href = '/';
+    }
+  }, [isAuthenticated]);
+
   const handleMockLogin = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    let success = false;
     try {
+      console.log('[LoginPage] Attempting login...');
       await login('demo@example.com', 'password');
-      router.push('/');
+      success = true;
+      console.log('[LoginPage] Login persisted. Waiting for redirect...');
     } catch {
-      // If login fails, try registering
       try {
+        console.log('[LoginPage] Login failed, attempting register...');
         await register('demo@example.com', 'password', 'Demo User');
-        router.push('/');
+        success = true;
+        console.log('[LoginPage] Register persisted. Waiting for redirect...');
       } catch (e2) {
-        console.error('Login/Register failed', e2);
-        alert('Failed to login/register demo user');
+        console.error('[LoginPage] Login/Register failed', e2);
+        setIsLoading(false);
+      }
+    } finally {
+      if (success) {
+        setTimeout(() => {
+          if (mounted) setIsLoading(false);
+        }, 5000);
       }
     }
   };
@@ -90,12 +110,22 @@ export default function LoginPage() {
             <div className="space-y-6">
               <Button
                 onClick={handleMockLogin}
+                disabled={isLoading}
                 className="w-full h-16 text-lg font-bold bg-brand-btn-primary hover:bg-brand-btn-primary-hover text-white rounded-2xl shadow-[0_10px_30px_rgba(107,90,224,0.3)] transition-all active:scale-[0.98] group relative overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                 <span className="relative flex items-center justify-center gap-2">
-                  Sign in with SSO
-                  <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="size-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Signing in...
+                    </div>
+                  ) : (
+                    <>
+                      Sign in with SSO
+                      <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+                    </>
+                  )}
                 </span>
               </Button>
 

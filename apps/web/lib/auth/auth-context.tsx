@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { authApi } from '@/lib/api/auth';
+import { Cookies } from '@/lib/utils/cookies';
 import type { User, DecodedToken, AuthContextType } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,7 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = Cookies.get('auth_token');
     if (token) {
       try {
         const decoded = jwtDecode<DecodedToken>(token);
@@ -26,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           displayName: decoded.displayName || decoded.email.split('@')[0],
         });
       } catch {
-        localStorage.removeItem('access_token');
+        Cookies.remove('auth_token');
       }
     }
     setIsLoading(false);
@@ -34,7 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, pass: string) => {
     const res = await authApi.login(email, pass);
-    localStorage.setItem('access_token', res.access_token);
+    console.log('[AuthContext] Login successful. User:', res.user);
+    // Force cookie set
+    document.cookie = `auth_token=${res.access_token}; path=/; SameSite=Lax; max-age=${7 * 24 * 60 * 60}`;
     setUser(res.user);
   };
 
@@ -44,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
+    Cookies.remove('auth_token');
     setUser(null);
   };
 

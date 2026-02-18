@@ -15,6 +15,7 @@ import { extractCitations } from '@/lib/utils/citations';
 import { useHistory } from '@/hooks/useHistory';
 import { useChatStore } from '@/lib/store/chat-store';
 import { useAuth } from '@/lib/auth/auth-context';
+import { Cookies } from '@/lib/utils/cookies';
 import { NotFoundScreen } from '@/components/features/chat/not-found-screen';
 import { ThemeToggle } from '@/components/custom/theme-toggle';
 import type { FileRef, ChatHistoryItem } from '@/types';
@@ -56,21 +57,22 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   const isDeterminingAccess =
     isAuthLoading || (initialChatId && isLoadingHistory && isHistoryEmpty);
 
-  // A chat is "not found/unauthorized" if:
-  // 1. We are authenticated but the chat ID is not in our history
-  // 2. We are NOT authenticated but are trying to access a specific chat URL (to avoid leaking existence/ownership)
+  // A chat is "not found" if we're authenticated but the chat ID is not in history.
   const chatExistsInHistory = history.some((h) => h.id === initialChatId);
   const showNotFound =
-    !isDeterminingAccess &&
-    !!initialChatId &&
-    (!isAuthenticated || !chatExistsInHistory);
+    !isDeterminingAccess && !!initialChatId && !chatExistsInHistory;
 
-  // Immediate redirect only for the ROOT path when not authenticated
+  // Client-side guard: handles expired JWTs that bypass the middleware cookie check.
   useEffect(() => {
-    if (!isAuthLoading && !isAuthenticated && !initialChatId) {
-      router.push('/login');
+    if (isAuthLoading) return;
+
+    // Check cookie as a backup to avoid race conditions during transitions.
+    const hasToken = !!Cookies.get('auth_token');
+
+    if (!isAuthenticated && !hasToken) {
+      router.replace('/login');
     }
-  }, [isAuthenticated, isAuthLoading, initialChatId, router]);
+  }, [isAuthenticated, isAuthLoading, router]);
 
   // Find the current chat title from history
   const currentChat = history.find(
@@ -131,9 +133,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   // 2. Not Found Guard
   if (showNotFound) {
-    return (
-      <NotFoundScreen message="This chat either doesn't exist or you don't have permission to access it." />
-    );
+    return <NotFoundScreen message="This chat either doesn't exist." />;
   }
 
   // 3. Main Interface
