@@ -268,7 +268,7 @@ class SearchClient:
 
                 rprint(
                     Panel(
-                        response_text,
+                        Markdown(response_text),
                         title=f"[bold {color}]AGENT ACTION: {action.upper()}[/bold {color}]",
                         title_align="left",
                         border_style=color,

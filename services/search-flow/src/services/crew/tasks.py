@@ -3,13 +3,11 @@ from src.config.prompts import TaskPrompts
 from src.models.state import FlowResponse
 
 
-def create_manager_task(
-    agent: Agent, query: str, context_str: str, history_str: str
-) -> Task:
+def create_manager_task(agent: Agent, query: str, context_block: str) -> Task:
     return Task(
         name="Manager Task",
         description=TaskPrompts.MANAGER_TASK.format(
-            query=query, attachments_str=context_str, history_str=history_str
+            query=query, context_block=context_block
         ),
         expected_output=TaskPrompts.MANAGER_OUTPUT,
         agent=agent,

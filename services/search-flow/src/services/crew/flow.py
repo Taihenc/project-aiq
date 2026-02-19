@@ -17,13 +17,13 @@ class SearchCrewFlow(Flow[FlowState]):
         if not self.state.context:
             return ""
         context_data = [item.model_dump() for item in self.state.context]
-        return f"\nAttached Files Context:\n{json.dumps(context_data, indent=2, ensure_ascii=False)}\n"
+        return f"- **Reference Data (Attachments):**\n{json.dumps(context_data, indent=2, ensure_ascii=False)}\n"
 
     def _format_history(self) -> str:
         """Helper to format chat history for LLM prompts."""
         if not self.state.history:
             return ""
-        return f"\nChat History:\n{json.dumps(self.state.history, indent=2, ensure_ascii=False)}\n"
+        return f"- **Conversation Record (History):**\n{json.dumps(self.state.history, indent=2, ensure_ascii=False)}\n"
 
     @start()
     async def execute_flow(self):
@@ -34,18 +34,22 @@ class SearchCrewFlow(Flow[FlowState]):
 
         agent = create_manager_agent(tools=tools)
 
+        # Default values are empty strings if no data
         formatted_context = self._format_context()
         formatted_history = self._format_history()
-        if not formatted_context:
-            formatted_context = "No attachments provided."
-        if not formatted_history:
-            formatted_history = "No chat history."
+
+        context_block = ""
+        if formatted_context or formatted_history:
+            context_block = "# CONTEXT (Current Environment & Data)\n"
+            if formatted_context:
+                context_block += formatted_context + "\n"
+            if formatted_history:
+                context_block += formatted_history + "\n"
 
         task = create_manager_task(
             agent=agent,
             query=self.state.query,
-            context_str=formatted_context,
-            history_str=formatted_history,
+            context_block=context_block,
         )
 
         crew = Crew(agents=[agent], tasks=[task], verbose=True, tracing=True)
