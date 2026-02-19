@@ -41,9 +41,9 @@ class Filter(BaseModel):
 
 
 class SearchRequest(BaseModel):
-    query: str = Field("artificial intelligence", description="Search query text")
-    top_k: int = Field(default=10, ge=1, le=100, description="Number of results from sematic search")
-    top_n: Optional[int] = Field(default=10, ge=1, le=100, description="Number of results from rerank (Leave null for no reranking)")
+    query: str = Field(..., description="Search query text")
+    top_k: int = Field(default=5, ge=1, le=100, description="Number of results from sematic search")
+    top_n: Optional[int] = Field(default=5, ge=1, le=100, description="Number of results from rerank (Leave null for no reranking)")
     score_threshold: Optional[float] = Field(default=0, ge=0.0, le=1.0, description="Minimum similarity score")
     filter: Optional[Filter] = Field(default=None, description="Metadata filter")
 
@@ -135,3 +135,15 @@ class StructuredQueryResponse(BaseModel):
     metadata: Dict[str, Any]
     success: bool
     error: Optional[str] = None
+
+
+class Chunk(BaseModel):
+    order: int = Field(...)
+    score: Optional[float] = Field(None, description="Relevance score.")
+
+class FileRef(BaseModel):
+    file_path: str = Field(..., description="Path or name of the source file.")
+    chunks: List[Chunk] = Field(..., description="List of relevant chunks in this file.")
+
+class RequestFileRef(BaseModel):
+    file_refs: List[FileRef] = Field(...)

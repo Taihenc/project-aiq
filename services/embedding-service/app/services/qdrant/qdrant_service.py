@@ -363,7 +363,6 @@ class QdrantService:
         """
         self._ensure_collection()
         
-        # 1. Get target chunk to find file_path and order
         target_doc = self.get_document(chunk_id)
         if not target_doc:
             raise ValueError(f"Target chunk {chunk_id} not found")
@@ -371,7 +370,6 @@ class QdrantService:
         target_metadata = target_doc["metadata"]
         file_path = target_metadata.get("file_path")
         
-        # 'order' might be stored as int or float. Defaults to -1 if missing, which shouldn't happen for valid docs.
         try:
             target_order = int(target_metadata.get("order", -1))
         except (ValueError, TypeError):
@@ -381,11 +379,9 @@ class QdrantService:
         if not file_path or target_order == -1:
              raise ValueError(f"Chunk {chunk_id} missing required 'file_path' or 'order' metadata")
 
-        # 2. Define Range
         min_order = target_order - backward
         max_order = target_order + forward
         
-        # 3. Query
         q_filter = Filter(
             must=[
                 FieldCondition(key="file_path", match=MatchValue(value=file_path)),
@@ -393,9 +389,6 @@ class QdrantService:
             ]
         )
         
-        # We need to fetch enough potential candidates. 
-        # The number of chunks is roughly (backward + forward + 1).
-        # We fetch a bit more to be safe.
         limit = (backward + forward + 1) + 5
         
         results, _ = self.client.scroll(
@@ -406,7 +399,6 @@ class QdrantService:
             with_vectors=False
         )
         
-        # 4. Format and Sort
         neighbors = []
         for point in results:
              neighbors.append({
@@ -415,7 +407,6 @@ class QdrantService:
                 "metadata": {k: v for k, v in point.payload.items() if k != "text"},
              })
         
-        # Sort by order
         neighbors.sort(key=lambda x: int(x["metadata"].get("order", 0)))
         
         return neighbors
