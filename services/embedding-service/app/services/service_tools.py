@@ -19,16 +19,19 @@ from app.models.models import (
     DocumentDeleteResponse,
     PageRetrievalRequest,
     PageRetrievalResponse,
-    PageContent,
+    # PageContent,
     StructuredQueryRequest,
     StructuredQueryResponse,
     ChunkContextRequest,
-    ChunkContextResponse
+    ChunkContextResponse,
+    FileReferenceRequest,
+    FileReferenceResponse
 )
 
 from app.services.qdrant.qdrant_service import qdrant_service
 from app.services.embedding.embedding_service import embedding_service
 from app.services.reranking.reranking_service import reranking_service
+from app.services.formatter import formatter_service
 
 import logging
 import json
@@ -131,8 +134,7 @@ class Tools:
                 "num_documents": len(reconstructed_pages),
                 "results": [
                     {
-                        "page_number": page["page_number"],
-                        "text": page["text"][:100] + "..." if len(page["text"]) > 100 else page["text"],
+                        "page_number": page.page_number
                     }
                     for page in reconstructed_pages[:3]
                 ]
@@ -349,6 +351,22 @@ class Tools:
                     result="", metadata={}, success=False,
                     error=f"Invalid Query Syntax: {str(e)}"
                 )
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+    async def get_text_by_file_reference(self, request: FileReferenceRequest):
+        try:
+            for file in request.files:
+                for page in file.pages:
+                    for chunk in page.chunks:
+                        retrieve_chunk = qdrant_service.get_chunk_by_order(file.file_path, chunk.chunk_number)
+                        chunk.text = retrieve_chunk["text"]
+            
+            result_text = formatter_service.format_files_to_text(request.files)
+            return FileReferenceResponse(
+                result = result_text
+            )
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")

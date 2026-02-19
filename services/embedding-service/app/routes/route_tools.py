@@ -19,11 +19,13 @@ from app.models.models import (
     DocumentDeleteResponse,
     PageRetrievalRequest,
     PageRetrievalResponse,
-    PageContent,
+    # PageContent,
     StructuredQueryRequest,
     StructuredQueryResponse,
     ChunkContextRequest,
-    ChunkContextResponse
+    ChunkContextResponse,
+    FileReferenceRequest,
+    FileReferenceResponse
 )
 
 from app.services.service_tools import service_tools
@@ -64,3 +66,7 @@ async def get_chunks_context(request: ChunkContextRequest):
 @router.post("/query-structured-data", response_model=StructuredQueryResponse)
 async def query_structured_data(request: StructuredQueryRequest):
     return await service_tools.query_structured_data(request)
+
+@router.post("/text-by-file-reference", response_model=FileReferenceResponse)
+async def get_text_by_file_reference(request: FileReferenceRequest):
+    return await service_tools.get_text_by_file_reference(request)

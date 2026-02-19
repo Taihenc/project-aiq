@@ -9,7 +9,9 @@ import uuid
 from app.config import settings
 from app.services.embedding.embedding_service import embedding_service
 from app.models.models import (
-    Filter as ModelFilter
+    Filter as ModelFilter,
+    Page,
+    Chunk,
 )
 
 
@@ -334,26 +336,22 @@ class QdrantService:
         all_points.sort(key=lambda p: p.payload.get("order", 0))
         pages_chunk = []
 
+    
         for i in range(start_page, end_page + 1):
-            page_ids = []
-            page_text_segments = []
-            page_metadata = []
+            chunks = []
 
             for point in all_points:
                 if i in point.payload.get("pages", []):
-                    page_ids.append(point.id)
-                    page_text_segments.append(point.payload.get("text", ""))
-                    meta = {k: v for k, v in point.payload.items() if k != "text"}
-                    page_metadata.append(meta)
+                    chunks.append(Chunk(
+                        chunk_number=point.payload.get("order", 0),
+                        text=point.payload.get("text", ""),
+                    ))
 
-            if page_ids:
-                pages_chunk.append({
-                    "page_number": i,
-                    "ids": page_ids,
-                    "text": "".join(page_text_segments),
-                    "metadata_list": page_metadata,
-                    "total_chunks": len(page_ids)
-                })
+            if chunks:
+                pages_chunk.append(Page(
+                    page_number=i,
+                    chunks=chunks
+                ))
 
         return pages_chunk, len(pages_chunk)
 
@@ -410,6 +408,35 @@ class QdrantService:
         neighbors.sort(key=lambda x: int(x["metadata"].get("order", 0)))
         
         return neighbors
+
+    def get_chunk_by_order(self, file_path: str, order: int) -> Dict[str, Any]:
+        self._ensure_collection()
+        
+        q_filter = Filter(
+            must=[
+                FieldCondition(key="file_path", match=MatchValue(value=file_path)),
+                FieldCondition(key="order", match=MatchValue(value=order))
+            ]
+        )
+        
+        points, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=q_filter,
+            limit=1,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        point = points[0]
+
+        if point:
+            return {
+                "id": point.id,
+                "text": point.payload.get("text", ""),
+                "metadata": {k: v for k, v in point.payload.items() if k != "text"},
+            }
+        else:
+            raise ValueError(f"Chunk with file_path {file_path} and order {order} not found")
 
 # Global instance
 qdrant_service = QdrantService()
