@@ -16,7 +16,12 @@ class SearchCrewFlow(Flow[FlowState]):
         """Helper to format structured context for LLM prompts."""
         if not self.state.context:
             return ""
-        return f"- **Reference Data (Attachments):**\n{self.state.context}\n"
+        return (
+            f"- **Reference Data (Attachments - Provided by USER):**\n"
+            f"NOTE: These files were attached by the user. They are NOT search results. "
+            f"Use them to answer, but DO NOT include them in the 'citations' output field.\n"
+            f"{self.state.context}\n"
+        )
 
     def _format_history(self) -> str:
         """Helper to format chat history for LLM prompts."""
@@ -51,7 +56,9 @@ class SearchCrewFlow(Flow[FlowState]):
             mode_instruction = (
                 f"**STRICT MODE ENFORCED:** The user has explicitly selected '{mode.upper()}' mode. "
                 f"You MUST perform a '{mode}' action. If the user query is unrelated to '{mode}', "
-                "you must REJECT and ask for clarification."
+                "you must REJECT and ask for clarification.\n"
+                f"**CRITICAL:** You MUST trigger the '{mode}' tool IMMEDIATELY. "
+                "Do NOT rely on 'Attachments' to skip this step. Even if you think you have the info in context, you MUST use the tool to verify and fetch fresh content."
             )
 
         # Format Metadata

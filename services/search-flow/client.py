@@ -111,9 +111,10 @@ class SearchClient:
             # Formatting File Node
             prefix = ""
             if show_ids:
-                prefix += f"[bold blue][f{idx}][/bold blue] "
+                # Escape brackets for Rich: \\[f0]
+                prefix += f"[bold blue]\\[f{idx}][/bold blue] "
             if new_start_idx is not None and idx >= new_start_idx:
-                prefix += "[bold green][NEW][/bold green] "
+                prefix += "[bold green]\\[NEW][/bold green] "
 
             file_node = tree.add(f"{prefix}[cyan]{fp}[/cyan] ({len(chunks)} chunks)")
 
@@ -461,9 +462,9 @@ class SearchClient:
                 rprint(
                     Panel(
                         Markdown(response_text),
-                        title=f"[bold {color}]AGENT ACTION: {action.upper()}[/bold {color}]",
+                        title="[bold cyan]AGENT RESPONSE[/bold cyan]",
                         title_align="left",
-                        border_style=color,
+                        border_style="cyan",
                         padding=(1, 2),
                     )
                 )

@@ -53,7 +53,6 @@ class TaskPrompts:
 {{mode_instruction}}
 - **Action Selection Logic (STRICT):**
     1. SEARCH: **Primary Action.** If the user asks a question that COULD be answered by documents, or explicitly asks to "find", "search", or "who is...", "what is...", you **MUST** select 'search'.
-       - **Constraint:** Do NOT answer from {{metadata}} or {{context_block}} if the user's intent is to search external documents. You MUST trigger the search tool.
        - **REJECT IF:** The user commands to search but provides NO query or subject (e.g., just says "Search").
     2. LOOKUP: When you need to retrieve a specific file by its ID or filename.
        - **REJECT IF:** The user asks to "get file" or "read page" without specifying WHICH file, ID, or page number.
@@ -78,5 +77,6 @@ Return ONLY a JSON object containing:
     3. **Not Found:** If NO relevant documents are found -> "I couldn't find any documents related to your query." (Do not attach unrelated files).
     4. **Unsure:** If found chunks are ambiguous or weak matches -> "I'm not sure if this is exactly what you need, but here is what I found..." (Attach the potential match).
 - **citations**: List of ALL chunks referenced in your response (file_path, page_number, chunk_number). Ensure every piece of information in your response is backed by a citation if possible. Crucial: Include citations even if they are redundant or translated versions of the same content. Set to null only if no relevant info is found.
-- Group chunks by file_path and sort by page_number and chunk_number ascending.
+    - **Constraint:** Do NOT answer from "Attachments" if the user's intent is to use tool to retrieve documents. You MUST trigger the tool.
+    - **Constraint:** Group chunks by file_path and sort by page_number and chunk_number ascending.
 """
