@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ChunkMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    chunk_id: str = Field(..., description="Unique identifier for the chunk.")
+    chunk_number: int = Field(..., description="Order of the chunk.")
     page_number: int = Field(..., description="Page number (1-indexed).")
     score: Optional[float] = Field(None, description="Relevance score.")
 
