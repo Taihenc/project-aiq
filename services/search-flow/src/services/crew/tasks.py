@@ -3,15 +3,24 @@ from src.config.prompts import TaskPrompts
 from src.models.state import FlowResponse
 
 
-def create_manager_task(
-    agent: Agent, query: str, context_str: str, history_str: str
+def create_search_task(
+    agent: Agent,
+    query: str,
+    context_block: str,
+    current_time: str,
+    mode_instruction: str = "",
+    metadata: str = "",
 ) -> Task:
     return Task(
-        name="Manager Task",
-        description=TaskPrompts.MANAGER_TASK.format(
-            query=query, attachments_str=context_str, history_str=history_str
+        name="Search Agent Task",
+        description=TaskPrompts.SEARCH_AGENT_TASK_TEMPLATE.format(
+            query=query,
+            context_block=context_block,
+            mode_instruction=mode_instruction,
+            metadata=metadata,
+            current_time=current_time,
         ),
-        expected_output=TaskPrompts.MANAGER_OUTPUT,
+        expected_output=TaskPrompts.SEARCH_AGENT_OUTPUT,
         agent=agent,
         output_pydantic=FlowResponse,
     )

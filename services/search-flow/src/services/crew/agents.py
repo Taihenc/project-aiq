@@ -13,15 +13,15 @@ def get_llm():
     )
 
 
-def create_manager_agent(tools: list = [], step_callback=None) -> Agent:
+def create_search_agent(tools: list = [], step_callback=None) -> Agent:
     return Agent(
-        role=AgentPrompts.MANAGER_ROLE,
-        goal=AgentPrompts.MANAGER_GOAL,
-        backstory=AgentPrompts.MANAGER_BACKSTORY,   
+        role=AgentPrompts.SEARCH_AGENT_ROLE,
+        goal=AgentPrompts.SEARCH_AGENT_GOAL,
+        backstory=AgentPrompts.SEARCH_AGENT_BACKSTORY,
         tools=tools,
         llm=get_llm(),
-        verbose=True,
+        verbose=settings.crew_verbose,
         allow_delegation=False,
-        max_iter=5,  # Allow tool use iterations
+        max_iter=settings.crew_max_iter,
         step_callback=step_callback,
     )

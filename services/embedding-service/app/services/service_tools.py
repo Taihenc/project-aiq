@@ -19,16 +19,19 @@ from app.models.models import (
     DocumentDeleteResponse,
     PageRetrievalRequest,
     PageRetrievalResponse,
-    PageContent,
+    # PageContent,
     StructuredQueryRequest,
     StructuredQueryResponse,
     ChunkContextRequest,
-    ChunkContextResponse
+    ChunkContextResponse,
+    FileReferenceRequest,
+    FileReferenceResponse
 )
 
 from app.services.qdrant.qdrant_service import qdrant_service
 from app.services.embedding.embedding_service import embedding_service
 from app.services.reranking.reranking_service import reranking_service
+from app.services.formatter import formatter_service
 
 import logging
 import json
@@ -131,8 +134,7 @@ class Tools:
                 "num_documents": len(reconstructed_pages),
                 "results": [
                     {
-                        "page_number": page["page_number"],
-                        "text": page["text"][:100] + "..." if len(page["text"]) > 100 else page["text"],
+                        "page_number": page.page_number
                     }
                     for page in reconstructed_pages[:3]
                 ]
@@ -162,21 +164,38 @@ class Tools:
         ```
         """
         try:
+            chunk_id = qdrant_service.get_chunk_by_order(request.file_path, request.chunk_number)["id"]
+
             chunks = qdrant_service.get_neighbor_chunks(
-                chunk_id=request.chunk_id,
+                chunk_id=chunk_id,
                 backward=request.backward,
                 forward=request.forward
             )
-            
-            # Convert dict to DocumentResponse
+
             response_chunks = [
                 DocumentResponse(
                     id=c["id"],
                     text=c["text"],
                     metadata=c["metadata"],
-                    score=c.get("score")
                 ) for c in chunks
             ]
+
+            log_payload = {
+                "event": "chunks_context_retrieved",
+                "chunk_id": chunk_id,
+                "backward": request.backward,
+                "forward": request.forward,
+                "num_chunks": len(response_chunks),
+                "results": [
+                    {
+                        "id": chunk.id,
+                        "text": chunk.text[:100] + "..." if len(chunk.text) > 100 else chunk.text,
+                    }
+                    for chunk in response_chunks[:3]
+                ]
+            }
+
+            logger.info("Chunks context retrieved:\n%s", json.dumps(log_payload, indent=2, ensure_ascii=False))
 
             return ChunkContextResponse(chunks=response_chunks)
 
@@ -334,6 +353,22 @@ class Tools:
                     result="", metadata={}, success=False,
                     error=f"Invalid Query Syntax: {str(e)}"
                 )
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+    async def get_text_by_file_reference(self, request: FileReferenceRequest):
+        try:
+            for file in request.files:
+                for page in file.pages:
+                    for chunk in page.chunks:
+                        retrieve_chunk = qdrant_service.get_chunk_by_order(file.file_path, chunk.chunk_number)
+                        chunk.text = retrieve_chunk["text"]
+            
+            result_text = formatter_service.format_files_to_text(request.files)
+            return FileReferenceResponse(
+                result = result_text
+            )
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")

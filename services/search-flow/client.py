@@ -52,11 +52,36 @@ def _rows_to_filerefs(rows, selected_indices: set) -> List[Dict[str, Any]]:
     return [{"file_path": fp, "chunks": by_file[fp]} for fp in file_order]
 
 
+# Default Corporate Metadata
+DEFAULT_METADATA = {
+    "user_info": {
+        "id": "EMP-88219",
+        "name": "Pol",
+        "role": "Senior Cloud Architect",
+        "department": "Platform Engineering",
+        "team": "AINGO Core Infrastructure",
+        "clearance_level": "Level 4 (Confidential)",
+    },
+    "preferences": {
+        "language": "Thai",
+        "timezone": "Asia/Bangkok (GMT+7)",
+    },
+    "session_context": {
+        "device": "MacBook Pro M3 Max",
+        "network": "Corporate VPN (Secure)",
+        "location": "SCB TechX HQ, Bangkok",
+        "current_project": "Search Flow Optimization",
+    },
+}
+
+
 class SearchClient:
     def __init__(self):
         self.history: List[str] = []
         self.attachments: List[Dict[str, Any]] = []  # List of FileRef objects
         self.session = requests.Session()
+        self.mode = "auto"
+        self.metadata = DEFAULT_METADATA
 
     def display_attachments(self):
         """Displays the current active attachments (File-Based)."""
@@ -225,16 +250,31 @@ class SearchClient:
 
         console.print(
             Panel.fit(
-                "[bold cyan]AINGO SEARCH FLOW[/bold cyan]\n[dim]AI-Powered Intelligence Engine[/dim]",
+                "[bold cyan]AINGO SEARCH FLOW[/bold cyan]\n[dim]AI-Powered Intelligence Engine[/dim]\n"
+                "[dim]Commands: /chat, /search, /lookup, /auto, /metadata <json>, /reset[/dim]",
                 subtitle="Type 'exit' to quit",
                 border_style="cyan",
                 padding=(1, 2),
             )
         )
 
+        # Print Metadata on Startup
+        rprint(
+            Panel(
+                json.dumps(self.metadata, indent=2),
+                title="[bold magenta]User Metadata (Read-Only)[/bold magenta]",
+                border_style="magenta",
+                expand=False,
+            )
+        )
+
         while True:
             # 1. Input Phase
             self.display_attachments()
+            mode_display = f"[bold magenta]Mode: {self.mode.upper()}[/bold magenta]"
+            # Only showing Mode as Metadata is big and shown at start
+            rprint(f"{mode_display}")
+
             query = Prompt.ask("\n[bold cyan]YOU[/bold cyan]")
 
             if query.lower() in ("exit", "quit"):
@@ -243,11 +283,58 @@ class SearchClient:
             if not query.strip():
                 continue
 
+            # Command Handling
+            if query == "/chat":
+                self.mode = "chat"
+                rprint("[green]Mode set to CHAT[/green]")
+                continue
+
+            if query == "/search":
+                self.mode = "search"
+                rprint("[green]Mode set to SEARCH[/green]")
+                continue
+
+            if query == "/lookup":
+                self.mode = "lookup"
+                rprint("[green]Mode set to LOOKUP[/green]")
+                continue
+
+            if query == "/auto":
+                self.mode = "auto"
+                rprint("[green]Mode set to AUTO[/green]")
+                continue
+
+            if query.startswith("/metadata "):
+                parts = query.split(" ", 1)
+                if len(parts) > 1:
+                    try:
+                        self.metadata = json.loads(parts[1].strip())
+                        rprint(f"[green]Metadata updated: {self.metadata}[/green]")
+                    except json.JSONDecodeError:
+                        rprint("[red]Invalid JSON metadata[/red]")
+                continue
+
+            if query == "/reset":
+                self.mode = "auto"
+                self.metadata = DEFAULT_METADATA
+                rprint("[green]Reset mode and metadata to defaults[/green]")
+                rprint(
+                    Panel(
+                        json.dumps(self.metadata, indent=2),
+                        title="[bold magenta]User Metadata[/bold magenta]",
+                        border_style="magenta",
+                        expand=False,
+                    )
+                )
+                continue
+
             # 2. Sending Request
             payload = {
                 "query": query,
                 "history": self.history,
                 "attachments": self.attachments,
+                "mode": self.mode,
+                "metadata": self.metadata,
             }
 
             try:
@@ -268,7 +355,7 @@ class SearchClient:
 
                 rprint(
                     Panel(
-                        response_text,
+                        Markdown(response_text),
                         title=f"[bold {color}]AGENT ACTION: {action.upper()}[/bold {color}]",
                         title_align="left",
                         border_style=color,
