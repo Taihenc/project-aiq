@@ -10,15 +10,17 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, RefreshDto } from './dto/auth.dto';
+import { Public } from './decorators/public.decorator';
 
 @ApiTags('auth')
 @Controller()
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) { }
 
+  @Public()
   @UseGuards(AuthGuard('local'))
   @Post('login')
   @ApiOperation({
@@ -33,6 +35,7 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
+  @Public()
   @Post('register')
   @ApiOperation({
     summary: 'Register user',
@@ -47,6 +50,30 @@ export class AuthController {
       registerDto.password,
       registerDto.displayName,
     );
+  }
+
+  @Public()
+  @Post('refresh')
+  @ApiOperation({
+    summary: 'Refresh access token',
+    description: 'Generates a new access token using a refresh token.',
+  })
+  @ApiBody({ type: RefreshDto })
+  @ApiResponse({ status: 200, description: 'Token refreshed successfully.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async refresh(@Body() refreshDto: RefreshDto) {
+    return this.authService.refresh(refreshDto.refresh_token);
+  }
+
+  @Post('logout')
+  @ApiOperation({
+    summary: 'Logout user',
+    description: 'Invalidates the user session by clearing the refresh token.',
+  })
+  @ApiResponse({ status: 200, description: 'Successfully logged out.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async logout(@Request() req) {
+    return this.authService.logout(req.user.userId);
   }
 
   // Future endpoint for Microsoft SSO

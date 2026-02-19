@@ -20,7 +20,7 @@ export class AuthService {
   constructor(
     @Inject(DRIZZLE) private db: BetterSQLite3Database,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async validateUser(email: string, pass: string): Promise<any> {
     this.logger.debug(`Validating user: ${email}`);
@@ -43,19 +43,91 @@ export class AuthService {
 
   async login(user: any) {
     this.logger.log(`Logging in user: ${user.email} (${user.id})`);
+
     const payload = {
       email: user.email,
       sub: user.id,
       authProvider: user.authProvider,
     };
+
+    // Access token (1 hour)
+    const access_token = this.jwtService.sign(payload, {
+      expiresIn: '1h',
+    });
+
+    // Refresh token (7 days)
+    const refresh_token = this.jwtService.sign(payload, {
+      expiresIn: '7d',
+    });
+
+    // Save hashed refresh token to database
+    // Note: In production, consider hashing this like a password
+    this.db
+      .update(users)
+      .set({ refreshToken: refresh_token })
+      .where(eq(users.id, user.id))
+      .run();
+
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token,
+      refresh_token,
       user: {
         id: user.id,
         email: user.email,
         displayName: user.displayName,
       },
     };
+  }
+
+  async refresh(refreshToken: string) {
+    try {
+      // Verify token
+      const payload = this.jwtService.verify(refreshToken);
+
+      // Check if user exists and has this refresh token
+      const userResult = this.db
+        .select()
+        .from(users)
+        .where(eq(users.id, payload.sub))
+        .all();
+
+      const user = userResult[0];
+      if (!user || user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      // Generate new access token
+      const newPayload = {
+        email: user.email,
+        sub: user.id,
+        authProvider: user.authProvider,
+      };
+
+      const access_token = this.jwtService.sign(newPayload, {
+        expiresIn: '1h',
+      });
+
+      return {
+        access_token,
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+        },
+      };
+    } catch (e: any) {
+      this.logger.error(`Refresh token failed: ${e.message}`);
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+  }
+
+  async logout(userId: string) {
+    this.logger.log(`Logging out user: ${userId}`);
+    this.db
+      .update(users)
+      .set({ refreshToken: null })
+      .where(eq(users.id, userId))
+      .run();
   }
 
   async register(email: string, pass: string, displayName?: string) {

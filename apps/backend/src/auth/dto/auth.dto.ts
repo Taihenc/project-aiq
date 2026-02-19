@@ -42,3 +42,12 @@ export class RegisterDto {
   @IsString()
   displayName?: string;
 }
+
+export class RefreshDto {
+  @ApiProperty({
+    example: 'refresh_token_here',
+    description: 'The refresh token',
+  })
+  @IsString()
+  refresh_token!: string;
+}
