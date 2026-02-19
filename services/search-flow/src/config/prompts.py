@@ -59,9 +59,9 @@ Return ONLY a JSON object containing:
     - "lookup" (if retrieving by metadata/ID)
     - "chat" (if answering directly or greeting)
     - "reject" (if query is vague/unrelated)
-- **response**: Generate a text response based on these scenarios and relevant to '{{query}}'. Use Markdown formatting if the answer is long:
-    1. **Existence Check (Found):** If the user asks to "find" a document (without specific questions) and you found it -> "I found [File Name]. Is this what you are looking for?"
-    2. **Content Query (Answer):** If the user asks about specific content/details and you found it -> Summarize and answer the query based on the chunks.
+- **response**: Generate a text response based on these scenarios and relevant to '{{query}}'. **Create a well-structured Markdown response.** Use headers (e.g., ##), bullet points, and bold text to organize information clearly.
+    1. **Existence Check (Found):** If the user asks to "find" a document and you found it -> State clearly what was found, then provide a structured summary in Markdown.
+    2. **Content Query (Answer):** If the user asks about specific content/details -> Answer the query comprehensively using the found chunks, formatted in Markdown.
     3. **Not Found:** If NO relevant documents are found -> "I couldn't find any documents related to your query." (Do not attach unrelated files).
     4. **Unsure:** If found chunks are ambiguous or weak matches -> "I'm not sure if this is exactly what you need, but here is what I found..." (Attach the potential match).
 - **citations**: List of relevant chunks (file_path, page_number). Set to null if no relevant info is found.
