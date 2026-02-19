@@ -25,7 +25,7 @@ export class ChatService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly chatHistoryService: ChatHistoryService,
-  ) {}
+  ) { }
 
   getAiServiceBaseUrl(): string {
     return (
@@ -312,6 +312,12 @@ export class ChatService {
                       this.logger.verbose(
                         `Relaying AI Engine Event: ${json.type}`,
                       );
+
+                      if (json.type === 'error') {
+                        this.logger.error(
+                          `AI Engine returned error: ${json.content}`,
+                        );
+                      }
 
                       if (json.type === 'result') {
                         // Enrich result with citation content before sending to frontend
