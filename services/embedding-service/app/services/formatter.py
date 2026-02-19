@@ -34,7 +34,7 @@ class Formatter:
             for page in file.pages:
                 lines.append(f"\tPage: {page.page_number}")
                 for chunk in page.chunks:
-                    lines.append(f"\t\tChunk: {chunk.chunk_number}")
+                    lines.append(f"\t\tChunk: {chunk.chunk_number}" + (f" (Score: {chunk.score})" if chunk.score else ""))
                     lines.append(f"\t\t\t{chunk.text.replace("\n", "\n\t\t\t")}")
         return "\n".join(lines)
         
