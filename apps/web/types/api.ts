@@ -42,6 +42,8 @@ export interface ChunkMetadata {
   chunk_number: number;
   page_number: number;
   score?: number;
+  /** Per-chunk text content, populated by backend enrichment */
+  content?: string;
 }
 
 export interface FileRef {

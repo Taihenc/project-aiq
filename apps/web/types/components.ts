@@ -18,6 +18,7 @@ export interface ChatMessageProps {
   isEmpty?: boolean;
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
+  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
   attachments?: FileRef[];
 }
 
@@ -41,6 +42,7 @@ export interface ChatMessagesAreaProps {
   isLoading?: boolean;
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
+  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
   attachments?: FileRef[];
 }
 
