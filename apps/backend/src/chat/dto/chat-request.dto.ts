@@ -131,6 +131,10 @@ export class ChunkMetadataDto {
   @IsOptional()
   @IsNumber()
   score?: number;
+
+  @IsOptional()
+  @IsString()
+  content?: string;
 }
 
 export class FileRefDto {

@@ -170,32 +170,38 @@ export class ChatService {
 
     const enrichedCitations = Array.from(fileMap.values());
 
-    // Batch-fetch formatted text from embedding service
+    // Batch-fetch structured text from embedding service (per-chunk content)
     if (filesPayload.length > 0) {
       try {
         const response = await firstValueFrom(
           this.httpService.post(
-            `${embeddingUrl}/v1/text-by-file-reference`,
+            `${embeddingUrl}/v1/structured-file-reference`,
             { files: filesPayload },
             { validateStatus: () => true },
           ),
         );
-        if (
-          response.status === 200 &&
-          response.data?.result
-        ) {
-          // The batch response is one formatted string covering all files;
-          // assign it to the first (or only) file-level citation
-          const firstEntry = enrichedCitations[0];
-          if (firstEntry) firstEntry.content = response.data.result;
+        if (response.status === 200 && response.data?.files) {
+          const enrichedFiles: any[] = response.data.files;
+          for (const ef of enrichedFiles) {
+            const citationEntry = fileMap.get(ef.file_path);
+            if (!citationEntry) continue;
+            for (const ep of ef.pages) {
+              for (const ec of ep.chunks) {
+                const chunk = citationEntry.chunks.find(
+                  (c: any) => c.chunk_number === ec.chunk_number,
+                );
+                if (chunk) chunk.content = ec.content;
+              }
+            }
+          }
         } else {
           this.logger.warn(
-            `text-by-file-reference returned status: ${response.status}`,
+            `structured-file-reference returned status: ${response.status}`,
           );
         }
       } catch (e: any) {
         this.logger.warn(
-          `Failed to batch-fetch citation text: ${e.message}`,
+          `Failed to batch-fetch structured citation text: ${e.message}`,
         );
       }
     }
@@ -272,7 +278,7 @@ export class ChatService {
         this.httpService.post<any>(aiEngineUrl, aiEngineRequest),
       );
 
-      this.logger.verbose('Received raw response from AI Engine');
+      this.logger.debug('Received raw response from AI Engine');
 
       // 3. Parse and Enrich Response
       const parsed = this.parseAiEngineResponse(axiosResponse.data.data);
@@ -342,6 +348,9 @@ export class ChatService {
         existingSummary,
       );
 
+      this.logger.debug(`Prepared AI Engine streaming request for session: ${sessionId}`);
+      this.logger.debug(`Sent to AI Engine: ${JSON.stringify(aiEngineRequest, null, 2)}`);
+
       const aiEngineUrl = this.getAiEngineStreamUrl();
       this.logger.debug(`Streaming from AI Engine at: ${aiEngineUrl}`);
 
@@ -375,6 +384,8 @@ export class ChatService {
                       );
 
                       if (json.type === 'result') {
+                        this.logger.debug('Received final result from AI Engine stream');
+                        this.logger.debug(`Raw result content: ${JSON.stringify(json.content, null, 2)}`);
                         // Capture raw FileRef citations before enrichment for session storage
                         const rawCitations: any[] =
                           json.content?.citations || [];
@@ -428,13 +439,7 @@ export class ChatService {
                     parsedResponse,
                     chatRequest,
                   );
-                    this.logger.verbose(
-                    `Sent to frontend: ${JSON.stringify(transformed, null, 2)}`,
-                    );
-
-                  this.logger.verbose(
-                    `Raw AI Engine Response: ${JSON.stringify(fullResult, null, 2)}`,
-                  );
+                  this.logger.debug(`Send to frontend: ${JSON.stringify(transformed, null, 2)}`);
 
 
                   await this.handlePostChatActions(
