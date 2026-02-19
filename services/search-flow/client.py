@@ -56,7 +56,7 @@ def _rows_to_filerefs(rows, selected_indices: set) -> List[Dict[str, Any]]:
 DEFAULT_METADATA = {
     "user_info": {
         "id": "EMP-88219",
-        "name": "Pol",
+        "name": "Luffy",
         "role": "Senior Cloud Architect",
         "department": "Platform Engineering",
         "team": "AINGO Core Infrastructure",
@@ -83,31 +83,126 @@ class SearchClient:
         self.mode = "auto"
         self.metadata = DEFAULT_METADATA
 
-    def display_attachments(self):
-        """Displays the current active attachments (File-Based)."""
-        if not self.attachments:
+    def display_attachments(
+        self,
+        attachments: List[Dict] = None,
+        show_ids: bool = False,
+        new_start_idx: int = None,
+    ):
+        """
+        Displays attachments as a tree.
+        :param attachments: List of FileRef dicts (default: self.attachments)
+        :param show_ids: If True, show [fN] and [#Row] indices
+        :param new_start_idx: formatting helper, indices >= this are marked [NEW]
+        """
+        target_list = attachments if attachments is not None else self.attachments
+        if not target_list:
             console.print("[dim]No active attachments loaded.[/dim]")
             return
 
-        tree = Tree("[bold magenta]📎 Active Attachments[/bold magenta]")
-        for idx, item in enumerate(self.attachments):
+        tree = Tree("[bold magenta]📎 Attachments[/bold magenta]")
+
+        row_counter = 0
+
+        for idx, item in enumerate(target_list):
             fp = item.get("file_path", "unknown")
             chunks = item.get("chunks", [])
-            file_node = tree.add(f"[cyan]{fp}[/cyan] ({len(chunks)} chunks)")
-            # group by page
+
+            # Formatting File Node
+            prefix = ""
+            if show_ids:
+                prefix += f"[bold blue][f{idx}][/bold blue] "
+            if new_start_idx is not None and idx >= new_start_idx:
+                prefix += "[bold green][NEW][/bold green] "
+
+            file_node = tree.add(f"{prefix}[cyan]{fp}[/cyan] ({len(chunks)} chunks)")
+
+            # Group by page
             by_page: Dict[int, list] = defaultdict(list)
             for c in chunks:
                 by_page[c.get("page_number", 0)].append(c)
+
             for pg in sorted(by_page):
                 pg_chunks = by_page[pg]
                 pg_node = file_node.add(
                     f"[yellow]Page {pg}[/yellow] ({len(pg_chunks)} chunks)"
                 )
                 for c in pg_chunks:
-                    cid = c.get("chunk_id", "?")
-                    score = c.get("score", "?")
-                    pg_node.add(f"[dim]{cid[:8]}… score:{score}[/dim]")
+                    chunk_num = c.get("chunk_number", "?")
+                    score = c.get("score")
+
+                    chunk_text = f"Chunk {chunk_num}"
+                    if score is not None:
+                        chunk_text += f" (score: {score})"
+
+                    pg_node.add(f"[dim]{chunk_text}[/dim]")
+                    row_counter += 1
+
         console.print(tree)
+
+    def _merge_new_attachments(self, new_citations: List[Dict[str, Any]]):
+        """
+        Merges new citations into existing attachments.
+        - Identical file_path: Merge chunks (avoiding duplicates by chunk_id)
+        - New file_path: Add to list
+        """
+        if not new_citations:
+            return
+
+        # Map file_path -> {chunk_id -> chunk_data}
+        existing_map = {}
+        for att in self.attachments:
+            fp = att.get("file_path")
+            if not fp:
+                continue
+
+            if fp not in existing_map:
+                existing_map[fp] = {}
+
+            for chunk in att.get("chunks", []):
+                cid = (
+                    chunk.get("chunk_id")
+                    or f"{chunk.get('page_number')}_{chunk.get('chunk_number')}"
+                )
+                existing_map[fp][cid] = chunk
+
+        original_chunks_count = sum(len(c) for c in existing_map.values())
+
+        # Merge new
+        for new_att in new_citations:
+            fp = new_att.get("file_path")
+            if not fp:
+                continue
+
+            if fp not in existing_map:
+                existing_map[fp] = {}
+
+            for chunk in new_att.get("chunks", []):
+                cid = (
+                    chunk.get("chunk_id")
+                    or f"{chunk.get('page_number')}_{chunk.get('chunk_number')}"
+                )
+                # Add if not exists
+                if cid not in existing_map[fp]:
+                    existing_map[fp][cid] = chunk
+
+        # Reconstruct list
+        merged_list = []
+        for fp, chunks_map in existing_map.items():
+            merged_list.append({"file_path": fp, "chunks": list(chunks_map.values())})
+
+        self.attachments = merged_list
+
+        new_total = sum(len(a.get("chunks", [])) for a in self.attachments)
+        added = new_total - original_chunks_count
+
+        if added > 0:
+            console.print(
+                f"[green]✓ Automatically merged {added} new chunk(s).[/green]"
+            )
+            self._print_result()
+        else:
+            console.print("[dim]No new unique chunks found to merge.[/dim]")
 
     def select_attachments(self, new_citations: List[Dict[str, Any]]):
         """
@@ -116,58 +211,43 @@ class SearchClient:
             all / none / keep_old    — bulk shortcuts
             f0                       — all chunks from file 0
             f0p2                     — all chunks from file 0, page 2
-            0,3,5                    — individual chunk rows by row number
+            0,3,5                    — individual chunk rows by row number [#N]
             f0,3,f1p1               — mix of file, page, and chunk selections
         """
-        if not new_citations and not self.attachments:
+        # 1. Merge new citations first (User Request)
+        if new_citations:
+            self._merge_new_attachments(new_citations)
+
+        if not self.attachments:
             return
 
-        console.print("\n[bold yellow]󰋚 Attachments Management[/bold yellow]")
+        console.print(
+            "\n[bold yellow]󰋚 Attachments Management (Merged View)[/bold yellow]"
+        )
 
-        # Combine existing and new
-        all_candidates = self.attachments + new_citations
-        old_count = len(self.attachments)
+        # Candidates are now just the current state
+        all_candidates = self.attachments
 
-        # Build flat index
+        # Build flat index for parsing
         rows, pages = _build_chunk_index(all_candidates)
 
         if not rows:
             console.print("[dim]No chunks available.[/dim]")
             return
 
-        # ── Display Table ──
-        table = Table(
-            show_header=True, header_style="bold blue", show_lines=False, padding=(0, 1)
-        )
-        table.add_column("Row", style="bold white", width=4)
-        table.add_column("File (fN)", style="bold cyan", width=6)
-        table.add_column("Pg", style="bold yellow", width=4)
-        table.add_column("Origin", style="dim", width=6)
-        table.add_column("File Path", style="magenta", max_width=40)
-        table.add_column("Chunk ID", style="dim", max_width=12)
-        table.add_column("Score", style="green", width=7)
-
-        prev_fi = None
-        for ri, fi, fp, chunk in rows:
-            origin = "OLD" if fi < old_count else "NEW"
-            pg = str(chunk.get("page_number", "?"))
-            cid = chunk.get("chunk_id", "?")[:12]
-            score = str(chunk.get("score", "?"))
-            # Show file path only on first row of each file
-            show_fp = fp if fi != prev_fi else ""
-            show_fi = f"f{fi}" if fi != prev_fi else ""
-            table.add_row(str(ri), show_fi, pg, origin, show_fp, cid, score)
-            prev_fi = fi
-
-        console.print(table)
+        # ── Display Tree with Indices ──
+        # We can't easily distinguish NEW here after merge without complex tracking,
+        # so we disable the [NEW] tag for now or we could keep track of 'added' chunks but
+        # simpler to just show current state.
+        self.display_attachments(all_candidates, show_ids=True, new_start_idx=None)
 
         # ── Help ──
         rprint("\n[bold white]Select what to KEEP:[/bold white]")
-        rprint("[dim]  all / none / keep_old[/dim]")
-        rprint("[dim]  f0          → entire file 0[/dim]")
+        rprint("[dim]  all / none           — bulk shortcuts[/dim]")
+        rprint("[dim]  f0          → entire file [f0][/dim]")
         rprint("[dim]  f0p2        → file 0, page 2 only[/dim]")
-        rprint("[dim]  0,3,5       → chunk rows 0, 3, 5[/dim]")
-        rprint("[dim]  f0,3,f1p1   → mix allowed[/dim]")
+        rprint("[dim]  12          → chunks with number 12 (across all files)[/dim]")
+        rprint("[dim]  f0c12       → file 0, chunk 12 only[/dim]")
 
         choice = Prompt.ask("Selection", default="all").strip()
 
@@ -190,10 +270,12 @@ class SearchClient:
 
         # Regex patterns
         pat_file_page = re.compile(r"^f(\d+)p(\d+)$", re.IGNORECASE)
+        pat_file_chunk = re.compile(r"^f(\d+)c(\d+)$", re.IGNORECASE)
         pat_file = re.compile(r"^f(\d+)$", re.IGNORECASE)
-        pat_row = re.compile(r"^\d+$")
+        pat_chunk_num = re.compile(r"^\d+$")
 
         for tok in tokens:
+            # fNpM
             m = pat_file_page.match(tok)
             if m:
                 fi_sel, pg_sel = int(m.group(1)), int(m.group(2))
@@ -201,26 +283,49 @@ class SearchClient:
                     selected.update(pages[fi_sel][pg_sel])
                 else:
                     console.print(
-                        f"[red]⚠ f{fi_sel}p{pg_sel} not found, skipping[/red]"
+                        f"[red]⚠ f{fi_sel}p{pg_sel} not found or empty, skipping[/red]"
                     )
                 continue
 
+            # fNcM
+            m = pat_file_chunk.match(tok)
+            if m:
+                fi_sel, c_sel = int(m.group(1)), int(m.group(2))
+                found = False
+                for ri, fi, fp, chunk in rows:
+                    if fi == fi_sel and chunk.get("chunk_number") == c_sel:
+                        selected.add(ri)
+                        found = True
+                if not found:
+                    console.print(f"[red]⚠ f{fi_sel}c{c_sel} not found, skipping[/red]")
+                continue
+
+            # fN
             m = pat_file.match(tok)
             if m:
                 fi_sel = int(m.group(1))
                 # select all rows for this file
+                found = False
                 for ri, fi, fp, chunk in rows:
                     if fi == fi_sel:
                         selected.add(ri)
+                        found = True
+                if not found:
+                    console.print(f"[red]⚠ f{fi_sel} not found, skipping[/red]")
                 continue
 
-            m = pat_row.match(tok)
+            # Chunk Number Global
+            m = pat_chunk_num.match(tok)
             if m:
-                ri_sel = int(tok)
-                if 0 <= ri_sel < len(rows):
-                    selected.add(ri_sel)
-                else:
-                    console.print(f"[red]⚠ Row {ri_sel} out of range, skipping[/red]")
+                c_sel = int(tok)
+                found = False
+                for ri, fi, fp, chunk in rows:
+                    # Match by chunk_number
+                    if chunk.get("chunk_number") == c_sel:
+                        selected.add(ri)
+                        found = True
+                if not found:
+                    console.print(f"[red]⚠ Chunk {c_sel} not found in candidates[/red]")
                 continue
 
             console.print(f"[red]⚠ Unknown token '{tok}', skipping[/red]")

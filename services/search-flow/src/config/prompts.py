@@ -72,17 +72,11 @@ Analyze the **User Query: '{{query}}'** by referencing all provided Context and 
     - Keep the tone professional and helpful.
 
 Return ONLY a JSON object containing:
-
-- **action**: The decided action based on your logic:
-    - "search" (if using cosine similarity/text search)
-    - "lookup" (if retrieving by metadata/ID)
-    - "chat" (if answering directly or greeting)
-    - "reject" (if query is vague/unrelated)
 - **response**: Generate a text response based on these scenarios and relevant to '{{query}}'. **Create a well-structured Markdown response.** Use headers (e.g., ##), bullet points, and bold text to organize information clearly.
     1. **Existence Check (Found):** If the user asks to "find" a document and you found it -> State clearly what was found, then provide a structured summary in Markdown.
     2. **Content Query (Answer):** If the user asks about specific content/details -> Answer the query comprehensively using the found chunks, formatted in Markdown.
     3. **Not Found:** If NO relevant documents are found -> "I couldn't find any documents related to your query." (Do not attach unrelated files).
     4. **Unsure:** If found chunks are ambiguous or weak matches -> "I'm not sure if this is exactly what you need, but here is what I found..." (Attach the potential match).
-- **citations**: List of relevant chunks (file_path, page_number). Set to null if no relevant info is found.
-- Group chunks by file_path and sort by page_number ascending.
+- **citations**: List of ALL chunks referenced in your response (file_path, page_number, chunk_number). Ensure every piece of information in your response is backed by a citation if possible. Crucial: Include citations even if they are redundant or translated versions of the same content. Set to null only if no relevant info is found.
+- Group chunks by file_path and sort by page_number and chunk_number ascending.
 """

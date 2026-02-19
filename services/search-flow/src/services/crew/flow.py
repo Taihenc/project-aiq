@@ -16,13 +16,11 @@ class SearchCrewFlow(Flow[FlowState]):
         super().__init__()
         self.step_callback = step_callback
 
-    # TODO: Temporary method
     def _format_context(self) -> str:
         """Helper to format structured context for LLM prompts."""
         if not self.state.context:
             return ""
-        context_data = [item.model_dump() for item in self.state.context]
-        return f"- **Reference Data (Attachments):**\n{json.dumps(context_data, indent=2, ensure_ascii=False)}\n"
+        return f"- **Reference Data (Attachments):**\n{self.state.context}\n"
 
     def _format_history(self) -> str:
         """Helper to format chat history for LLM prompts."""
@@ -72,7 +70,7 @@ class SearchCrewFlow(Flow[FlowState]):
             query_preview = query_preview[:57] + "..."
 
         self._report_status(f'Analyzing request "{query_preview}"')
-        print(f"\n🔹 [Search Agent] Processing Query: '{self.state.query}'")
+        print(f"\n🔹 [Search Agent] Processing Query: '{self.state.query}'"
 
         # Fetch tools dynamically within the flow
         self._report_status("Connecting to knowledge services...")
@@ -171,4 +169,4 @@ class SearchCrewFlow(Flow[FlowState]):
 
         self._report_status("Response ready!")
         print(f"✅ Action: {self.state.final_response.action.upper()}")
-        print(f"✅ Response: {self.state.final_response.response[:100]}...")
+        print(f"✅ Response: {self.state.final_response.response[:100]}..."
