@@ -25,7 +25,7 @@ export class ChatService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly chatHistoryService: ChatHistoryService,
-  ) { }
+  ) {}
 
   getAiServiceBaseUrl(): string {
     return (
@@ -71,23 +71,28 @@ export class ChatService {
       const citation = citations[i];
 
       // Handle FileRef structure with chunks → flatten to per-chunk citations
-      if (citation.file_path && citation.chunks && Array.isArray(citation.chunks)) {
+      if (
+        citation.file_path &&
+        citation.chunks &&
+        Array.isArray(citation.chunks)
+      ) {
         for (let ci = 0; ci < citation.chunks.length; ci++) {
           const chunk = citation.chunks[ci];
           let chunkContent = '';
 
           try {
             const response = await firstValueFrom(
-              this.httpService.get(
-                `${embeddingUrl}/v1/get/${chunk.chunk_id}`,
-                { validateStatus: () => true },
-              ),
+              this.httpService.get(`${embeddingUrl}/v1/get/${chunk.chunk_id}`, {
+                validateStatus: () => true,
+              }),
             );
 
             if (response.status === 200 && response.data) {
               chunkContent = response.data.text || '';
             } else {
-              this.logger.warn(`Chunk not found: ${chunk.chunk_id}, status: ${response.status}`);
+              this.logger.warn(
+                `Chunk not found: ${chunk.chunk_id}, status: ${response.status}`,
+              );
             }
           } catch (e: any) {
             this.logger.warn(
@@ -119,7 +124,11 @@ export class ChatService {
       // Handle generic object
       enrichedCitations.push({
         id: citation.id || `citation-${i}`,
-        title: citation.title || citation.name || citation.file_path || `Source ${i + 1}`,
+        title:
+          citation.title ||
+          citation.name ||
+          citation.file_path ||
+          `Source ${i + 1}`,
         platform: citation.platform || 'AI Engine',
         content: citation.content || '',
       });
@@ -217,16 +226,16 @@ export class ChatService {
             type: 'result',
             content: { citations: parsed.sources_used },
           });
-          parsed.sources_used = enrichedResult.content.citations || parsed.sources_used;
+          parsed.sources_used =
+            enrichedResult.content.citations || parsed.sources_used;
         } catch (err: any) {
-          this.logger.warn(`Failed to enrich citations (non-stream): ${err.message}`);
+          this.logger.warn(
+            `Failed to enrich citations (non-stream): ${err.message}`,
+          );
         }
       }
 
-      const transformed = this.transformAiEngineToOpenAI(
-        parsed,
-        chatRequest,
-      );
+      const transformed = this.transformAiEngineToOpenAI(parsed, chatRequest);
 
       // 4. Post-Chat Actions
       if (sessionId) {

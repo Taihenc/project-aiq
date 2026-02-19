@@ -5,12 +5,10 @@ import {
   Delete,
   Body,
   Param,
-  UseGuards,
   Request,
   Query,
   Logger,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { ChatHistoryService } from './chat-history.service';
 import {
   ApiTags,
@@ -25,11 +23,10 @@ import { CreateSessionDto, AddMessageDto } from './dto/chat-history.dto';
 @ApiTags('history')
 @ApiBearerAuth()
 @Controller()
-@UseGuards(AuthGuard('jwt'))
 export class ChatHistoryController {
   private readonly logger = new Logger(ChatHistoryController.name);
 
-  constructor(private readonly historyService: ChatHistoryService) {}
+  constructor(private readonly historyService: ChatHistoryService) { }
 
   @Get()
   @ApiOperation({

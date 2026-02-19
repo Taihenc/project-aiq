@@ -4,7 +4,6 @@ import {
   Body,
   HttpException,
   HttpStatus,
-  UseGuards,
   Request,
   Sse,
   MessageEvent,
@@ -16,7 +15,6 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { ChatService } from './chat.service';
 import {
   ChatRequestDto,
@@ -42,7 +40,6 @@ export class ChatController {
   })
   @ApiResponse({ status: 200, type: ChatCompletionsResponseDto })
   @Post('completions')
-  @UseGuards(AuthGuard('jwt'))
   async chatCompletions(
     @Request() req,
     @Body() chatRequest: ChatCompletionsRequestDto,
@@ -67,7 +64,6 @@ export class ChatController {
       'Provides real-time status updates and incremental results via SSE.',
   })
   @Post('completions/stream')
-  @UseGuards(AuthGuard('jwt'))
   async chatCompletionsStream(
     @Request() req,
     @Body() chatRequest: ChatCompletionsRequestDto,
@@ -107,7 +103,6 @@ export class ChatController {
   })
   @ApiResponse({ status: 200, type: ChatResponseDto })
   @Post()
-  @UseGuards(AuthGuard('jwt'))
   async chat(
     @Request() req,
     @Body() chatRequest: ChatRequestDto,

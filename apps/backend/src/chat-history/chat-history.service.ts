@@ -10,7 +10,7 @@ import { encode } from 'gpt-tokenizer';
 export class ChatHistoryService {
   private readonly logger = new Logger(ChatHistoryService.name);
 
-  constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) { }
+  constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) {}
 
   async getHistory(userId: string) {
     this.logger.debug(`Fetching history for user: ${userId}`);
@@ -82,9 +82,7 @@ export class ChatHistoryService {
 
     // Defensive check to ensure content is a string
     const stringContent =
-      typeof content === 'string'
-        ? content
-        : JSON.stringify(content || '');
+      typeof content === 'string' ? content : JSON.stringify(content || '');
 
     this.logger.verbose(
       `Message content type: ${typeof content}, length: ${stringContent.length}`,
