@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from src.infrastructure.adapter.output.langfuse.client import LangfuseService
 from src.infrastructure.config.settings import settings
 from src.infrastructure.config.logging import setup_logging
 from src.infrastructure.adapter.output.persistence.mongodb import mongodb_client
@@ -15,6 +16,12 @@ async def lifespan(app: FastAPI):
     # Initialize Clients
     app.state.mongodb = mongodb_client.get_database()
     app.state.redis = await redis_client.get_client()
+
+    # # Telemetry Setup
+    # AzureMonitorService().setup()
+    # Langfuse Setup
+    langfuse = LangfuseService().setup()
+    langfuse.flush()
 
     yield
 

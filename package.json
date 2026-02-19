@@ -13,6 +13,7 @@
     "dev:web": "turbo run dev --filter=web",
     "dev:backend": "turbo run dev --filter=backend",
     "dev:ai-engine": "turbo run dev --filter=ai-engine",
+    "dev:search-flow": "turbo run dev --filter=search-flow-service",
     "dev:embedding-service": "turbo run dev --filter=embedding-service",
     "dev:data-ingestion": "turbo run dev --filter=data-ingestion",
     "dev:sharepoint-webhook": "turbo run dev --filter=sharepoint-webhook",

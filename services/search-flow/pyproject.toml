@@ -1,7 +1,7 @@
 [project]
-name = "ai-engine"
+name = "search-flow-service"
 version = "0.1.0"
-description = "AI Engine Service"
+description = "Search Flow Service"
 authors = [
     {name = "AINGO Team"}
 ]
@@ -19,16 +19,9 @@ dependencies = [
     "python-multipart>=0.0.9",
     "orjson>=3.9.14",
     "loguru>=0.7.3",
-    "crewai[azure-ai-inference]>=1.8.1",
-    "langchain-tools>=0.1.34",
-    "crewai-tools>=1.8.1",
-    "openinference-instrumentation-crewai>=0.1.17",
-    "azure-ai-projects>=1.0.0",
-    "azure-identity>=1.25.1",
-    "azure-monitor-opentelemetry>=1.6.7",
-    "opentelemetry-sdk>=1.34.1",
-    "opentelemetry-api>=1.34.1",
-    "langfuse>=3.12.1",
+    "crewai[azure-ai-inference]>=1.9.3",
+    "mcp>=1.23.3",
+    "langfuse>=3.14.1",
 ]
 
 [build-system]
@@ -41,6 +34,9 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "black>=23.0.0",
     "isort>=5.12.0",
+    "requests>=2.31.0",
+    "rich>=13.7.0",
+    "httpx>=0.28.1",
 ]
 
 [tool.hatch.build.targets.wheel]

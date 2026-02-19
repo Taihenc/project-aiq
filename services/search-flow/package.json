@@ -1,0 +1,15 @@
+{
+  "name": "search-flow-service",
+  "version": "0.1.0",
+  "description": "Search Flow Service",
+  "main": "index.js",
+  "scripts": {
+    "install": "uv sync",
+    "dev": "uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload",
+    "start": "uv run uvicorn src.main:app --host 0.0.0.0 --port 8000",
+    "test": "uv run pytest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
