@@ -24,6 +24,8 @@ class SearchFlowService:
             "query": request.query,
             "context": context_dicts,
             "history": request.history,
+            "mode": request.mode,
+            "metadata": request.metadata,
         }
 
         try:

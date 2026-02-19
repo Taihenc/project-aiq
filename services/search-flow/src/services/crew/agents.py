@@ -8,11 +8,11 @@ def get_llm():
     return LLM(model=settings.azure_model_name)
 
 
-def create_manager_agent(tools: list = []) -> Agent:
+def create_search_agent(tools: list = []) -> Agent:
     return Agent(
-        role=AgentPrompts.MANAGER_ROLE,
-        goal=AgentPrompts.MANAGER_GOAL,
-        backstory=AgentPrompts.MANAGER_BACKSTORY,
+        role=AgentPrompts.SEARCH_AGENT_ROLE,
+        goal=AgentPrompts.SEARCH_AGENT_GOAL,
+        backstory=AgentPrompts.SEARCH_AGENT_BACKSTORY,
         tools=tools,
         llm=get_llm(),
         verbose=True,

@@ -41,6 +41,8 @@ class FlowState(BaseModel):
     query: str = ""
     context: List[FileContent] = Field(default_factory=list)
     history: List[str] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)
+    mode: Literal["auto", "search", "lookup", "chat"] = Field(default="auto")
 
     # Final Output Storage
     final_response: Optional[FlowResponse] = None

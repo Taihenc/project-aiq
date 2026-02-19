@@ -5,8 +5,8 @@ from crewai import Crew
 from src.models.state import (
     FlowState,
 )
-from src.services.crew.agents import create_manager_agent
-from src.services.crew.tasks import create_manager_task
+from src.services.crew.agents import create_search_agent
+from src.services.crew.tasks import create_search_task
 from src.services.crew.tools.factory import MCPToolFactory
 
 
@@ -27,12 +27,12 @@ class SearchCrewFlow(Flow[FlowState]):
 
     @start()
     async def execute_flow(self):
-        print(f"\n🔹 [Manager] Processing Query: '{self.state.query}'")
+        print(f"\n🔹 [Search Agent] Processing Query: '{self.state.query}'")
 
         # Fetch tools dynamically within the flow (Encapsulation)
         tools = await MCPToolFactory.get_tools()
 
-        agent = create_manager_agent(tools=tools)
+        agent = create_search_agent(tools=tools)
 
         # Default values are empty strings if no data
         formatted_context = self._format_context()
@@ -46,10 +46,27 @@ class SearchCrewFlow(Flow[FlowState]):
             if formatted_history:
                 context_block += formatted_history + "\n"
 
-        task = create_manager_task(
+        # Determine Mode Instruction
+        mode = self.state.mode
+        mode_instruction = ""
+        if mode in ["search", "lookup", "chat"]:
+            mode_instruction = (
+                f"**STRICT MODE ENFORCED:** The user has explicitly selected '{mode.upper()}' mode. "
+                f"You MUST perform a '{mode}' action. If the user query is unrelated to '{mode}', "
+                "you must REJECT and ask for clarification."
+            )
+
+        # Format Metadata
+        metadata_str = ""
+        if self.state.metadata:
+            metadata_str = f"# METADATA\n- **Reference:**\n{json.dumps(self.state.metadata, indent=2, ensure_ascii=False)}"
+
+        task = create_search_task(
             agent=agent,
             query=self.state.query,
             context_block=context_block,
+            mode_instruction=mode_instruction,
+            metadata=metadata_str,
         )
 
         crew = Crew(agents=[agent], tasks=[task], verbose=True, tracing=True)
