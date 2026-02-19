@@ -10,6 +10,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   isLoading,
   onAddAttachment,
   onRemoveAttachment,
+  onRemoveChunk,
   attachments,
 }) => {
   // Check if we already have an assistant message that is "thinking" or "streaming"
@@ -31,6 +32,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
             isEmpty={message.isEmpty}
             onAddAttachment={onAddAttachment}
             onRemoveAttachment={onRemoveAttachment}
+            onRemoveChunk={onRemoveChunk}
             attachments={attachments}
           />
         ))}
