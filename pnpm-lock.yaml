@@ -230,8 +230,6 @@ importers:
 
   services/search-flow: {}
 
-  services/mcp: {}
-
   services/sharepoint-webhook: {}
 
 packages:

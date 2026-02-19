@@ -18,20 +18,3 @@ class FileRef(BaseModel):
     chunks: List[ChunkMetadata] = Field(
         ..., description="List of relevant chunks in this file."
     )
-
-
-# === Internal models (fed to LLM — includes text) ===
-
-
-class ChunkContent(ChunkMetadata):
-    """ChunkMetadata enriched with the actual text content."""
-
-    text: str = Field("", description="Text content of this chunk.")
-
-
-class FileContent(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    file_path: str = Field(..., description="Path or name of the source file.")
-    chunks: List[ChunkContent] = Field(
-        ..., description="List of chunks with text content."
-    )

@@ -12,13 +12,11 @@ from src.services.crew.tools.factory import MCPToolFactory
 
 
 class SearchCrewFlow(Flow[FlowState]):
-    # TODO: Temporary method
     def _format_context(self) -> str:
         """Helper to format structured context for LLM prompts."""
         if not self.state.context:
             return ""
-        context_data = [item.model_dump() for item in self.state.context]
-        return f"- **Reference Data (Attachments):**\n{json.dumps(context_data, indent=2, ensure_ascii=False)}\n"
+        return f"- **Reference Data (Attachments):**\n{self.state.context}\n"
 
     def _format_history(self) -> str:
         """Helper to format chat history for LLM prompts."""
@@ -28,7 +26,6 @@ class SearchCrewFlow(Flow[FlowState]):
 
     @start()
     async def execute_flow(self):
-        print(f"\n🔹 [Search Agent] Processing Query: '{self.state.query}'")
 
         # Fetch tools dynamically within the flow (Encapsulation)
         tools = await MCPToolFactory.get_tools()
@@ -80,6 +77,3 @@ class SearchCrewFlow(Flow[FlowState]):
 
         # CrewOutput pydantic access
         self.state.final_response = result.pydantic
-
-        print(f"✅ Action: {self.state.final_response.action.upper()}")
-        print(f"✅ Response: {self.state.final_response.response[:100]}...")

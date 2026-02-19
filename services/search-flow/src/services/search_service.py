@@ -1,14 +1,20 @@
 import asyncio
-from typing import List, Any
+from typing import List
 from src.dtos.request import SearchChatRequest
 from src.models.state import FlowResponse
-from src.models.search import FileRef, FileContent, ChunkMetadata, ChunkContent
+from src.models.search import FileRef, ChunkMetadata
+from src.dtos.embedding import (
+    EmbeddingChunk,
+    EmbeddingPage,
+    EmbeddingFile,
+    FileReferenceRequest,
+    FileReferenceResponse,
+)
 from src.services.crew.flow import SearchCrewFlow
 import httpx
 from src.config.settings import settings
 
 from langfuse import observe
-from src.services.crew.tools.factory import MCPToolFactory
 
 
 class SearchFlowService:
@@ -17,12 +23,11 @@ class SearchFlowService:
         # 2. Initialize Flow with Tools
         flow = SearchCrewFlow()
 
-        enriched_attachments = await self._enrich_attachments(request.attachments)
+        enriched_context_str = await self._enrich_attachments(request.attachments)
 
-        context_dicts = [item.model_dump() for item in enriched_attachments]
         inputs = {
             "query": request.query,
-            "context": context_dicts,
+            "context": enriched_context_str,
             "history": request.history,
             "mode": request.mode,
             "metadata": request.metadata,
@@ -34,86 +39,82 @@ class SearchFlowService:
             await flow.kickoff_async(inputs=inputs)
         except Exception as e:
             print(f"❌ Error during flow execution: {e}")
-            return FlowResponse(
-                action="reject", response=f"Error executing search flow: {str(e)}"
-            )
+            return FlowResponse(response=f"Error executing search flow: {str(e)}")
 
         if flow.state.final_response:
             return flow.state.final_response
 
-        return FlowResponse(
-            action="reject", response="Error: No response generated from the flow."
-        )
+        return FlowResponse(response="Error: No response generated from the flow.")
 
-    # TODO: Temporary method
-    async def _enrich_attachments(self, attachments: List[Any]) -> List[FileContent]:
+    async def _enrich_attachments(self, attachments: List[FileRef]) -> str:
         """
         Converts raw attachments into FileContent objects enriched with text content
         by fetching real text content from the embedding-service.
         """
-        base_url = settings.embedding_service_url
-        results = []
+        # 1. Transform attachments to EmbeddingFile structure
+        embedding_files = []
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            for att in attachments:
-                try:
-                    # Parse attachment into FileRef
-                    if isinstance(att, dict):
-                        chunks_data = att.get("chunks", [])
-                        chunks = [ChunkMetadata(**c) for c in chunks_data]
-                        ref = FileRef(file_path=att.get("file_path", ""), chunks=chunks)
-                    elif isinstance(att, FileRef):
-                        ref = att
-                    else:
-                        print(f"⚠️ Invalid attachment type: {type(att)}")
-                        continue
-
-                    # Fetch real content and build ChunkContent list
-                    enriched_chunks = []
-                    for chunk in ref.chunks:
-                        try:
-                            resp = await client.post(
-                                f"{base_url}/v1/chunks",
-                                json={
-                                    "chunk_id": chunk.chunk_id,
-                                    "backward": 0,
-                                    "forward": 0,
-                                },
-                            )
-                            resp.raise_for_status()
-                            data = resp.json()
-
-                            fetched_chunks = data.get("chunks", [])
-                            text = (
-                                fetched_chunks[0].get("text", "")
-                                if fetched_chunks
-                                else ""
-                            )
-                            if not fetched_chunks:
-                                print(
-                                    f"⚠️ No content returned for chunk {chunk.chunk_id}"
-                                )
-
-                        except Exception as e:
-                            print(f"⚠️ Failed to fetch chunk {chunk.chunk_id}: {e}")
-                            text = ""
-
-                        enriched_chunks.append(
-                            ChunkContent(
-                                chunk_id=chunk.chunk_id,
-                                page_number=chunk.page_number,
-                                score=chunk.score,
-                                text=text,
-                            )
-                        )
-
-                    content = FileContent(
-                        file_path=ref.file_path, chunks=enriched_chunks
-                    )
-                    results.append(content)
-
-                except Exception as e:
-                    print(f"⚠️ Failed to parse/enrich attachment: {e}")
+        for att in attachments:
+            try:
+                # Parse to FileRef (same as before)
+                if isinstance(att, dict):
+                    chunks_data = att.get("chunks", [])
+                    chunks = [ChunkMetadata(**c) for c in chunks_data]
+                    ref = FileRef(file_path=att.get("file_path", ""), chunks=chunks)
+                elif isinstance(att, FileRef):
+                    ref = att
+                else:
+                    print(f"⚠️ Invalid attachment type: {type(att)}")
                     continue
 
-        return results
+                # Group chunks by page
+                pages_map = {}
+                for chunk in ref.chunks:
+                    if chunk.page_number not in pages_map:
+                        pages_map[chunk.page_number] = []
+
+                    pages_map[chunk.page_number].append(
+                        EmbeddingChunk(
+                            chunk_number=chunk.chunk_number, score=chunk.score
+                        )
+                    )
+
+                # Create EmbeddingPage objects
+                embedding_pages = []
+                for page_num, page_chunks in pages_map.items():
+                    embedding_pages.append(
+                        EmbeddingPage(page_number=page_num, chunks=page_chunks)
+                    )
+
+                # Create EmbeddingFile object
+                embedding_files.append(
+                    EmbeddingFile(file_path=ref.file_path, pages=embedding_pages)
+                )
+
+            except Exception as e:
+                print(f"⚠️ Failed to parse attachment for enriching: {e}")
+                continue
+
+        if not embedding_files:
+            return ""
+
+        # 2. Call Embedding Service
+        base_url = settings.embedding_service_url
+        try:
+            # Prepare request payload directly from pydantic models
+            payload = FileReferenceRequest(files=embedding_files).model_dump()
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(
+                    f"{base_url}/v1/text-by-file-reference", json=payload
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+                # Parse response
+                result = FileReferenceResponse(**data)
+                return result.result
+
+        except Exception as e:
+            print(f"❌ Failed to enrich attachments via embedding-service: {e}")
+            return ""
