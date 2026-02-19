@@ -358,8 +358,19 @@ function SourceCard({
   attachments?: FileRef[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
+
+  // source.id format: "file_path:pageN:chunkM"
+  const chunkMatch = source.id.match(/:chunk(\d+)$/);
+  const chunkNumber = chunkMatch ? parseInt(chunkMatch[1], 10) : 0;
+
+  // Parse "file_path (Page N)" from title
+  const pageMatch = source.title.match(/^(.+?)\s*\(Page\s+(\d+|\?)\)$/);
+  const filePath = pageMatch ? pageMatch[1].trim() : source.title;
+  const pageNumber =
+    pageMatch && pageMatch[2] !== '?' ? parseInt(pageMatch[2], 10) : 1;
+
   const isAttached = attachments.some(
-    (a) => a.chunks[0]?.chunk_id === source.id,
+    (a) => a.file_path === filePath && a.chunks.some((c) => c.chunk_number === chunkNumber),
   );
 
   const handleToggleAttach = (e: React.MouseEvent) => {
@@ -368,7 +379,7 @@ function SourceCard({
     if (isAttached) {
       if (!onRemoveAttachment) return;
       const index = attachments.findIndex(
-        (a) => a.chunks[0]?.chunk_id === source.id,
+        (a) => a.file_path === filePath && a.chunks.some((c) => c.chunk_number === chunkNumber),
       );
       if (index !== -1) {
         onRemoveAttachment(index);
@@ -378,17 +389,11 @@ function SourceCard({
 
     if (!onAddAttachment) return;
 
-    // Parse "file_path (Page N)" from title back to FileRef
-    const pageMatch = source.title.match(/^(.+?)\s*\(Page\s+(\d+|\?)\)$/);
-    const filePath = pageMatch ? pageMatch[1].trim() : source.title;
-    const pageNumber =
-      pageMatch && pageMatch[2] !== '?' ? parseInt(pageMatch[2], 10) : 1;
-
     onAddAttachment({
       file_path: filePath,
       chunks: [
         {
-          chunk_id: source.id,
+          chunk_number: chunkNumber,
           page_number: pageNumber,
         },
       ],

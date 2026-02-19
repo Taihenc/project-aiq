@@ -37,7 +37,7 @@ export interface Citation {
 
 // Search-flow attachment types (matching SearchChatRequest schema)
 export interface ChunkMetadata {
-  chunk_id: string;
+  chunk_number: number;
   page_number: number;
   score?: number;
 }

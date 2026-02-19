@@ -86,9 +86,17 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   const handleAddAttachment = useCallback((attachment: FileRef) => {
     setAttachments((prev) => {
-      // Avoid duplicates by chunk_id
-      const newChunkId = attachment.chunks[0]?.chunk_id;
-      if (newChunkId && prev.some((a) => a.chunks[0]?.chunk_id === newChunkId))
+      // Avoid duplicates by file_path + chunk_number
+      const newChunkNumber = attachment.chunks[0]?.chunk_number;
+      const newFilePath = attachment.file_path;
+      if (
+        newChunkNumber !== undefined &&
+        prev.some(
+          (a) =>
+            a.file_path === newFilePath &&
+            a.chunks[0]?.chunk_number === newChunkNumber,
+        )
+      )
         return prev;
       return [...prev, attachment];
     });
