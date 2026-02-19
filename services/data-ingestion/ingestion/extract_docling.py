@@ -166,9 +166,9 @@ class DoclingExtractor:
                 print(f"Error in external model processing: {e}")
 
         # PASS 2: If pictures detected, rerun with Smart Converter
-        if (len(result.pictures) > 0 and (not (is_image))):
-            pprint("detect image")
-            result = self.smart_converter.convert(source).document
+        # if (len(result.pictures) > 0 and (not (is_image))):
+        #     pprint("detect image")
+        #     result = self.smart_converter.convert(source).document
         # for csv
         if (is_csv):
             clean_md = result.export_to_markdown()
