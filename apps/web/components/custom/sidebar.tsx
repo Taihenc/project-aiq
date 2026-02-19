@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Sidebar as SidebarPrimitive,
@@ -53,9 +53,13 @@ export function Sidebar({
   onNewChat,
 }: SidebarProps) {
   const router = useRouter();
-  const { user, login, logout, register } = useAuth();
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const displayHistory = chatHistory;
+
+  const isOnSources = pathname === '/sources';
+  const isOnChat = !isOnSources;
 
   return (
     <SidebarPrimitive
@@ -85,8 +89,14 @@ export function Sidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Start a new chat"
-                  onClick={onNewChat}
-                  className="text-primary-light rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-brand-new-chat-bg px-4 py-3 shadow-none transition-colors hover:bg-brand-new-chat-hover"
+                  onClick={() => {
+                    onNewChat?.();
+                    if (isOnSources) router.push('/');
+                  }}
+                  className={cn(
+                    'text-primary-light rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-brand-new-chat-bg px-4 py-3 shadow-none transition-colors hover:bg-brand-new-chat-hover',
+                    isOnChat && 'ring-1 ring-purple-500/30',
+                  )}
                 >
                   <MessageSquare className="h-4 w-4" />
                   <span className="font-medium">New Chat</span>
@@ -95,8 +105,12 @@ export function Sidebar({
 
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  tooltip="Browse sources"
-                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-background/60"
+                  tooltip="Browse data sources"
+                  onClick={() => router.push('/sources')}
+                  className={cn(
+                    'text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-background/60',
+                    isOnSources && 'bg-background/80 ring-1 ring-purple-500/30',
+                  )}
                 >
                   <FileText className="h-4 w-4" />
                   <span>Source</span>
@@ -132,7 +146,10 @@ export function Sidebar({
                       No history yet
                     </span>
                     <button
-                      onClick={onNewChat}
+                      onClick={() => {
+                        onNewChat?.();
+                        if (isOnSources) router.push('/');
+                      }}
                       className="text-[10px] text-brand-fg-accent hover:text-brand-fg-light transition-colors cursor-pointer"
                     >
                       Start a new chat
