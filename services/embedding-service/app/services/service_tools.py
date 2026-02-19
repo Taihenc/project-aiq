@@ -372,5 +372,6 @@ class Tools:
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    
 
 service_tools = Tools()

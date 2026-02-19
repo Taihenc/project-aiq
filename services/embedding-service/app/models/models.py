@@ -26,10 +26,12 @@ class Chunk(BaseModel):
 class Page(BaseModel):
     page_number: int = Field(...)
     chunks: List[Chunk] = Field(..., description="List of relevant chunks in this page.")
+    total_chunk: Optional[int] = Field(None, description="Total number of chunks in the page.")
 
 class File(BaseModel):
     file_path: str = Field(..., description="Path or name of the source file.")
     pages: List[Page] = Field(..., description="List of relevant pages in this file.")
+    total_pages: Optional[int] = Field(None, description="Total number of pages in the file.")
 
 class DocumentUpload(BaseModel):
     text: str = Field(default="Ecotourism and nature conservation in tourist destinations across the country", description="Text content to embed")
