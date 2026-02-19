@@ -86,11 +86,45 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   const handleAddAttachment = useCallback((attachment: FileRef) => {
     setAttachments((prev) => {
-      // Avoid duplicates by file_path
-      if (prev.some((a) => a.file_path === attachment.file_path)) return prev;
+      const existing = prev.find((a) => a.file_path === attachment.file_path);
+      if (existing) {
+        // Merge new chunks, dedupe by chunk_number
+        const existingNums = new Set(
+          existing.chunks.map((c) => c.chunk_number),
+        );
+        const newChunks = attachment.chunks.filter(
+          (c) => !existingNums.has(c.chunk_number),
+        );
+        if (newChunks.length === 0) return prev;
+        return prev.map((a) =>
+          a.file_path === attachment.file_path
+            ? { ...a, chunks: [...a.chunks, ...newChunks] }
+            : a,
+        );
+      }
       return [...prev, attachment];
     });
   }, []);
+
+  const handleRemoveChunk = useCallback(
+    (filePath: string, chunkNumber: number) => {
+      setAttachments((prev) =>
+        prev.reduce<FileRef[]>((acc, a) => {
+          if (a.file_path !== filePath) {
+            acc.push(a);
+          } else {
+            const remaining = a.chunks.filter(
+              (c) => c.chunk_number !== chunkNumber,
+            );
+            if (remaining.length > 0) acc.push({ ...a, chunks: remaining });
+            // drop the entire FileRef if no chunks remain
+          }
+          return acc;
+        }, []),
+      );
+    },
+    [],
+  );
 
   const handleRemoveAttachment = useCallback((index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
@@ -162,6 +196,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
               isLoading={isLoading}
               onAddAttachment={handleAddAttachment}
               onRemoveAttachment={handleRemoveAttachment}
+              onRemoveChunk={handleRemoveChunk}
               attachments={attachments}
             />
           )}
