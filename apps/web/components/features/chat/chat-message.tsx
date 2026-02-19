@@ -359,31 +359,18 @@ function SourceCard({
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // source.id format: "file_path:pageN:chunkM"
-  const chunkMatch = source.id.match(/:chunk(\d+)$/);
-  const chunkNumber = chunkMatch ? parseInt(chunkMatch[1], 10) : 0;
+  // source.id is the file_path for FileRef citations
+  const filePath = source.id;
 
-  // Parse "file_path (Page N)" from title
-  const pageMatch = source.title.match(/^(.+?)\s*\(Page\s+(\d+|\?)\)$/);
-  const filePath = pageMatch ? pageMatch[1].trim() : source.title;
-  const pageNumber =
-    pageMatch && pageMatch[2] !== '?' ? parseInt(pageMatch[2], 10) : 1;
-
-  const isAttached = attachments.some(
-    (a) => a.file_path === filePath && a.chunks.some((c) => c.chunk_number === chunkNumber),
-  );
+  const isAttached = attachments.some((a) => a.file_path === filePath);
 
   const handleToggleAttach = (e: React.MouseEvent) => {
     e.stopPropagation();
 
     if (isAttached) {
       if (!onRemoveAttachment) return;
-      const index = attachments.findIndex(
-        (a) => a.file_path === filePath && a.chunks.some((c) => c.chunk_number === chunkNumber),
-      );
-      if (index !== -1) {
-        onRemoveAttachment(index);
-      }
+      const index = attachments.findIndex((a) => a.file_path === filePath);
+      if (index !== -1) onRemoveAttachment(index);
       return;
     }
 
@@ -391,12 +378,10 @@ function SourceCard({
 
     onAddAttachment({
       file_path: filePath,
-      chunks: [
-        {
-          chunk_number: chunkNumber,
-          page_number: pageNumber,
-        },
-      ],
+      chunks: (source.chunks || []).map((c) => ({
+        chunk_number: c.chunk_number,
+        page_number: c.page_number,
+      })),
       content: source.content,
     });
   };

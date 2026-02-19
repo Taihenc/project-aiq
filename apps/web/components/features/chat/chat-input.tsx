@@ -59,7 +59,7 @@ export function ChatInput({
             <div className="flex flex-wrap gap-1 px-2">
               {attachments.map((att, index) => (
                 <HoverCard
-                  key={att.chunks[0]?.chunk_number?.toString() || `att-${index}`}
+                  key={att.file_path || `att-${index}`}
                   openDelay={300}
                   closeDelay={100}
                 >

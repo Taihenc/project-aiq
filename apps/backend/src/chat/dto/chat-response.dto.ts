@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MessageDto } from './chat-request.dto';
+import { MessageDto, ChunkMetadataDto } from './chat-request.dto';
 
 // Citation structure
 export class CitationDto {
@@ -28,6 +28,12 @@ export class CitationDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChunkMetadataDto)
+  chunks?: ChunkMetadataDto[];
 }
 
 // OpenAI-compatible choice structure

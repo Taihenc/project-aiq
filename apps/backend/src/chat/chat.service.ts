@@ -833,15 +833,23 @@ export class ChatService {
           return;
         }
 
-        // Handle FileRef structure from AIQ-164: { file_path: string, chunks: { chunk_number: number, ... }[] }
+        // Handle FileRef structure from AIQ-164: { file_path, chunks[] } — one citation per file
         if (source && source.file_path && Array.isArray(source.chunks)) {
-          source.chunks.forEach((chunk: any, chunkIndex: number) => {
-            citations.push({
-              id: `${source.file_path}:page${chunk.page_number}:chunk${chunk.chunk_number}`,
-              title: `${source.file_path.split('/').pop() || source.file_path} (Page ${chunk.page_number || '?'})`,
-              platform: 'AI Engine',
-              content: chunk.content || chunk.text || '',
-            });
+          const fileName = source.file_path.split('/').pop() || source.file_path;
+          const allContent = source.chunks
+            .map((c: any) => c.content || c.text || '')
+            .filter(Boolean)
+            .join('\n\n');
+          citations.push({
+            id: source.file_path,
+            title: fileName,
+            platform: 'AI Engine',
+            content: allContent,
+            chunks: source.chunks.map((c: any) => ({
+              chunk_number: c.chunk_number,
+              page_number: c.page_number,
+              score: c.score,
+            })),
           });
           return;
         }

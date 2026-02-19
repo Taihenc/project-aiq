@@ -29,10 +29,12 @@ export interface Usage {
 
 // Citation structure (custom extension)
 export interface Citation {
-  id: string;
+  id: string; // = file_path for FileRef citations
   title: string;
   platform: string;
   content?: string;
+  /** Chunks carried from the backend for re-attaching */
+  chunks?: ChunkMetadata[];
 }
 
 // Search-flow attachment types (matching SearchChatRequest schema)
