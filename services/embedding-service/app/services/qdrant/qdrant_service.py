@@ -438,6 +438,51 @@ class QdrantService:
         else:
             raise ValueError(f"Chunk with file_path {file_path} and order {order} not found")
 
+
+    def get_file(self, file_path:str):
+        self._ensure_collection()
+        
+        q_filter = Filter(
+            must=[
+                FieldCondition(key="file_path", match=MatchValue(value=file_path))
+            ]
+        )
+        
+        points, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=q_filter,
+            # limit=1,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        points.sort(key=lambda x: int(x.payload.get("order", 0)))
+
+        if points:
+            return points
+        else:
+            raise ValueError(f"Chunk with file_path {file_path} not found")
+
+    def get_max_page_number(self, file_path:str):
+        self._ensure_collection()
+        
+        points = self.get_file(file_path)
+        
+        if points:
+            return points[-1].payload.get("pages", [-1])[-1]
+        else:
+            raise ValueError(f"Chunk with file_path {file_path} not found")
+    
+    def get_max_chunk_number(self, file_path: str):
+        self._ensure_collection()
+        
+        points = self.get_file(file_path)
+        
+        if points:
+            return points[-1].payload.get("order", 0)
+        else:
+            raise ValueError(f"Chunk with file_path {file_path} not found")
+
 # Global instance
 qdrant_service = QdrantService()
 # qdrant_service.connect()

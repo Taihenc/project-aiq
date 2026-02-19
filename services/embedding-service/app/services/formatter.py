@@ -10,6 +10,7 @@ from app.models.models import (
     PageRetrievalResponse,
     ChunkContextResponse,
 )
+from app.services.qdrant.qdrant_service import qdrant_service
 
 class Formatter:
     def __init__(self):
@@ -30,12 +31,32 @@ class Formatter:
         files = self.sort_files(files)
         lines = []
         for file in files:
+            last_page_number = qdrant_service.get_max_page_number(file.file_path)
+            last_chunk_number = qdrant_service.get_max_chunk_number(file.file_path)
             lines.append(f"File: {file.file_path}")
+            last_page_retrieve = 0
+            last_chunk_retrieve = 0
             for page in file.pages:
+
+                if last_page_retrieve < page.page_number - 1:
+                    lines.append(f"\t[... Intermediate pages ({f'{last_page_retrieve + 1}-{page.page_number - 1}' if last_page_retrieve + 1 != page.page_number - 1 else last_page_retrieve + 1}) not shown ...]")
+                last_page_retrieve = page.page_number
+
                 lines.append(f"\tPage: {page.page_number}")
                 for chunk in page.chunks:
+                    if last_chunk_retrieve < chunk.chunk_number - 1:
+                        lines.append(f"\t\t[... Non-relevant chunks (chunk numbers: {f'{last_chunk_retrieve + 1}-{chunk.chunk_number - 1}' if last_chunk_retrieve + 1 != chunk.chunk_number - 1 else last_chunk_retrieve + 1}) skipped ...]")
+                    last_chunk_retrieve = chunk.chunk_number
+                    
                     lines.append(f"\t\tChunk: {chunk.chunk_number}" + (f" (Score: {chunk.score})" if chunk.score else ""))
                     lines.append(f"\t\t\t{chunk.text.replace("\n", "\n\t\t\t")}")
+
+                if last_chunk_retrieve < last_chunk_number:
+                    lines.append(f"\t\t[... Non-relevant chunks (chunk numbers: {f'{last_chunk_retrieve + 1}-{last_chunk_number}' if last_chunk_retrieve + 1 != last_chunk_number else last_chunk_retrieve + 1}) skipped ...]")
+
+            if last_page_retrieve < last_page_number:
+                lines.append(f"\t[... Intermediate pages ({f'{last_page_retrieve + 1}-{last_page_number}' if last_page_retrieve + 1 != last_page_number else last_page_retrieve + 1}) not shown ...]")
+
         return "\n".join(lines)
         
     def format_search_response(self, search_response: SearchResponse):
