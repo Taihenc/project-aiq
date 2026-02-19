@@ -3,6 +3,7 @@ from typing import List, Tuple, Dict
 import json
 from app.config import settings
 from app.models.models import DocumentResponse
+import math
 
 class RerankingService:
 
@@ -45,7 +46,7 @@ class RerankingService:
             scores = [scores]
         
         for doc, score in zip(documents, scores):
-            doc.reranking_score = float(score)
+            doc.reranking_score = self.logistic(float(score))
         
         documents.sort(key=lambda x: x.reranking_score, reverse=True)
         
@@ -54,6 +55,8 @@ class RerankingService:
         
         return documents
 
+    def logistic(self, x):
+        return round(1 / (1 + math.exp(-x)), 4)
 
 
 reranking_service = RerankingService()
