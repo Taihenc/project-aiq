@@ -7,6 +7,7 @@ export const users = sqliteTable('users', {
   authProvider: text('auth_provider').default('local').notNull(),
   providerId: text('provider_id'),
   displayName: text('display_name'),
+  refreshToken: text('refresh_token'),
   createdAt: integer('created_at').default(Date.now()),
 });
 
