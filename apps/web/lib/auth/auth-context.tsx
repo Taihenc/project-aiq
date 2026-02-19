@@ -33,11 +33,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
+
+
   const login = async (email: string, pass: string) => {
     const res = await authApi.login(email, pass);
-    console.log('[AuthContext] Login successful. User:', res.user);
-    // Force cookie set
-    document.cookie = `auth_token=${res.access_token}; path=/; SameSite=Lax; max-age=${7 * 24 * 60 * 60}`;
+    console.log('[AuthContext] Login successful. Tokens received:', !!res.access_token, !!res.refresh_token);
+
+    // Store access token (1 hour on backend, matches 1 day here roughly or we can be precise)
+    Cookies.set('auth_token', res.access_token, 1);
+    // Store refresh token (7 days)
+    Cookies.set('refresh_token', res.refresh_token, 7);
+
     setUser(res.user);
   };
 
@@ -46,9 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login(email, pass);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     Cookies.remove('auth_token');
+    Cookies.remove('refresh_token');
     setUser(null);
+    window.location.href = '/login';
   };
 
   return (
