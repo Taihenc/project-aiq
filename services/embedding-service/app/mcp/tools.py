@@ -42,10 +42,11 @@ async def get_pages(file_path: str, start_page: int, end_page: int) -> str:
     return formatter_service.format_get_pages_response(file_path, response)
 
 @mcp.tool()
-async def get_chunks(chunk_id: str, backward: int, forward: int) -> str:
+async def get_chunks(file_path: str, chunk_number: int, backward: int, forward: int) -> str:
     """Retrieve context chunks around a specific chunk."""
     request: ChunkContextRequest = ChunkContextRequest(
-        chunk_id=chunk_id,
+        file_path=file_path,
+        chunk_number=chunk_number,
         backward=backward,
         forward=forward
     )

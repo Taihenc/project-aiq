@@ -164,8 +164,10 @@ class Tools:
         ```
         """
         try:
+            chunk_id = qdrant_service.get_chunk_by_order(request.file_path, request.chunk_number)["id"]
+
             chunks = qdrant_service.get_neighbor_chunks(
-                chunk_id=request.chunk_id,
+                chunk_id=chunk_id,
                 backward=request.backward,
                 forward=request.forward
             )
@@ -180,7 +182,7 @@ class Tools:
 
             log_payload = {
                 "event": "chunks_context_retrieved",
-                "chunk_id": request.chunk_id,
+                "chunk_id": chunk_id,
                 "backward": request.backward,
                 "forward": request.forward,
                 "num_chunks": len(response_chunks),

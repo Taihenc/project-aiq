@@ -122,7 +122,8 @@ class PageRetrievalResponse(BaseModel):
     total_pages: int = Field(..., description="Total number of pages")
 
 class ChunkContextRequest(BaseModel):
-    chunk_id: str = Field(..., description="The ID of the target chunk")
+    file_path: str = Field(..., description="Full path file")
+    chunk_number: int = Field(..., description="The number of the target chunk")
     backward: int = Field(0, description="Number of chunks to retrieve before the target", ge=0)
     forward: int = Field(0, description="Number of chunks to retrieve after the target", ge=0)
 
