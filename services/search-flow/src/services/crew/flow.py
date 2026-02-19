@@ -70,7 +70,7 @@ class SearchCrewFlow(Flow[FlowState]):
             query_preview = query_preview[:57] + "..."
 
         self._report_status(f'Analyzing request "{query_preview}"')
-        print(f"\n🔹 [Search Agent] Processing Query: '{self.state.query}'"
+        print(f"\n🔹 [Search Agent] Processing Query: '{self.state.query}'")
 
         # Fetch tools dynamically within the flow
         self._report_status("Connecting to knowledge services...")
@@ -83,17 +83,9 @@ class SearchCrewFlow(Flow[FlowState]):
         formatted_history = self._format_history()
 
         if self.state.context:
-            file_names = []
-            total_chunks = 0
-            for item in self.state.context:
-                name = item.file_path.split("/")[-1] if "/" in item.file_path else item.file_path
-                if len(name) > 30:
-                    name = name[:27] + "..."
-                file_names.append(name)
-                total_chunks += len(item.chunks)
-            files_str = ", ".join(file_names)
-            self._report_status(f"Processing {len(self.state.context)} document{'s' if len(self.state.context) > 1 else ''}: {files_str}")
-            self._report_status(f"Reading {total_chunks} content chunk{'s' if total_chunks > 1 else ''} from documents...")
+            # context is an enriched string — report presence without iterating
+            lines = [l for l in self.state.context.splitlines() if l.strip()]
+            self._report_status(f"Processing attached documents ({len(lines)} lines of context)...")
         else:
             formatted_context = "No attachments provided."
 
@@ -169,4 +161,4 @@ class SearchCrewFlow(Flow[FlowState]):
 
         self._report_status("Response ready!")
         print(f"✅ Action: {self.state.final_response.action.upper()}")
-        print(f"✅ Response: {self.state.final_response.response[:100]}..."
+        print(f"✅ Response: {self.state.final_response.response[:100]}...")
