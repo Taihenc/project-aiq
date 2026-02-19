@@ -122,8 +122,8 @@ export class ChatCompletionsRequestDto {
 
 // Search-flow FileRef DTOs
 export class ChunkMetadataDto {
-  @IsString()
-  chunk_id!: string;
+  @IsNumber()
+  chunk_number!: number;
 
   @IsNumber()
   page_number!: number;

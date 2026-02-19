@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   ChatRequestDto,
   ChatCompletionsRequestDto,
+  FileRefDto,
 } from './dto/chat-request.dto';
 import {
   ChatResponseDto,
@@ -20,6 +21,7 @@ import { ChatHistoryService } from '../chat-history/chat-history.service';
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
+  private readonly sessionCitations = new Map<string, FileRefDto[]>();
 
   constructor(
     private readonly httpService: HttpService,
@@ -48,6 +50,36 @@ export class ChatService {
     );
   }
 
+  private mergeCitations(sessionId: string, newCitations: any[]): void {
+    if (!sessionId || !newCitations?.length) return;
+    const existing = this.sessionCitations.get(sessionId) || [];
+
+    for (const newRef of newCitations) {
+      if (!newRef.file_path || !Array.isArray(newRef.chunks)) continue;
+      const existingRef = existing.find((r) => r.file_path === newRef.file_path);
+      if (!existingRef) {
+        existing.push({
+          file_path: newRef.file_path,
+          chunks: newRef.chunks.map((c: any) => ({ ...c })),
+        });
+      } else {
+        for (const newChunk of newRef.chunks) {
+          const alreadyExists = existingRef.chunks.some(
+            (c) => (c as any).chunk_number === newChunk.chunk_number,
+          );
+          if (!alreadyExists) {
+            existingRef.chunks.push({ ...newChunk });
+          }
+        }
+      }
+    }
+
+    this.sessionCitations.set(sessionId, existing);
+    this.logger.debug(
+      `Session ${sessionId} now has citations from ${existing.length} file(s)`,
+    );
+  }
+
   async enrichResultWithCitations(resultEvent: any): Promise<any> {
     if (resultEvent.type !== 'result' || !resultEvent.content) {
       return resultEvent;
@@ -66,45 +98,36 @@ export class ChatService {
 
     const embeddingUrl = this.getEmbeddingServiceUrl();
     const enrichedCitations: any[] = [];
+    const filesPayload: any[] = [];
 
     for (let i = 0; i < citations.length; i++) {
       const citation = citations[i];
 
-      // Handle FileRef structure with chunks → flatten to per-chunk citations
-      if (
-        citation.file_path &&
-        citation.chunks &&
-        Array.isArray(citation.chunks)
-      ) {
-        for (let ci = 0; ci < citation.chunks.length; ci++) {
-          const chunk = citation.chunks[ci];
-          let chunkContent = '';
+      // Handle FileRef structure (AIQ-164+): { file_path, chunks: [{ chunk_number, page_number }] }
+      if (citation.file_path && Array.isArray(citation.chunks)) {
+        // Group chunks by page for the batch endpoint
+        const pagesMap: Record<number, number[]> = {};
+        for (const chunk of citation.chunks) {
+          const pn: number = chunk.page_number ?? 0;
+          if (!pagesMap[pn]) pagesMap[pn] = [];
+          pagesMap[pn].push(chunk.chunk_number);
+        }
 
-          try {
-            const response = await firstValueFrom(
-              this.httpService.get(`${embeddingUrl}/v1/get/${chunk.chunk_id}`, {
-                validateStatus: () => true,
-              }),
-            );
+        filesPayload.push({
+          file_path: citation.file_path,
+          pages: Object.entries(pagesMap).map(([pn, cns]) => ({
+            page_number: parseInt(pn),
+            chunks: cns.map((cn) => ({ chunk_number: cn })),
+          })),
+        });
 
-            if (response.status === 200 && response.data) {
-              chunkContent = response.data.text || '';
-            } else {
-              this.logger.warn(
-                `Chunk not found: ${chunk.chunk_id}, status: ${response.status}`,
-              );
-            }
-          } catch (e: any) {
-            this.logger.warn(
-              `Failed to fetch chunk ${chunk.chunk_id}: ${e.message}`,
-            );
-          }
-
+        // Build per-chunk citation entries for frontend display
+        for (const chunk of citation.chunks) {
           enrichedCitations.push({
-            id: chunk.chunk_id || `citation-${i}-${ci}`,
-            title: `${citation.file_path} (Page ${chunk.page_number || '?'})`,
+            id: `${citation.file_path}:page${chunk.page_number}:chunk${chunk.chunk_number}`,
+            title: `${citation.file_path.split('/').pop() || citation.file_path} (Page ${chunk.page_number ?? '?'})`,
             platform: 'AI Engine',
-            content: chunkContent,
+            content: '',
           });
         }
         continue;
@@ -132,6 +155,35 @@ export class ChatService {
         platform: citation.platform || 'AI Engine',
         content: citation.content || '',
       });
+    }
+
+    // Batch-fetch formatted text from embedding service
+    if (filesPayload.length > 0) {
+      try {
+        const response = await firstValueFrom(
+          this.httpService.post(
+            `${embeddingUrl}/v1/text-by-file-reference`,
+            { files: filesPayload },
+            { validateStatus: () => true },
+          ),
+        );
+        if (
+          response.status === 200 &&
+          response.data?.result &&
+          enrichedCitations.length > 0
+        ) {
+          // Attach full formatted context text to the first citation
+          enrichedCitations[0].content = response.data.result;
+        } else {
+          this.logger.warn(
+            `text-by-file-reference returned status: ${response.status}`,
+          );
+        }
+      } catch (e: any) {
+        this.logger.warn(
+          `Failed to batch-fetch citation text: ${e.message}`,
+        );
+      }
     }
 
     // Deduplicate citations by ID to prevent frontend key errors
@@ -221,6 +273,7 @@ export class ChatService {
 
       // Enrich citations with content from embedding service
       if (parsed.sources_used && parsed.sources_used.length > 0) {
+        const rawCitations = [...parsed.sources_used];
         try {
           const enrichedResult = await this.enrichResultWithCitations({
             type: 'result',
@@ -233,6 +286,8 @@ export class ChatService {
             `Failed to enrich citations (non-stream): ${err.message}`,
           );
         }
+        // Store raw FileRef citations in session for future requests
+        this.mergeCitations(sessionId, rawCitations);
       }
 
       const transformed = this.transformAiEngineToOpenAI(parsed, chatRequest);
@@ -314,6 +369,10 @@ export class ChatService {
                       );
 
                       if (json.type === 'result') {
+                        // Capture raw FileRef citations before enrichment for session storage
+                        const rawCitations: any[] =
+                          json.content?.citations || [];
+
                         // Enrich result with citation content before sending to frontend
                         try {
                           json = await this.enrichResultWithCitations(json);
@@ -324,6 +383,11 @@ export class ChatService {
                           this.logger.warn(
                             `Failed to enrich citations: ${err.message}`,
                           );
+                        }
+
+                        // Store raw FileRef citations in session for future requests
+                        if (rawCitations.length > 0 && sessionId) {
+                          this.mergeCitations(sessionId, rawCitations);
                         }
                         fullResult = json;
                       }
@@ -430,19 +494,46 @@ export class ChatService {
       (msg) => `${msg.role === 'user' ? 'User' : 'Agent'}: ${msg.content}`,
     );
 
+    // Merge user-provided attachments with session-stored citations (dedup by chunk_number)
+    const sessionId = chatRequest.session_id || '';
+    const sessionAttachments = this.sessionCitations.get(sessionId) || [];
+    const allAttachments = [...(chatRequest.attachments || [])].map((a) => ({
+      file_path: a.file_path,
+      chunks: [...(a.chunks || [])],
+    }));
+
+    for (const sessRef of sessionAttachments) {
+      const existing = allAttachments.find(
+        (r) => r.file_path === sessRef.file_path,
+      );
+      if (!existing) {
+        allAttachments.push({
+          file_path: sessRef.file_path,
+          chunks: sessRef.chunks.map((c) => ({ ...c })),
+        });
+      } else {
+        for (const sessChunk of sessRef.chunks) {
+          const alreadyExists = existing.chunks.some(
+            (c) => (c as any).chunk_number === (sessChunk as any).chunk_number,
+          );
+          if (!alreadyExists) {
+            existing.chunks.push({ ...sessChunk });
+          }
+        }
+      }
+    }
+
     return {
       query:
         lastUserMessage?.content ||
         chatRequest.messages.slice(-1)[0]?.content ||
         '',
       history: historyStrings,
-      attachments: (chatRequest.attachments || []).map((att) => ({
+      attachments: allAttachments.map((att) => ({
         file_path: att.file_path,
-        chunks: (att.chunks || []).map((chunk) => {
-          // Explicitly construct ChunkMetadata to drop extra fields
-          // AI Engine Pydantic models are strict (extra='forbid')
+        chunks: (att.chunks || []).map((chunk: any) => {
           const cleanChunk: any = {
-            chunk_id: chunk.chunk_id,
+            chunk_number: chunk.chunk_number,
             page_number: chunk.page_number,
           };
           if (chunk.score !== undefined) cleanChunk.score = chunk.score;
@@ -742,12 +833,12 @@ export class ChatService {
           return;
         }
 
-        // Handle FileRef structure from AIQ-164: { file_path: string, chunks: { chunk_id: string, ... }[] }
+        // Handle FileRef structure from AIQ-164: { file_path: string, chunks: { chunk_number: number, ... }[] }
         if (source && source.file_path && Array.isArray(source.chunks)) {
           source.chunks.forEach((chunk: any, chunkIndex: number) => {
             citations.push({
-              id: chunk.chunk_id || `citation-${index}-${chunkIndex}`,
-              title: `${source.file_path} (Page ${chunk.page_number || '?'})`,
+              id: `${source.file_path}:page${chunk.page_number}:chunk${chunk.chunk_number}`,
+              title: `${source.file_path.split('/').pop() || source.file_path} (Page ${chunk.page_number || '?'})`,
               platform: 'AI Engine',
               content: chunk.content || chunk.text || '',
             });
