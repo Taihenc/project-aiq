@@ -97,7 +97,11 @@ export class ChatService {
     );
 
     const embeddingUrl = this.getEmbeddingServiceUrl();
-    const enrichedCitations: any[] = [];
+    // One entry per file: id = file_path, chunks carry metadata for re-attaching
+    const fileMap: Map<
+      string,
+      { id: string; title: string; platform: string; content: string; chunks: any[] }
+    > = new Map();
     const filesPayload: any[] = [];
 
     for (let i = 0; i < citations.length; i++) {
@@ -105,57 +109,66 @@ export class ChatService {
 
       // Handle FileRef structure (AIQ-164+): { file_path, chunks: [{ chunk_number, page_number }] }
       if (citation.file_path && Array.isArray(citation.chunks)) {
-        // Group chunks by page for the batch endpoint
-        const pagesMap: Record<number, number[]> = {};
-        for (const chunk of citation.chunks) {
-          const pn: number = chunk.page_number ?? 0;
-          if (!pagesMap[pn]) pagesMap[pn] = [];
-          pagesMap[pn].push(chunk.chunk_number);
-        }
-
-        filesPayload.push({
-          file_path: citation.file_path,
-          pages: Object.entries(pagesMap).map(([pn, cns]) => ({
-            page_number: parseInt(pn),
-            chunks: cns.map((cn) => ({ chunk_number: cn })),
-          })),
-        });
-
-        // Build per-chunk citation entries for frontend display
-        for (const chunk of citation.chunks) {
-          enrichedCitations.push({
-            id: `${citation.file_path}:page${chunk.page_number}:chunk${chunk.chunk_number}`,
-            title: `${citation.file_path.split('/').pop() || citation.file_path} (Page ${chunk.page_number ?? '?'})`,
+        const existing = fileMap.get(citation.file_path);
+        if (!existing) {
+          fileMap.set(citation.file_path, {
+            id: citation.file_path,
+            title: citation.file_path.split('/').pop() || citation.file_path,
             platform: 'AI Engine',
             content: '',
+            chunks: citation.chunks.map((c: any) => ({
+              chunk_number: c.chunk_number,
+              page_number: c.page_number,
+              score: c.score,
+            })),
           });
+
+          const pagesMap: Record<number, number[]> = {};
+          for (const chunk of citation.chunks) {
+            const pn: number = chunk.page_number ?? 0;
+            if (!pagesMap[pn]) pagesMap[pn] = [];
+            pagesMap[pn].push(chunk.chunk_number);
+          }
+          filesPayload.push({
+            file_path: citation.file_path,
+            pages: Object.entries(pagesMap).map(([pn, cns]) => ({
+              page_number: parseInt(pn),
+              chunks: cns.map((cn) => ({ chunk_number: cn })),
+            })),
+          });
+        } else {
+          // Merge additional chunks into the same file entry
+          for (const chunk of citation.chunks) {
+            const alreadyHas = existing.chunks.some(
+              (c) => c.chunk_number === chunk.chunk_number && c.page_number === chunk.page_number,
+            );
+            if (!alreadyHas) existing.chunks.push({ chunk_number: chunk.chunk_number, page_number: chunk.page_number, score: chunk.score });
+          }
         }
         continue;
       }
 
       // Handle simple string (legacy)
       if (typeof citation === 'string') {
-        enrichedCitations.push({
-          id: `citation-${i}`,
-          title: citation,
-          platform: 'AI Engine',
-          content: '',
-        });
+        const key = `legacy-${i}`;
+        fileMap.set(key, { id: `citation-${i}`, title: citation, platform: 'AI Engine', content: '', chunks: [] });
         continue;
       }
 
-      // Handle generic object
-      enrichedCitations.push({
-        id: citation.id || `citation-${i}`,
-        title:
-          citation.title ||
-          citation.name ||
-          citation.file_path ||
-          `Source ${i + 1}`,
-        platform: citation.platform || 'AI Engine',
-        content: citation.content || '',
-      });
+      // Handle generic object (already-enriched CitationDto passthrough)
+      const key = citation.id || citation.file_path || `obj-${i}`;
+      if (!fileMap.has(key)) {
+        fileMap.set(key, {
+          id: citation.id || `citation-${i}`,
+          title: citation.title || citation.name || citation.file_path || `Source ${i + 1}`,
+          platform: citation.platform || 'AI Engine',
+          content: citation.content || '',
+          chunks: citation.chunks || [],
+        });
+      }
     }
+
+    const enrichedCitations = Array.from(fileMap.values());
 
     // Batch-fetch formatted text from embedding service
     if (filesPayload.length > 0) {
@@ -169,11 +182,12 @@ export class ChatService {
         );
         if (
           response.status === 200 &&
-          response.data?.result &&
-          enrichedCitations.length > 0
+          response.data?.result
         ) {
-          // Attach full formatted context text to the first citation
-          enrichedCitations[0].content = response.data.result;
+          // The batch response is one formatted string covering all files;
+          // assign it to the first (or only) file-level citation
+          const firstEntry = enrichedCitations[0];
+          if (firstEntry) firstEntry.content = response.data.result;
         } else {
           this.logger.warn(
             `text-by-file-reference returned status: ${response.status}`,
@@ -186,18 +200,10 @@ export class ChatService {
       }
     }
 
-    // Deduplicate citations by ID to prevent frontend key errors
-    const uniqueCitations: any[] = [];
-    const seenIds = new Set<string>();
-    for (const citation of enrichedCitations) {
-      if (!seenIds.has(citation.id)) {
-        seenIds.add(citation.id);
-        uniqueCitations.push(citation);
-      }
-    }
+    // No dedup needed — fileMap already ensures one entry per file
 
-    if (content.citations) content.citations = uniqueCitations;
-    if (content.sources_used) content.sources_used = uniqueCitations;
+    if (content.citations) content.citations = enrichedCitations;
+    if (content.sources_used) content.sources_used = enrichedCitations;
 
     this.logger.debug('Citations enriched successfully');
     return { ...resultEvent, content };
@@ -422,10 +428,14 @@ export class ChatService {
                     parsedResponse,
                     chatRequest,
                   );
+                    this.logger.verbose(
+                    `Sent to frontend: ${JSON.stringify(transformed, null, 2)}`,
+                    );
 
                   this.logger.verbose(
-                    `Raw AI Engine Response: ${JSON.stringify(fullResult)}`,
+                    `Raw AI Engine Response: ${JSON.stringify(fullResult, null, 2)}`,
                   );
+
 
                   await this.handlePostChatActions(
                     sessionId,
@@ -864,6 +874,7 @@ export class ChatService {
             `Source ${index + 1}`,
           platform: source.platform || source.source || 'AI Engine',
           content: source.content || source.description || '',
+          ...(source.chunks ? { chunks: source.chunks } : {}),
         });
       });
     }
