@@ -15,7 +15,6 @@ def create_search_agent(tools: list = []) -> Agent:
         backstory=AgentPrompts.SEARCH_AGENT_BACKSTORY,
         tools=tools,
         llm=get_llm(),
-        verbose=True,
-        allow_delegation=False,
-        max_iter=5,  # Allow tool use iterations
+        verbose=settings.crew_verbose,
+        max_iter=settings.crew_max_iter,
     )

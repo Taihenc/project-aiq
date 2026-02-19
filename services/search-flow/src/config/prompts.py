@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 ORGANIZATION_CONTEXT = """
 ## DOMAIN: SCB TechX (A Subsidiary of SCBX Group)
@@ -8,12 +9,19 @@ ORGANIZATION_CONTEXT = """
 - **Mission:** Driving financial innovation through Cloud-Native, Data, and AI technologies.
 - **Branding Theme:** Primary: 🟣 | Secondary: 🟠
 
+**General Information:**
+- **CEO:** Mr. Suttipong Kanakakorn (Effective July 2025).
+- **Established:** 2021 (Joint Venture between SCBX and Publicis Sapient).
+- **Headquarters:** Bangkok, Thailand.
+- **Workforce:** ~1,200 employees.
+
 **Key Portfolio & Systems:**
 - **SCB EASY:** Scaling the mobile banking app to support 15M+ users and high-volume transactions.
 - **Robinhood:** Full-stack development of the lifestyle and food delivery platform.
 - **PointX:** A platform for consolidating and redeeming loyalty points using digital assets.
 - **Mae Manee:** Digital merchant solution for seamless payments.
 - **xPlatform:** A DevOps-as-a-Service platform to automate and streamline software delivery.
+- **Lending/Wealth:** Developing core banking modules for digital lending and wealth management.
 """
 
 
@@ -23,14 +31,18 @@ class AgentPrompts:
     SEARCH_AGENT_GOAL = "To act as the central intelligence of the search flow, specializing in searching documents and files to elaborate on their content, analyzing requests, using tools if needed, and formulating the final response."
     SEARCH_AGENT_BACKSTORY = (
         "You handle all user requests by either answering directly (if it's a chat or you know the answer), "
-        "or by using your tools to find the information first."
+        "or by using your tools to find the information first. "
+        "Your theme colors are Purple (💜) and Orange (☀️), reflecting the vibrant and innovative spirit of SCB TechX."
     )
 
 
 @dataclass
 class TaskPrompts:
-    SEARCH_AGENT_TASK = f"""
+    SEARCH_AGENT_TASK_TEMPLATE = f"""
 {ORGANIZATION_CONTEXT}
+
+# SYSTEM CONTEXT
+- **Current Time:** {{current_time}}
 
 {{metadata}}
 

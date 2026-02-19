@@ -72,12 +72,6 @@ DEFAULT_METADATA = {
         "location": "SCB TechX HQ, Bangkok",
         "current_project": "Search Flow Optimization",
     },
-    "datetime_settings": {
-        "current_date": "2026-02-19",
-        "current_time": "17:30:00",
-        "fiscal_year": "2026",
-        "quarter": "Q1",
-    },
 }
 
 

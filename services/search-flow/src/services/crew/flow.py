@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from crewai.flow.flow import Flow, start
 from crewai import Crew
 
@@ -61,12 +62,16 @@ class SearchCrewFlow(Flow[FlowState]):
         if self.state.metadata:
             metadata_str = f"# METADATA\n- **Reference:**\n{json.dumps(self.state.metadata, indent=2, ensure_ascii=False)}"
 
+        # Get current time for the prompt
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         task = create_search_task(
             agent=agent,
             query=self.state.query,
             context_block=context_block,
             mode_instruction=mode_instruction,
             metadata=metadata_str,
+            current_time=current_time,
         )
 
         crew = Crew(agents=[agent], tasks=[task], verbose=True, tracing=True)
