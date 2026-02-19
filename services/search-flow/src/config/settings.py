@@ -6,7 +6,6 @@ from pydantic_settings import SettingsConfigDict
 class Settings(BaseSettings):
     app_env: str = Field("development", validation_alias="ENVIRONMENT")
     debug: bool = Field(True, validation_alias="DEBUG")
-    port: int = Field(8000, validation_alias="PORT")
 
     azure_api_key: str = Field(..., validation_alias="AZURE_API_KEY")
     azure_api_base: str = Field(..., validation_alias="AZURE_API_BASE")
