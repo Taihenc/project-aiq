@@ -77,7 +77,7 @@ class SearchResponse(BaseModel):
 class DocumentsRequest(BaseModel):
     limit: Optional[int] = Field(default=100, ge=1, le=1000, description="Maximum number of documents to return")
     offset: int = Field(0, ge=0, description="Number of documents to skip")
-    
+
 class DocumentsResponse(BaseModel):
     documents: List[DocumentResponse]
     total: int = Field(..., description="Total number of documents")
@@ -158,3 +158,20 @@ class FileReferenceRequest(BaseModel):
 
 class FileReferenceResponse(BaseModel):
     result: str
+
+# Structured per-chunk response (for frontend citation enrichment)
+class EnrichedChunk(BaseModel):
+    chunk_number: int
+    score: Optional[float] = None
+    content: str
+
+class EnrichedPage(BaseModel):
+    page_number: int
+    chunks: List[EnrichedChunk]
+
+class EnrichedFile(BaseModel):
+    file_path: str
+    pages: List[EnrichedPage]
+
+class StructuredFileReferenceResponse(BaseModel):
+    files: List[EnrichedFile]

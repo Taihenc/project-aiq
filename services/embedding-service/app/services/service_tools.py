@@ -2,7 +2,7 @@ import pandas as pd
 import os
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict, Any
-from qdrant_client.http import models as q_models 
+from qdrant_client.http import models as q_models
 
 # Import ALL models including the new ones
 from app.models.models import (
@@ -25,7 +25,11 @@ from app.models.models import (
     ChunkContextRequest,
     ChunkContextResponse,
     FileReferenceRequest,
-    FileReferenceResponse
+    FileReferenceResponse,
+    EnrichedChunk,
+    EnrichedPage,
+    EnrichedFile,
+    StructuredFileReferenceResponse,
 )
 
 from app.services.qdrant.qdrant_service import qdrant_service
@@ -49,14 +53,14 @@ class Tools:
     async def get_embedding(self, query_request: QueryRequest) -> QueryResponse:
         try:
             embedding = embedding_service.encode_single(query_request.text)
-            
+
             return QueryResponse(
                 embedding=embedding,
                 dimension=len(embedding)
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to generate embedding: {str(e)}")
-        
+
 
     async def search_documents(self, search_request: SearchRequest) -> SearchResponse:
         try:
@@ -112,7 +116,7 @@ class Tools:
                 }
 
                 logger.info("Reranking completed:\n%s", json.dumps(log_payload, indent=2, ensure_ascii=False))
-            
+
             return SearchResponse(documents=document, counts=len(document))
         except Exception as e:
             logger.exception("Search failed", extra={"query": search_request.query})
@@ -122,7 +126,7 @@ class Tools:
         try:
             reconstructed_pages, total_pages = qdrant_service.get_chunks_by_page_range(
                 start_page=request.start_page,
-                end_page=request.end_page,    
+                end_page=request.end_page,
                 file_path=request.file_path,
             )
 
@@ -221,11 +225,11 @@ class Tools:
         # Assuming embedding-service is at /services/embedding-service
         # And data-ingestion is at /services/data-ingestion
         # So we traverse up one level: ../data-ingestion/
-        
+
         # Construct potential path in data-ingestion
         # effective path becomes: ../data-ingestion/<file_path>
         data_ingestion_path = os.path.join("..", "data-ingestion", file_path)
-        
+
         if os.path.exists(data_ingestion_path):
             return os.path.abspath(data_ingestion_path)
 
@@ -234,11 +238,11 @@ class Tools:
     async def query_structured_data(self, request: StructuredQueryRequest) -> StructuredQueryResponse:
         """
         Tool: Executes a Pandas query on a CSV or Excel file.
-        
+
         **Example Usage:**
         ```json
         {
-            "file_path": "employees.xlsx", 
+            "file_path": "employees.xlsx",
             "sheet_name": "Sheet1",  // REQUIRED if file is .xlsx/.xls
             "query": "department == 'HR' & salary > 50000" // Optional pandas query string
         }
@@ -249,7 +253,7 @@ class Tools:
             debug_logs.append(f"Analyzing {request.file_path}")
             resolved_path = _resolve_file_path(request.file_path)
             debug_logs.append(f"Initial determination: {resolved_path}")
-            
+
             # If not found locally, try looking it up in Qdrant by name (assuming input is filename)
             if not resolved_path:
                 # Try to find the file path via Qdrant metadata
@@ -292,7 +296,7 @@ class Tools:
                 raise HTTPException(status_code=404, detail=f"File not found: {request.file_path}. Debug: {'; '.join(debug_logs)}")
 
             df = None
-            
+
             # A. Load Data
             if resolved_path.endswith('.csv'):
                 df = pd.read_csv(resolved_path)
@@ -306,12 +310,12 @@ class Tools:
                     df = pd.read_excel(resolved_path, sheet_name=request.sheet_name)
                 except ValueError:
                     return StructuredQueryResponse(
-                        result="", metadata={}, success=False, 
+                        result="", metadata={}, success=False,
                         error=f"Sheet '{request.sheet_name}' not found."
                     )
             else:
                 return StructuredQueryResponse(
-                    result="", metadata={}, success=False, 
+                    result="", metadata={}, success=False,
                     error=f"Unsupported file format: {resolved_path}"
                 )
 
@@ -321,7 +325,7 @@ class Tools:
                     filtered_df = df
                 else:
                     filtered_df = df.query(request.query)
-                
+
                 # Truncate if result is huge
                 limit_rows = 50
                 # Custom Markdown conversion to avoid 'tabulate' dependency
@@ -330,11 +334,11 @@ class Tools:
                 columns = filtered_df.columns.tolist()
                 markdown_lines.append("| " + " | ".join(map(str, columns)) + " |")
                 markdown_lines.append("| " + " | ".join(["---"] * len(columns)) + " |")
-                
+
                 # Rows
                 for _, row in filtered_df.head(limit_rows).iterrows():
                     markdown_lines.append("| " + " | ".join(map(str, row.tolist())) + " |")
-                
+
                 result_md = "\n".join(markdown_lines)
                 if len(filtered_df) > limit_rows:
                     result_md += f"\n\n... ({len(filtered_df)-limit_rows} more rows truncated) ..."
@@ -364,7 +368,7 @@ class Tools:
                     for chunk in page.chunks:
                         retrieve_chunk = qdrant_service.get_chunk_by_order(file.file_path, chunk.chunk_number)
                         chunk.text = retrieve_chunk["text"]
-            
+
             result_text = formatter_service.format_files_to_text(request.files)
             return FileReferenceResponse(
                 result = result_text
@@ -372,6 +376,33 @@ class Tools:
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-    
+
+    async def get_structured_file_reference(self, request: FileReferenceRequest) -> StructuredFileReferenceResponse:
+        """Returns per-chunk text content in a structured format (for frontend citation enrichment)."""
+        try:
+            enriched_files = []
+            for file in request.files:
+                enriched_pages = []
+                for page in file.pages:
+                    enriched_chunks = []
+                    for chunk in page.chunks:
+                        retrieved = qdrant_service.get_chunk_by_order(file.file_path, chunk.chunk_number)
+                        enriched_chunks.append(EnrichedChunk(
+                            chunk_number=chunk.chunk_number,
+                            score=chunk.score,
+                            content=retrieved["text"] if retrieved else "",
+                        ))
+                    enriched_pages.append(EnrichedPage(
+                        page_number=page.page_number,
+                        chunks=enriched_chunks,
+                    ))
+                enriched_files.append(EnrichedFile(
+                    file_path=file.file_path,
+                    pages=enriched_pages,
+                ))
+            return StructuredFileReferenceResponse(files=enriched_files)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Structured file reference failed: {str(e)}")
+
 
 service_tools = Tools()
