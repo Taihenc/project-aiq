@@ -22,4 +22,12 @@ export const sharePointApi = {
     const response = await client.get(`/sharepoint/status/${sourceId}`);
     return response.data;
   },
+  ingestFile: async (sourceId: string) => {
+    const response = await client.post(`/sharepoint/ingest/${sourceId}`);
+    return response.data;
+  },
+  deleteFile: async (sourceId: string) => {
+    const response = await client.delete(`/sharepoint/${sourceId}`);
+    return response.data;
+  },
 };
