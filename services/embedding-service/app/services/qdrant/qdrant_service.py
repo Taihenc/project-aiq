@@ -52,7 +52,7 @@ class QdrantService:
 
     def _ensure_duplicate(self, path: str) -> bool:
         self._ensure_collection()
-        
+
         try:
             results, _ = self.client.scroll(
                 collection_name=self.collection_name,
@@ -71,7 +71,7 @@ class QdrantService:
 
         except Exception:
             return False
-        
+
     def _delete_by_metadata(self, metadata_filter: Filter) -> None:
         self._ensure_collection()
 
@@ -250,6 +250,18 @@ class QdrantService:
         except Exception:
             return False
 
+    def delete_documents_by_file(self, file_name: str) -> None:
+        """Delete all Qdrant points whose 'file' metadata field matches the given file name."""
+        metadata_filter = Filter(
+            must=[
+                FieldCondition(
+                    key="file",
+                    match=MatchValue(value=file_name)
+                )
+            ]
+        )
+        self._delete_by_metadata(metadata_filter=metadata_filter)
+
     def get_collection_info(self) -> Dict[str, Any]:
         self._ensure_collection()
         info = self.client.get_collection(collection_name=self.collection_name)
@@ -259,7 +271,7 @@ class QdrantService:
             "vectors_count": info.vectors_count,
             "status": info.status
         }
-    
+
     def format_filter(self, filters: ModelFilter) -> Filter:
         if filters is None:
             return Filter()
@@ -318,7 +330,7 @@ class QdrantService:
 
         all_points = []
         next_offset = None
-        
+
         while True:
             points, next_offset = self.client.scroll(
                 collection_name=self.collection_name,
@@ -329,14 +341,14 @@ class QdrantService:
                 with_vectors=False  # Vectors are not needed for text reconstruction
             )
             all_points.extend(points)
-            
+
             if next_offset is None:
                 break
 
         all_points.sort(key=lambda p: p.payload.get("order", 0))
         pages_chunk = []
 
-    
+
         for i in range(start_page, end_page + 1):
             chunks = []
 
@@ -360,14 +372,14 @@ class QdrantService:
         Retrieves neighbor chunks for a given chunk_id based on 'order' and 'file_path'.
         """
         self._ensure_collection()
-        
+
         target_doc = self.get_document(chunk_id)
         if not target_doc:
             raise ValueError(f"Target chunk {chunk_id} not found")
-        
+
         target_metadata = target_doc["metadata"]
         file_path = target_metadata.get("file_path")
-        
+
         try:
             target_order = int(target_metadata.get("order", -1))
         except (ValueError, TypeError):
@@ -379,16 +391,16 @@ class QdrantService:
 
         min_order = target_order - backward
         max_order = target_order + forward
-        
+
         q_filter = Filter(
             must=[
                 FieldCondition(key="file_path", match=MatchValue(value=file_path)),
                 FieldCondition(key="order", range=Range(gte=min_order, lte=max_order))
             ]
         )
-        
+
         limit = (backward + forward + 1) + 5
-        
+
         results, _ = self.client.scroll(
             collection_name=self.collection_name,
             scroll_filter=q_filter,
@@ -396,7 +408,7 @@ class QdrantService:
             with_payload=True,
             with_vectors=False
         )
-        
+
         neighbors = []
         for point in results:
              neighbors.append({
@@ -404,21 +416,21 @@ class QdrantService:
                 "text": point.payload.get("text", ""),
                 "metadata": {k: v for k, v in point.payload.items() if k != "text"},
              })
-        
+
         neighbors.sort(key=lambda x: int(x["metadata"].get("order", 0)))
-        
+
         return neighbors
 
     def get_chunk_by_order(self, file_path: str, order: int) -> Dict[str, Any]:
         self._ensure_collection()
-        
+
         q_filter = Filter(
             must=[
                 FieldCondition(key="file_path", match=MatchValue(value=file_path)),
                 FieldCondition(key="order", match=MatchValue(value=order))
             ]
         )
-        
+
         points, _ = self.client.scroll(
             collection_name=self.collection_name,
             scroll_filter=q_filter,
@@ -426,7 +438,7 @@ class QdrantService:
             with_payload=True,
             with_vectors=False
         )
-        
+
         point = points[0]
 
         if point:
@@ -441,13 +453,13 @@ class QdrantService:
 
     def get_file(self, file_path:str):
         self._ensure_collection()
-        
+
         q_filter = Filter(
             must=[
                 FieldCondition(key="file_path", match=MatchValue(value=file_path))
             ]
         )
-        
+
         points, _ = self.client.scroll(
             collection_name=self.collection_name,
             scroll_filter=q_filter,
@@ -455,7 +467,7 @@ class QdrantService:
             with_payload=True,
             with_vectors=False
         )
-        
+
         points.sort(key=lambda x: int(x.payload.get("order", 0)))
 
         if points:
@@ -465,19 +477,19 @@ class QdrantService:
 
     def get_max_page_number(self, file_path:str):
         self._ensure_collection()
-        
+
         points = self.get_file(file_path)
-        
+
         if points:
             return points[-1].payload.get("pages", [-1])[-1]
         else:
             raise ValueError(f"Chunk with file_path {file_path} not found")
-    
+
     def get_max_chunk_number(self, file_path: str):
         self._ensure_collection()
-        
+
         points = self.get_file(file_path)
-        
+
         if points:
             return points[-1].payload.get("order", 0)
         else:
