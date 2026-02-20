@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
+from urllib.parse import quote
 
 import msal
 import requests
@@ -137,9 +138,14 @@ class GraphAPIClient:
         }
 
         if path and path.strip("/"):
-            url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{path.strip('/')}/{file_name}:/content"
+            # Encode each path segment and the filename independently so
+            # non-ASCII characters (e.g. Thai, Chinese) don't break the URL.
+            encoded_path = "/".join(quote(seg, safe="") for seg in path.strip("/").split("/"))
+            encoded_name = quote(file_name, safe="")
+            url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{encoded_path}/{encoded_name}:/content"
         else:
-            url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{file_name}:/content"
+            encoded_name = quote(file_name, safe="")
+            url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{encoded_name}:/content"
 
         try:
             response = requests.put(url, headers=headers, data=content, timeout=60)
@@ -149,6 +155,22 @@ class GraphAPIClient:
             logger.error("Response: %s", response.text)
         except Exception as exc:
             logger.error("Failed to upload file: %s", exc)
+        return None
+
+    def get_drive_item(self, drive_id: str, item_id: str) -> Optional[dict[str, Any]]:
+        """Fetch metadata for a single drive item by its ID."""
+        token = self._ensure_token()
+        if not token:
+            return None
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}"
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            if response.status_code == 200:
+                return response.json()
+            logger.error("Failed to get drive item %s: HTTP %s", item_id, response.status_code)
+        except Exception as exc:
+            logger.error("Failed to get drive item %s: %s", item_id, exc)
         return None
 
     def get_access_token(self) -> Optional[str]:
