@@ -2,6 +2,7 @@ import { Routes } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { ChatHistoryModule } from './chat-history/chat-history.module';
 import { ChatModule } from './chat/chat.module';
+import { SharePointModule } from './sharepoint/sharepoint.module';
 
 export const routes: Routes = [
   {
@@ -18,6 +19,10 @@ export const routes: Routes = [
       {
         path: 'chat',
         module: ChatModule,
+      },
+      {
+        path: 'sharepoint',
+        module: SharePointModule,
       },
     ],
   },

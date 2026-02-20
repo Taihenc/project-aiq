@@ -181,15 +181,40 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
           const rawData = trimmedLine.slice(6);
           try {
             const event = JSON.parse(rawData);
-            console.log('[SSE] Parsed event:', event.type, typeof event.content === 'string' ? event.content.substring(0, 50) : event.content);
+            console.log(
+              '[SSE] Parsed event:',
+              event.type,
+              typeof event.content === 'string'
+                ? event.content.substring(0, 50)
+                : event.content,
+            );
 
             if (event.type === 'status') {
               const statusContent =
                 typeof event.content === 'string'
                   ? event.content
                   : JSON.stringify(event.content);
-              console.log('[SSE] Setting status:', statusContent.substring(0, 80));
+              console.log(
+                '[SSE] Setting status:',
+                statusContent.substring(0, 80),
+              );
               pendingStatuses.push(statusContent);
+            } else if (event.type === 'error') {
+              console.error('[SSE] AI Error Event:', event.content);
+              const errorContent =
+                event.content || 'An unexpected error occurred.';
+
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessageId
+                    ? {
+                      ...m,
+                      content: `⚠️ **Failure**: ${errorContent}`,
+                      status: undefined,
+                    }
+                    : m,
+                ),
+              );
             } else if (event.type === 'result') {
               console.log('[SSE] AI Result Received');
 
@@ -267,10 +292,10 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
             prev.map((m) =>
               m.id === assistantMessageId
                 ? {
-                    ...m,
-                    status: lastStatus,
-                    statusHistory: [...(m.statusHistory || []), ...pendingStatuses],
-                  }
+                  ...m,
+                  status: lastStatus,
+                  statusHistory: [...(m.statusHistory || []), ...pendingStatuses],
+                }
                 : m,
             ),
           );

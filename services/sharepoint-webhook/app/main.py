@@ -79,12 +79,12 @@ def main() -> None:
 
     try:
         public_url = tunnel.start(settings.server_port)
-    except Exception as exc: 
+    except Exception as exc:
         _log_error_and_exit(f"Failed to start {settings.tunnel_type} tunnel", [str(exc)])
         _log_tunnel_help(settings.tunnel_type)
         return
 
-    fastapi_app = create_app(public_url, notification_service.handle_notifications)
+    fastapi_app = create_app(public_url, notification_service.handle_notifications, graph_client)
     threading.Thread(target=_start_fastapi, args=(fastapi_app, settings.server_port), daemon=True).start()
     logger.info("FastAPI server booted on port %s", settings.server_port)
     time.sleep(5)
@@ -101,6 +101,7 @@ def main() -> None:
         _log_error_and_exit("Subscription creation failed", ["Check Azure/SharePoint configuration."])
         return
 
+    fastapi_app.state.drive_id = drive_id
     notification_service.set_drive_id(drive_id)
 
     logger.info("*" * 50)
