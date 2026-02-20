@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     upload_dir: str = "uploaded-files"
 
     # SharePoint Integration
-    enable_sharepoint_integration: bool = False
+    enable_sharepoint_integration: bool = True
 
     class Config:
         env_file = ".env"
