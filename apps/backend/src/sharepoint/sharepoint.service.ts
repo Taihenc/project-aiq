@@ -1,13 +1,21 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject, Observable, map } from 'rxjs';
 import { AxiosResponse } from 'axios';
+
+export interface StatusEvent {
+  file_id: string;
+  source_id: string;
+  status: string;
+  file_name?: string;
+}
 
 @Injectable()
 export class SharePointService {
   private readonly webhookUrl: string;
   private readonly fileStorageUrl: string;
+  private readonly statusEvents$ = new Subject<StatusEvent>();
 
   constructor(
     private readonly configService: ConfigService,
@@ -65,6 +73,42 @@ export class SharePointService {
       }
       this.handleError(error, 'Failed to get file status');
     }
+  }
+
+  async triggerIngest(sourceId: string): Promise<any> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.webhookUrl}/ingest/${sourceId}`, {}),
+      );
+      return response.data;
+    } catch (error: any) {
+      this.handleError(error, 'Failed to trigger ingestion');
+    }
+  }
+
+  async deleteFile(sourceId: string): Promise<any> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.delete(`${this.fileStorageUrl}/files/source/${sourceId}`),
+      );
+      return response.data;
+    } catch (error: any) {
+      this.handleError(error, 'Failed to delete file');
+    }
+  }
+
+  // ── SSE / Webhook ───────────────────────────────────────────────
+
+  /** Returns an Observable that emits SSE MessageEvent frames. */
+  getStatusStream(): Observable<MessageEvent> {
+    return this.statusEvents$.asObservable().pipe(
+      map((payload) => ({ data: payload }) as unknown as MessageEvent),
+    );
+  }
+
+  /** Called by the webhook receiver endpoint when FSS pushes a status update. */
+  handleStatusWebhook(payload: StatusEvent): void {
+    this.statusEvents$.next(payload);
   }
 
   private handleError(error: any, defaultMessage: string) {
