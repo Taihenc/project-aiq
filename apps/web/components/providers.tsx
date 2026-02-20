@@ -3,6 +3,7 @@
 import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from '@/lib/auth/auth-context';
 import { Toaster } from 'sonner';
+import { CommandPalette } from '@/components/features/command/command-palette';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         {children}
         <Toaster />
+        <CommandPalette />
       </AuthProvider>
     </ThemeProvider>
   );

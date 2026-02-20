@@ -21,7 +21,9 @@ import {
   Sparkles,
   LogOut,
   Trash2,
+  Command,
 } from 'lucide-react';
+import { useCommandStore } from '@/lib/store/command-store';
 import { cn } from '@/lib/utils';
 import type { SidebarProps } from '@/types';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -56,6 +58,7 @@ export function Sidebar({
   const { user, login, logout, register } = useAuth();
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const displayHistory = chatHistory;
+  const openCommand = useCommandStore((s) => s.setOpen);
 
   return (
     <SidebarPrimitive
@@ -64,10 +67,10 @@ export function Sidebar({
     >
       <SidebarHeader className="gap-0 px-6 pb-4 pt-6">
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-purple rounded-card flex h-10 w-10 items-center justify-center shadow-sm">
+          <div className="bg-gradient-purple rounded-card flex h-10 w-10 shrink-0 items-center justify-center shadow-sm">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
-          <div className="flex flex-col">
+          <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-xs uppercase tracking-[0.2em] text-[var(--brand-logo-label)]">
               AIQ
             </span>
@@ -75,6 +78,14 @@ export function Sidebar({
               XHIVE
             </span>
           </div>
+          <button
+            onClick={() => openCommand(true)}
+            className="ml-auto flex shrink-0 items-center gap-1 rounded-md border border-[var(--brand-blockquote-border)] bg-transparent px-2 py-1 text-[10px] text-[var(--brand-history-label)] transition-colors hover:bg-brand-new-chat-hover"
+            aria-label="Open command palette"
+          >
+            <Command className="h-3 w-3" />
+            <span>K</span>
+          </button>
         </div>
       </SidebarHeader>
 
@@ -86,7 +97,11 @@ export function Sidebar({
                 <SidebarMenuButton
                   tooltip="Start a new chat"
                   onClick={onNewChat}
-                  className="text-primary-light rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-brand-new-chat-bg px-4 py-3 shadow-none transition-colors hover:bg-brand-new-chat-hover"
+                  className={cn(
+                    'rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
+                    !currentChatId &&
+                      'border-[var(--brand-citation-border)] bg-brand-new-chat-bg text-primary-dark',
+                  )}
                 >
                   <MessageSquare className="h-4 w-4" />
                   <span className="font-medium">New Chat</span>
@@ -96,7 +111,7 @@ export function Sidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Browse sources"
-                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-background/60"
+                  className="rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover"
                 >
                   <FileText className="h-4 w-4" />
                   <span>Source</span>
@@ -106,7 +121,7 @@ export function Sidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Open prompt library"
-                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-background/60"
+                  className="rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover"
                 >
                   <Sparkles className="h-4 w-4" />
                   <span>Prompt Library</span>
@@ -156,9 +171,9 @@ export function Sidebar({
                           isActive={isActive}
                           onClick={() => onChatSelect?.(chat.id)}
                           className={cn(
-                            'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-card/70',
+                            'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent bg-transparent px-4 py-3 text-left text-sm transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
                             isActive &&
-                              'shadow-elevated border-[var(--brand-citation-border)] bg-card text-primary-medium',
+                              'border-[var(--brand-citation-border)] bg-brand-new-chat-bg text-primary-dark',
                           )}
                         >
                           <MessageSquare className="h-4 w-4 text-[var(--brand-chat-icon)]" />
