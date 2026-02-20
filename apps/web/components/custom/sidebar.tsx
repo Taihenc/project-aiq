@@ -105,7 +105,7 @@ export function Sidebar({
                     if (isOnSources) router.push('/');
                   }}
                   className={cn(
-                    'rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
+                    'rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all text-secondary hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
                     !isOnSources &&
                       !currentChatId &&
                       'border-[var(--brand-citation-border)] bg-brand-new-chat-bg text-primary-dark',
@@ -121,7 +121,7 @@ export function Sidebar({
                   tooltip="Browse data sources"
                   onClick={() => router.push('/sources')}
                   className={cn(
-                    'rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
+                    'rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all text-secondary hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
                     isOnSources &&
                       'border-[var(--brand-citation-border)] bg-brand-new-chat-bg text-primary-dark',
                   )}
@@ -134,7 +134,7 @@ export function Sidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Open prompt library"
-                  className="rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover"
+                  className="rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all text-secondary hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover"
                 >
                   <Sparkles className="h-4 w-4" />
                   <span>Prompt Library</span>

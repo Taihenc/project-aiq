@@ -182,8 +182,8 @@
   --sidebar-ring: oklch(0.705 0.015 286.067);
 
   /* ── Brand tokens (light) ── */
-  --brand-fg-dark: #2d2754;
-  --brand-fg-medium: #3b3568;
+  --brand-fg-dark: #4a45a0;
+  --brand-fg-medium: #6661b8;
   --brand-fg-light: #5c4ad3;
   --brand-fg-secondary: #8f86c8;
   --brand-fg-muted: #b3abeb;
@@ -203,7 +203,7 @@
   --brand-chat-time: #a19ad9;
   --brand-action-menu: #b1a8e9;
   --brand-action-menu-hover: #8a77eb;
-  --brand-user-name: #363161;
+  --brand-user-name: #5651a0;
   --brand-code-border: #e6e0ff;
   --brand-code-header-bg: #f8f7ff;
   --brand-code-header-text: #8a77eb;
