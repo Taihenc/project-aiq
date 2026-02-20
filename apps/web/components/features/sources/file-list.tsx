@@ -10,6 +10,7 @@ import {
   Upload,
   Loader2,
   Image,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +35,9 @@ interface FileListProps {
   isLoading?: boolean;
   onFolderClick: (item: FileItem) => void;
   onIngest: (item: FileItem) => void;
+  onDelete: (item: FileItem) => void;
   ingestingIds?: Set<string>;
+  deletingIds?: Set<string>;
 }
 
 function getFileIcon(name: string) {
@@ -67,7 +70,9 @@ export function FileList({
   isLoading,
   onFolderClick,
   onIngest,
+  onDelete,
   ingestingIds,
+  deletingIds,
 }: FileListProps) {
   if (isLoading) {
     return (
@@ -111,18 +116,27 @@ export function FileList({
   return (
     <div className="flex flex-col">
       {/* Column headers */}
-      <div className="grid grid-cols-[1fr_72px_140px_72px_100px] gap-3 px-4 py-2 border-b border-white/4 text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold sticky top-0 bg-background/60 backdrop-blur-sm z-10">
+      <div className="grid grid-cols-[1fr_72px_140px_72px_148px] gap-3 px-4 py-2 border-b border-white/4 text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold sticky top-0 bg-background/60 backdrop-blur-sm z-10">
         <span>Name</span>
         <span>Type</span>
         <span>Status</span>
         <span className="text-right">Size</span>
-        <span className="text-right">Action</span>
+        <span className="text-right">Actions</span>
       </div>
 
       <AnimatePresence initial={false}>
         {sorted.map((item, i) => {
           const status = statuses[item.id] ?? item.status ?? 'NOT_UPLOADED';
           const isIngesting = ingestingIds?.has(item.id) ?? false;
+          const isDeleting = deletingIds?.has(item.id) ?? false;
+          // Show delete button and "Re-ingest" label once fully indexed (or failed to index)
+          const isCompleted = status === 'INDEXED' || status === 'INDEX_FAILED';
+          // Block ingest button while uploading, indexing, or already in-flight
+          const ingestDisabled =
+            isIngesting ||
+            isDeleting ||
+            status === 'PROCESSING' ||
+            status === 'INDEXING';
 
           return (
             <motion.div
@@ -132,7 +146,7 @@ export function FileList({
               exit={{ opacity: 0, height: 0 }}
               transition={{ delay: i * 0.025, ease: 'easeOut' }}
               className={cn(
-                'grid grid-cols-[1fr_72px_140px_72px_100px] gap-3 items-center px-4 py-3 border-b border-white/4 last:border-b-0 transition-colors',
+                'grid grid-cols-[1fr_72px_140px_72px_148px] gap-3 items-center px-4 py-3 border-b border-white/4 last:border-b-0 transition-colors',
                 item.isFolder
                   ? 'hover:bg-purple-500/5 cursor-pointer group/folder'
                   : 'hover:bg-white/4',
@@ -176,25 +190,46 @@ export function FileList({
               </span>
 
               {/* Action */}
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-1">
                 {!item.isFolder && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2.5 text-[11px] text-muted-foreground hover:text-accent-purple hover:bg-purple-500/10 gap-1.5 font-medium"
-                    disabled={isIngesting || status === 'PROCESSING'}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onIngest(item);
-                    }}
-                  >
-                    {isIngesting ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Upload className="h-3 w-3" />
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2.5 text-[11px] text-muted-foreground hover:text-accent-purple hover:bg-purple-500/10 gap-1.5 font-medium"
+                      disabled={ingestDisabled}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onIngest(item);
+                      }}
+                    >
+                      {isIngesting ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Upload className="h-3 w-3" />
+                      )}
+                      {isCompleted ? 'Re-ingest' : 'Ingest'}
+                    </Button>
+                    {isCompleted && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                        disabled={isDeleting || isIngesting}
+                        title="Remove from index"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(item);
+                        }}
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
+                      </Button>
                     )}
-                    {status === 'COMPLETED' ? 'Re-ingest' : 'Ingest'}
-                  </Button>
+                  </>
                 )}
               </div>
             </motion.div>

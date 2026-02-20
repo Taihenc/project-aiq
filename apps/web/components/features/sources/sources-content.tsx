@@ -20,6 +20,7 @@ import { sharePointApi } from '@/lib/api/sharepoint';
 import { StatusDashboard, type StatusCounts } from './status-dashboard';
 import { FileList, type FileItem } from './file-list';
 import type { IngestionStatus } from '@/components/features/sharepoint/file-status-badge';
+import { useFileStatusEvents, type FileStatusEvent } from '@/hooks/useFileStatusEvents';
 
 interface SharePointRawItem {
   id: string;
@@ -49,8 +50,31 @@ export function SourcesContent() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [ingestingIds, setIngestingIds] = useState<Set<string>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+
+  // ── Live SSE updates from NestJS (triggered by FSS webhooks) ───────────────
+  const handleStatusEvent = useCallback((event: FileStatusEvent) => {
+    const status = event.status as IngestionStatus;
+    // Only update the current-view statuses if the file is actually loaded
+    setStatuses((prev) => {
+      // We key current-view statuses by SharePoint source_id, which equals
+      // the item.id used as the key in the statuses map.
+      if (event.source_id in prev) {
+        return { ...prev, [event.source_id]: status };
+      }
+      return prev;
+    });
+    // Always update the global dashboard counters
+    setAllStatuses((prev) => ({
+      ...prev,
+      [event.source_id]: status,
+    }));
+  }, []);
+
+  useFileStatusEvents(handleStatusEvent);
+  // ─────────────────────────────────────────────────────────────────
 
   const loadFiles = useCallback(async (path: string) => {
     setLoading(true);
@@ -114,16 +138,18 @@ export function SourcesContent() {
   // --- Actions ---
   const handleIngest = async (item: FileItem) => {
     setIngestingIds((prev) => new Set([...prev, item.id]));
-    // Optimistically mark as processing
     setStatuses((prev) => ({ ...prev, [item.id]: 'PROCESSING' }));
     setAllStatuses((prev) => ({ ...prev, [item.id]: 'PROCESSING' }));
     try {
-      // Small delay then poll the real status
-      await new Promise((r) => setTimeout(r, 900));
+      // Actually trigger ingestion via the webhook service
+      await sharePointApi.ingestFile(item.id);
+      toast.success(`Ingestion triggered for "${item.name}"`);
+      // Status will update in real-time via SSE once FSS sets INDEXING/INDEXED.
+      // Read the current status once so the badge transitions from PROCESSING
+      // to the real server state without waiting for the next SSE event.
       const { status } = await sharePointApi.getFileStatus(item.id);
       setStatuses((prev) => ({ ...prev, [item.id]: status }));
       setAllStatuses((prev) => ({ ...prev, [item.id]: status }));
-      toast.success(`Ingestion triggered for "${item.name}"`);
     } catch {
       toast.error(`Failed to trigger ingestion for "${item.name}"`);
       const failed: IngestionStatus = 'FAILED';
@@ -131,6 +157,25 @@ export function SourcesContent() {
       setAllStatuses((prev) => ({ ...prev, [item.id]: failed }));
     } finally {
       setIngestingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
+  const handleDelete = async (item: FileItem) => {
+    setDeletingIds((prev) => new Set([...prev, item.id]));
+    try {
+      await sharePointApi.deleteFile(item.id);
+      toast.success(`"${item.name}" removed from the index`);
+      const notUploaded: IngestionStatus = 'NOT_UPLOADED';
+      setStatuses((prev) => ({ ...prev, [item.id]: notUploaded }));
+      setAllStatuses((prev) => ({ ...prev, [item.id]: notUploaded }));
+    } catch {
+      toast.error(`Failed to delete "${item.name}"`);
+    } finally {
+      setDeletingIds((prev) => {
         const next = new Set(prev);
         next.delete(item.id);
         return next;
@@ -159,10 +204,15 @@ export function SourcesContent() {
     const vals = Object.values(allStatuses);
     return {
       total: vals.length,
-      ingested: vals.filter((s) => s === 'COMPLETED').length,
-      processing: vals.filter((s) => s === 'PROCESSING').length,
-      failed: vals.filter((s) => s === 'FAILED').length,
-      pending: vals.filter((s) => s === 'PENDING').length,
+      // Fully indexed into vector DB
+      ingested: vals.filter((s) => s === 'INDEXED').length,
+      // Actively in-flight: uploading to S3 or being indexed
+      processing: vals.filter((s) => s === 'PROCESSING' || s === 'INDEXING')
+        .length,
+      // Any failure: upload failure or indexing failure
+      failed: vals.filter((s) => s === 'FAILED' || s === 'INDEX_FAILED').length,
+      // Waiting to be processed: initial state or uploaded to S3 but not yet indexed
+      pending: vals.filter((s) => s === 'PENDING' || s === 'COMPLETED').length,
     };
   }, [allStatuses]);
 
@@ -327,7 +377,9 @@ export function SourcesContent() {
                 isLoading={loading && items.length === 0}
                 onFolderClick={handleFolderClick}
                 onIngest={handleIngest}
+                onDelete={handleDelete}
                 ingestingIds={ingestingIds}
+                deletingIds={deletingIds}
               />
             </div>
           </div>

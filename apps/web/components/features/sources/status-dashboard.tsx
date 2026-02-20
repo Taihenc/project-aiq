@@ -34,7 +34,7 @@ const cards = [
   },
   {
     key: 'ingested' as const,
-    label: 'Ingested',
+    label: 'Indexed',
     icon: CheckCircle2,
     color: 'text-emerald-400',
     border: 'border-emerald-500/20',
@@ -44,7 +44,7 @@ const cards = [
   },
   {
     key: 'processing' as const,
-    label: 'Processing',
+    label: 'In Progress',
     icon: Clock,
     color: 'text-amber-400',
     border: 'border-amber-500/20',
@@ -53,7 +53,7 @@ const cards = [
   },
   {
     key: 'pending' as const,
-    label: 'Pending',
+    label: 'Queued',
     icon: Hourglass,
     color: 'text-yellow-400',
     border: 'border-yellow-500/20',
