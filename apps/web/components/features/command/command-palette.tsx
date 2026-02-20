@@ -152,10 +152,12 @@ export function CommandPalette() {
                 <span>New Chat</span>
                 <CommandShortcut>⌘N</CommandShortcut>
               </CommandItem>
-              <CommandItem value="source browse" disabled>
-                <FileText className="mr-2 h-4 w-4 opacity-40" />
-                <span className="opacity-40">Source</span>
-                <CommandShortcut className="opacity-40">Soon</CommandShortcut>
+              <CommandItem
+                value="source browse"
+                onSelect={() => run(() => router.push('/sources'))}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                <span>Sources</span>
               </CommandItem>
               <CommandItem value="prompt library" disabled>
                 <Sparkles className="mr-2 h-4 w-4 opacity-40" />

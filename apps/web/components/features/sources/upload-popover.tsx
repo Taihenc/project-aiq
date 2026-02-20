@@ -52,7 +52,7 @@ export function UploadPopover({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 text-xs border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/18 text-violet-300 hover:text-violet-200 shrink-0"
+          className="h-8 gap-1.5 text-xs border-[var(--brand-border-light)] bg-[var(--brand-surface-purple)] hover:bg-[var(--brand-new-chat-hover)] text-[var(--brand-fg-light)] hover:text-[var(--brand-fg-dark)] shrink-0"
           disabled={uploading}
         >
           {uploading ? (
@@ -78,13 +78,13 @@ export function UploadPopover({
           </p>
 
           {/* Picked path chip */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-xs text-violet-300 min-h-7">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-surface-purple)] border border-[var(--brand-border-light)] text-xs text-[var(--brand-fg-light)] min-h-7">
             <FolderIcon className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{pickedPath || 'Root'}</span>
           </div>
 
           {/* Mini folder-only tree */}
-          <div className="h-52 overflow-hidden rounded-lg border border-white/8 bg-black/20 p-2">
+          <div className="h-52 overflow-hidden rounded-lg border border-border bg-muted/30 p-2">
             <FolderTreePanel
               selectedPath={pickedPath}
               onSelect={setPickedPath}
@@ -98,10 +98,10 @@ export function UploadPopover({
           <p className="text-xs font-medium text-muted-foreground">File</p>
           <button
             type="button"
-            className="flex w-full items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/8 text-xs text-muted-foreground hover:text-foreground transition-colors text-left"
+            className="flex w-full items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 text-xs text-muted-foreground hover:text-foreground transition-colors text-left"
             onClick={() => fileInputRef.current?.click()}
           >
-            <FileIcon className="h-3.5 w-3.5 shrink-0 text-violet-400/70" />
+            <FileIcon className="h-3.5 w-3.5 shrink-0 text-[var(--brand-feature-icon)]" />
             <span className="truncate">
               {selectedFile ? selectedFile.name : 'Choose a file…'}
             </span>
@@ -127,7 +127,7 @@ export function UploadPopover({
           </Button>
           <Button
             size="sm"
-            className="h-8 gap-1.5 text-xs bg-violet-600 hover:bg-violet-500 text-white"
+            className="h-8 gap-1.5 text-xs bg-[var(--brand-btn-primary)] hover:bg-[var(--brand-btn-primary-hover)] text-white"
             disabled={!selectedFile || uploading}
             onClick={handleConfirm}
             type="button"
