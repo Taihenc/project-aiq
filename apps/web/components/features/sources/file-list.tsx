@@ -80,7 +80,7 @@ export function FileList({
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="h-12 rounded-lg bg-white/4 animate-pulse"
+            className="h-12 rounded-lg bg-muted animate-pulse"
             style={{ animationDelay: `${i * 0.07}s` }}
           />
         ))}
@@ -91,7 +91,7 @@ export function FileList({
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-        <div className="rounded-full p-4 bg-white/4 border border-white/8">
+        <div className="rounded-full p-4 bg-muted border border-border">
           <FolderOpen className="h-10 w-10 text-muted-foreground/30" />
         </div>
         <div>
@@ -116,7 +116,7 @@ export function FileList({
   return (
     <div className="flex flex-col">
       {/* Column headers */}
-      <div className="grid grid-cols-[1fr_72px_140px_72px_148px] gap-3 px-4 py-2 border-b border-white/4 text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold sticky top-0 bg-background/60 backdrop-blur-sm z-10">
+      <div className="grid grid-cols-[1fr_72px_140px_72px_148px] gap-3 px-4 py-2 border-b border-border text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold sticky top-0 bg-background/80 backdrop-blur-sm z-10">
         <span>Name</span>
         <span>Type</span>
         <span>Status</span>
@@ -146,10 +146,10 @@ export function FileList({
               exit={{ opacity: 0, height: 0 }}
               transition={{ delay: i * 0.025, ease: 'easeOut' }}
               className={cn(
-                'grid grid-cols-[1fr_72px_140px_72px_148px] gap-3 items-center px-4 py-3 border-b border-white/4 last:border-b-0 transition-colors',
+                'grid grid-cols-[1fr_72px_140px_72px_148px] gap-3 items-center px-4 py-3 border-b border-border last:border-b-0 transition-colors',
                 item.isFolder
-                  ? 'hover:bg-purple-500/5 cursor-pointer group/folder'
-                  : 'hover:bg-white/4',
+                  ? 'hover:bg-violet-500/5 cursor-pointer group/folder'
+                  : 'hover:bg-muted/60',
               )}
               onClick={item.isFolder ? () => onFolderClick(item) : undefined}
             >
@@ -164,8 +164,8 @@ export function FileList({
                   className={cn(
                     'truncate text-sm font-medium',
                     item.isFolder
-                      ? 'text-violet-300 group-hover/folder:text-violet-200'
-                      : 'text-primary-medium',
+                      ? 'text-violet-500 group-hover/folder:text-violet-600 dark:text-violet-300 dark:group-hover/folder:text-violet-200'
+                      : 'text-foreground/70',
                   )}
                   title={item.name}
                 >

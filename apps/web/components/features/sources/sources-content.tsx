@@ -3,8 +3,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   RefreshCw,
-  Upload,
-  Loader2,
   ChevronRight,
   Home,
   DatabaseZap,
@@ -20,7 +18,12 @@ import { sharePointApi } from '@/lib/api/sharepoint';
 import { StatusDashboard, type StatusCounts } from './status-dashboard';
 import { FileList, type FileItem } from './file-list';
 import type { IngestionStatus } from '@/components/features/sharepoint/file-status-badge';
-import { useFileStatusEvents, type FileStatusEvent } from '@/hooks/useFileStatusEvents';
+import {
+  useFileStatusEvents,
+  type FileStatusEvent,
+} from '@/hooks/useFileStatusEvents';
+import { FolderTreePanel } from './folder-tree-panel';
+import { UploadPopover } from './upload-popover';
 
 interface SharePointRawItem {
   id: string;
@@ -183,19 +186,18 @@ export function SourcesContent() {
     }
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleUpload = async (file: File, uploadPath: string) => {
     setUploading(true);
     try {
-      await sharePointApi.uploadFile(file, currentPath || undefined);
+      await sharePointApi.uploadFile(file, uploadPath || undefined);
       toast.success(`"${file.name}" uploaded successfully`);
-      loadFiles(currentPath);
+      // Navigate to the upload destination so the user sees the new file
+      setCurrentPath(uploadPath);
+      loadFiles(uploadPath);
     } catch {
       toast.error('Upload failed');
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
 
@@ -238,7 +240,7 @@ export function SourcesContent() {
   return (
     <div className="relative z-10 flex flex-col h-full overflow-hidden">
       {/* ── Top bar ─────────────────────────────────────────── */}
-      <header className="flex items-center gap-3 px-5 py-3.5 border-b border-white/6 shrink-0 bg-background/50 backdrop-blur-sm">
+      <header className="flex items-center gap-3 px-5 py-3.5 border-b border-border shrink-0 bg-background/50 backdrop-blur-sm">
         <SidebarTrigger className="text-muted-foreground hover:text-foreground shrink-0" />
 
         <div className="flex items-center gap-2.5">
@@ -274,117 +276,129 @@ export function SourcesContent() {
         </div>
       </header>
 
-      {/* ── Scrollable body ──────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="px-5 py-5 space-y-5 max-w-7xl mx-auto">
+      {/* ── Body ──────────────────────────────────────────── */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col px-5 max-w-7xl mx-auto w-full">
           {/* Status dashboard */}
-          <StatusDashboard counts={counts} isLoading={isDashboardLoading} />
+          <div className="pt-5 pb-4 shrink-0">
+            <StatusDashboard counts={counts} isLoading={isDashboardLoading} />
+          </div>
 
-          {/* File browser card */}
-          <div className="rounded-2xl border border-white/8 bg-card/30 backdrop-blur-sm overflow-hidden">
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 border-b border-white/6 bg-white/2">
-              {/* Breadcrumb nav */}
-              <nav
-                className="flex items-center gap-0.5 text-sm flex-1 min-w-0 overflow-x-auto no-scrollbar"
-                aria-label="File path"
-              >
-                <button
-                  onClick={() => navigateToBreadcrumb(-1)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/6 shrink-0',
-                    !currentPath
-                      ? 'text-violet-400 bg-violet-500/10'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
+          {/* Tree card + file browser card side-by-side */}
+          <div className="flex gap-4 flex-1 overflow-hidden pb-5">
+            {/* ── Folder tree card ── */}
+            <div className="w-56 shrink-0 flex flex-col rounded-2xl border border-border bg-card backdrop-blur-sm overflow-hidden">
+              {/* Card header — same height as file browser toolbar */}
+              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border bg-muted/40 min-h-[52px]">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/20 shrink-0">
+                  <FolderOpen className="h-4 w-4 text-violet-400" />
+                </div>
+                <span className="text-xs font-medium text-muted-foreground">
+                  SharePoint
+                </span>
+              </div>
+              {/* Tree body */}
+              <div className="flex-1 p-2 overflow-y-auto custom-scrollbar">
+                <FolderTreePanel
+                  selectedPath={currentPath}
+                  onSelect={(path) => {
+                    setCurrentPath(path);
+                    setSearch('');
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* ── File browser card ── */}
+            <div className="flex-1 min-w-0 flex flex-col rounded-2xl border border-border bg-card backdrop-blur-sm overflow-hidden">
+              {/* Toolbar */}
+              <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 border-b border-border bg-muted/40 min-h-[52px]">
+                {/* Breadcrumb nav */}
+                <nav
+                  className="flex items-center gap-0.5 text-sm flex-1 min-w-0 overflow-x-auto no-scrollbar"
+                  aria-label="File path"
                 >
-                  <Home className="h-3.5 w-3.5" />
-                  Root
-                </button>
+                  <button
+                    onClick={() => navigateToBreadcrumb(-1)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/6 shrink-0',
+                      !currentPath
+                        ? 'text-violet-400 bg-violet-500/10'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <Home className="h-3.5 w-3.5" />
+                    Root
+                  </button>
 
-                {breadcrumbs.map((segment, i) => (
-                  <span key={i} className="flex items-center gap-0.5 min-w-0">
-                    <ChevronRight className="h-3 w-3 text-muted-foreground/30 shrink-0" />
-                    <button
-                      onClick={() => navigateToBreadcrumb(i)}
-                      className={cn(
-                        'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/6 truncate max-w-40',
-                        i === breadcrumbs.length - 1
-                          ? 'text-violet-400 bg-violet-500/10'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      title={segment}
-                    >
-                      {segment}
-                    </button>
-                  </span>
-                ))}
-              </nav>
+                  {breadcrumbs.map((segment, i) => (
+                    <span key={i} className="flex items-center gap-0.5 min-w-0">
+                      <ChevronRight className="h-3 w-3 text-muted-foreground/30 shrink-0" />
+                      <button
+                        onClick={() => navigateToBreadcrumb(i)}
+                        className={cn(
+                          'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/6 truncate max-w-40',
+                          i === breadcrumbs.length - 1
+                            ? 'text-violet-400 bg-violet-500/10'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                        title={segment}
+                      >
+                        {segment}
+                      </button>
+                    </span>
+                  ))}
+                </nav>
 
-              {/* Search */}
-              <div className="relative shrink-0 hidden sm:block">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40 pointer-events-none" />
-                <Input
-                  placeholder="Search…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-8 w-44 text-xs pl-8 bg-white/5 border-white/10 focus-visible:ring-violet-500/40 placeholder:text-muted-foreground/40"
+                {/* Search */}
+                <div className="relative shrink-0 hidden sm:block">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40 pointer-events-none" />
+                  <Input
+                    placeholder="Search…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="h-8 w-44 text-xs pl-8 bg-muted border-input focus-visible:ring-violet-500/40 placeholder:text-muted-foreground/50"
+                  />
+                </div>
+
+                {/* Upload file */}
+                <UploadPopover
+                  defaultPath={currentPath}
+                  onUpload={handleUpload}
+                  uploading={uploading}
                 />
               </div>
 
-              {/* Upload / Ingest file */}
-              <label className="cursor-pointer shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/18 text-violet-300 hover:text-violet-200 pointer-events-none"
-                  disabled={uploading}
-                  asChild
-                >
-                  <span>
-                    {uploading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Upload className="h-3.5 w-3.5" />
-                    )}
-                    Ingest File
-                    <input
-                      type="file"
-                      className="hidden"
-                      onChange={handleUpload}
-                      disabled={uploading}
-                    />
+              {/* Current path context chip */}
+              {currentPath && (
+                <div className="px-4 py-2 border-b border-border bg-violet-500/4 flex items-center gap-2">
+                  <FolderOpen className="h-3.5 w-3.5 text-violet-400/70 shrink-0" />
+                  <span className="text-[11px] text-muted-foreground/70 truncate">
+                    {currentPath}
                   </span>
-                </Button>
-              </label>
-            </div>
+                </div>
+              )}
 
-            {/* Current path context chip */}
-            {currentPath && (
-              <div className="px-4 py-2 border-b border-white/4 bg-violet-500/4 flex items-center gap-2">
-                <FolderOpen className="h-3.5 w-3.5 text-violet-400/70 shrink-0" />
-                <span className="text-[11px] text-muted-foreground/70 truncate">
-                  {currentPath}
-                </span>
+              {/* File list */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <FileList
+                  items={filteredItems}
+                  statuses={statuses}
+                  isLoading={loading && items.length === 0}
+                  onFolderClick={handleFolderClick}
+                  onIngest={handleIngest}
+                  onDelete={handleDelete}
+                  ingestingIds={ingestingIds}
+                  deletingIds={deletingIds}
+                />
               </div>
-            )}
-
-            {/* File list */}
-            <div className="min-h-52">
-              <FileList
-                items={filteredItems}
-                statuses={statuses}
-                isLoading={loading && items.length === 0}
-                onFolderClick={handleFolderClick}
-                onIngest={handleIngest}
-                onDelete={handleDelete}
-                ingestingIds={ingestingIds}
-                deletingIds={deletingIds}
-              />
             </div>
           </div>
+          {/* end flex gap-4 */}
         </div>
+        {/* end inner column */}
       </div>
+      {/* end body */}
     </div>
   );
 }
