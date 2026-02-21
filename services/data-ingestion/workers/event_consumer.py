@@ -25,9 +25,20 @@ class EventConsumer:
                 self.connection = pika.BlockingConnection(
                     pika.ConnectionParameters(host=self.host, heartbeat=0))
                 self.channel = self.connection.channel()
+
                 self.channel.exchange_declare(
-                    exchange=self.exchange_name, exchange_type='topic')
-                self.channel.queue_declare(queue=self.queue_name, durable=True)
+                    exchange='file_events_dlx', exchange_type='fanout', durable=True)
+                self.channel.queue_declare(queue='ingestion_dlq', durable=True)
+                self.channel.queue_bind(
+                    exchange='file_events_dlx', queue='ingestion_dlq')
+
+                self.channel.exchange_declare(
+                    exchange=self.exchange_name, exchange_type='topic', durable=True)
+                self.channel.queue_declare(
+                    queue=self.queue_name,
+                    durable=True,
+                    arguments={'x-dead-letter-exchange': 'file_events_dlx'},
+                )
                 self.channel.queue_bind(
                     exchange=self.exchange_name, queue=self.queue_name, routing_key='file.#')
                 self.channel.basic_qos(prefetch_count=1)
@@ -78,8 +89,12 @@ class EventConsumer:
                     self.ingestion_worker.delete_index(file_id)
 
             ch.basic_ack(delivery_tag=method.delivery_tag)
+        except json.JSONDecodeError as e:
+            print(f"[consumer] Malformed message body, discarding: {e}")
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
         except Exception as e:
-            print(f"Error processing message: {e}")
+            print(f"[consumer] Error processing message, nacking with requeue: {e}")
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
     def start_in_thread(self):
         t = threading.Thread(target=self.start, daemon=True)
