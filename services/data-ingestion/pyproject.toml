@@ -25,3 +25,10 @@ dependencies = [
 
 [tool.setuptools]
 packages = ["ingestion", "workers", "db", "embedding"]
+
+[tool.uv]
+dev-dependencies = ["pytest>=7.4.0", "pytest-asyncio>=0.21.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
