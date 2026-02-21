@@ -155,9 +155,16 @@ export function SourcesContent() {
       setAllStatuses((prev) => ({ ...prev, [item.id]: status }));
     } catch {
       toast.error(`Failed to trigger ingestion for "${item.name}"`);
-      const failed: IngestionStatus = 'FAILED';
-      setStatuses((prev) => ({ ...prev, [item.id]: failed }));
-      setAllStatuses((prev) => ({ ...prev, [item.id]: failed }));
+      try {
+        const { status } = await sharePointApi.getFileStatus(item.id);
+        setStatuses((prev) => ({ ...prev, [item.id]: status }));
+        setAllStatuses((prev) => ({ ...prev, [item.id]: status }));
+      } catch (error) {
+        console.error(
+          `Failed to fetch file status for item "${item.name}" (ID: ${item.id}) after ingestion error:`,
+          error,
+        );
+      }
     } finally {
       setIngestingIds((prev) => {
         const next = new Set(prev);
