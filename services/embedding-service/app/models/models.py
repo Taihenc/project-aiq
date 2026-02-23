@@ -17,6 +17,22 @@ class MetaData(BaseModel):
     created_at: Optional[str] = Field(default="", description="created time", nullable=True)
     checksum: Optional[str] = Field(default="", description="checksum of byte", nullable=True)
 
+class Chunk(BaseModel):
+    chunk_number: int = Field(...)
+    text: Optional[str] = Field(None, description="Text content")
+    score: Optional[float] = Field(None, description="Relevance score.")
+    metadata: Optional[MetaData] = Field(None, description="Additional metadata")
+
+class Page(BaseModel):
+    page_number: int = Field(...)
+    chunks: List[Chunk] = Field(..., description="List of relevant chunks in this page.")
+    total_chunk: Optional[int] = Field(None, description="Total number of chunks in the page.")
+
+class File(BaseModel):
+    file_path: str = Field(..., description="Path or name of the source file.")
+    pages: List[Page] = Field(..., description="List of relevant pages in this file.")
+    total_pages: Optional[int] = Field(None, description="Total number of pages in the file.")
+
 class DocumentUpload(BaseModel):
     text: str = Field(default="Ecotourism and nature conservation in tourist destinations across the country", description="Text content to embed")
     metadata: MetaData = Field(..., description="Additional metadata")
@@ -41,9 +57,9 @@ class Filter(BaseModel):
 
 
 class SearchRequest(BaseModel):
-    query: str = Field("artificial intelligence", description="Search query text")
-    top_k: int = Field(default=10, ge=1, le=100, description="Number of results from sematic search")
-    top_n: Optional[int] = Field(default=10, ge=1, le=100, description="Number of results from rerank (Leave null for no reranking)")
+    query: str = Field(..., description="Search query text")
+    top_k: int = Field(default=5, ge=1, le=100, description="Number of results from sematic search")
+    top_n: Optional[int] = Field(default=5, ge=1, le=100, description="Number of results from rerank (Leave null for no reranking)")
     score_threshold: Optional[float] = Field(default=0, ge=0.0, le=1.0, description="Minimum similarity score")
     filter: Optional[Filter] = Field(default=None, description="Metadata filter")
 
@@ -61,7 +77,7 @@ class SearchResponse(BaseModel):
 class DocumentsRequest(BaseModel):
     limit: Optional[int] = Field(default=100, ge=1, le=1000, description="Maximum number of documents to return")
     offset: int = Field(0, ge=0, description="Number of documents to skip")
-    
+
 class DocumentsResponse(BaseModel):
     documents: List[DocumentResponse]
     total: int = Field(..., description="Total number of documents")
@@ -96,19 +112,20 @@ class PageRetrievalRequest(BaseModel):
     end_page: int = Field(default=1000, description="End page number")
 
 
-class PageContent(BaseModel):
-    page_number: int = Field(..., description="Page number")
-    ids: List[str] = Field(default=[], description="List of document IDs")
-    text: str = Field(default="", description="Text content")
-    metadata_list: List[MetaData] = Field(default=[], description="Additional metadata")
-    total_chunks: int = Field(..., description="Total number of chunk found")
+# class PageContent(BaseModel):
+#     page_number: int = Field(..., description="Page number")
+#     ids: List[str] = Field(default=[], description="List of document IDs")
+#     text: str = Field(default="", description="Text content")
+#     metadata_list: List[MetaData] = Field(default=[], description="Additional metadata")
+#     total_chunks: int = Field(..., description="Total number of chunk found")
 
 class PageRetrievalResponse(BaseModel):
-    pages: List[PageContent]
+    pages: List[Page] = Field(..., description="List of pages")
     total_pages: int = Field(..., description="Total number of pages")
 
 class ChunkContextRequest(BaseModel):
-    chunk_id: str = Field(..., description="The ID of the target chunk")
+    file_path: str = Field(..., description="Full path file")
+    chunk_number: int = Field(..., description="The number of the target chunk")
     backward: int = Field(0, description="Number of chunks to retrieve before the target", ge=0)
     forward: int = Field(0, description="Number of chunks to retrieve after the target", ge=0)
 
@@ -135,3 +152,26 @@ class StructuredQueryResponse(BaseModel):
     metadata: Dict[str, Any]
     success: bool
     error: Optional[str] = None
+
+class FileReferenceRequest(BaseModel):
+    files: List[File] = Field(...)
+
+class FileReferenceResponse(BaseModel):
+    result: str
+
+# Structured per-chunk response (for frontend citation enrichment)
+class EnrichedChunk(BaseModel):
+    chunk_number: int
+    score: Optional[float] = None
+    content: str
+
+class EnrichedPage(BaseModel):
+    page_number: int
+    chunks: List[EnrichedChunk]
+
+class EnrichedFile(BaseModel):
+    file_path: str
+    pages: List[EnrichedPage]
+
+class StructuredFileReferenceResponse(BaseModel):
+    files: List[EnrichedFile]

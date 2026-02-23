@@ -2,7 +2,7 @@ import pandas as pd
 import os
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict, Any
-from qdrant_client.http import models as q_models 
+from qdrant_client.http import models as q_models
 
 # Import ALL models including the new ones
 from app.models.models import (
@@ -19,7 +19,7 @@ from app.models.models import (
     DocumentDeleteResponse,
     PageRetrievalRequest,
     PageRetrievalResponse,
-    PageContent,
+    # PageContent,
     StructuredQueryRequest,
     StructuredQueryResponse
 )
@@ -35,10 +35,10 @@ router = APIRouter()
 async def get_document(id: str):
     try:
         document = qdrant_service.get_document(id)
-        
+
         if document is None:
             raise HTTPException(status_code=404, detail="Document not found")
-        
+
         return DocumentResponse(
             id=document["id"],
             text=document["text"],
@@ -56,7 +56,7 @@ async def get_documents(
 ):
     try:
         documents = qdrant_service.get_documents(limit=limit, offset=offset)
-        
+
         return DocumentsResponse(
             documents=[
                 DocumentResponse(
@@ -98,7 +98,7 @@ async def upload_documents(batch: DocumentUploadRequest):
             }
             for doc in batch.documents
         ]
-        
+
         doc_ids = qdrant_service.upload_documents(documents)
 
         return DocumentUploadResponse(
@@ -119,10 +119,10 @@ async def update_document(id: str, update_ducument_request: DocumentUpdateReques
             text=update_ducument_request.text,
             metadata=update_ducument_request.metadata
         )
-        
+
         if not success:
             raise HTTPException(status_code=404, detail="Document not found")
-        
+
         return DocumentUpdateResponse(
             id=id,
             message="Document updated successfully"
@@ -136,12 +136,21 @@ async def update_document(id: str, update_ducument_request: DocumentUpdateReques
 async def delete_document(id: str):
     try:
         success = qdrant_service.delete_document(id)
-        
+
         if not success:
             raise HTTPException(status_code=404, detail="Document not found")
-        
+
         return DocumentDeleteResponse(message="Document deleted successfully")
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+
+@router.delete("/delete-by-file", response_model=DocumentDeleteResponse)
+async def delete_documents_by_file(file_name: str = Query(..., description="File name to delete all chunks for")):
+    """Delete all Qdrant vectors that belong to a given file (matched on the 'file' metadata field)."""
+    try:
+        qdrant_service.delete_documents_by_file(file_name)
+        return DocumentDeleteResponse(message=f"All chunks for '{file_name}' deleted successfully")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete documents for file: {str(e)}")

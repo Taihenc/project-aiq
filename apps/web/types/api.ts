@@ -29,9 +29,27 @@ export interface Usage {
 
 // Citation structure (custom extension)
 export interface Citation {
-  id: string;
+  id: string; // = file_path for FileRef citations
   title: string;
   platform: string;
+  content?: string;
+  /** Chunks carried from the backend for re-attaching */
+  chunks?: ChunkMetadata[];
+}
+
+// Search-flow attachment types (matching SearchChatRequest schema)
+export interface ChunkMetadata {
+  chunk_number: number;
+  page_number: number;
+  score?: number;
+  /** Per-chunk text content, populated by backend enrichment */
+  content?: string;
+}
+
+export interface FileRef {
+  file_path: string;
+  chunks: ChunkMetadata[];
+  /** Display-only: chunk content for hover preview */
   content?: string;
 }
 
@@ -52,6 +70,7 @@ export interface ChatCompletionsRequest {
   request_source?: string;
   provider?: string;
   top_k?: number;
+  attachments?: FileRef[];
 }
 
 // OpenAI-compatible chat completions response

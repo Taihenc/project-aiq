@@ -23,8 +23,10 @@ export interface UIMessage {
   processing_time_ms?: number;
   // Usage information from response.usage
   usage?: {
-    prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
   };
+  status?: string; // Latest real-time status update
+  statusHistory?: string[]; // All status updates accumulated during streaming
+  isEmpty?: boolean; // True when the AI returned an empty response
 }

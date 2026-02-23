@@ -1,188 +1,123 @@
 import json
-from crewai.flow.flow import Flow, listen, start, router
-from crewai import Crew, Process
+from datetime import datetime
+from crewai.flow.flow import Flow, start
+from crewai import Crew
 
 from src.models.state import (
     FlowState,
-    FlowResponse,
-    IntentOutput,
-    CapabilityPlan,
 )
-from src.config.settings import settings
-from src.services.crew.agents import (
-    create_intent_validator_agent,
-    create_capability_planner_agent,
-    create_query_transformer_agent,
-    create_hyde_generator_agent,
-    create_knowledge_agent,
-)
-from src.services.crew.tasks import (
-    create_classify_intent_task,
-    create_plan_capabilities_task,
-    create_transform_query_task,
-    create_hyde_generation_task,
-    create_execute_search_task,
-)
-
-from pydantic import BaseModel, Field
-from typing import Type
+from src.services.crew.agents import create_search_agent
+from src.services.crew.tasks import create_search_task
+from src.services.crew.tools.factory import MCPToolFactory
+from src.services.crew.status_reporter import FlowStatusReporter
 
 
 class SearchCrewFlow(Flow[FlowState]):
+    def __init__(self, step_callback=None):
+        super().__init__()
+        self.reporter = FlowStatusReporter(step_callback)
+
     def _format_context(self) -> str:
         """Helper to format structured context for LLM prompts."""
         if not self.state.context:
             return ""
-        # Convert Pydantic models to dicts for JSON serialization
-        context_data = [item.model_dump() for item in self.state.context]
-        return f"\nAttached Files Context:\n{json.dumps(context_data, indent=2, ensure_ascii=False)}\n"
+        return (
+            f"- **Reference Data (Attachments - Provided by USER):**\n"
+            f"NOTE: These files were attached by the user. They are NOT search results. "
+            f"Use them to answer, but DO NOT include them in the 'citations' output field.\n"
+            f"{self.state.context}\n"
+        )
 
     def _format_history(self) -> str:
         """Helper to format chat history for LLM prompts."""
         if not self.state.history:
             return ""
-        return f"\nChat History:\n{self.state.history}\n"
-
-    def set_tools(self, tools: list):
-        """Setter for tools injection."""
-        self.tools = tools
+        return f"- **Conversation Record (History):**\n{json.dumps(self.state.history, indent=2, ensure_ascii=False)}\n"
 
     @start()
-    def classify_intent(self):
-        print(f"\n🔹 [Intent Crew] Validating Intent for: '{self.state.query}'")
-        agent = create_intent_validator_agent()
-        task = create_classify_intent_task(agent, self.state.query)
+    async def execute_flow(self):
+        query_preview = self.state.query
+        if len(query_preview) > 60:
+            query_preview = query_preview[:57] + "..."
 
-        crew = Crew(agents=[agent], tasks=[task])
-        self.state.intent = crew.kickoff().pydantic
-        print(f"✅ Intent Action: {self.state.intent.action}")
+        self.reporter.report(f'Analyzing request "{query_preview}"')
+        print(f"\n🔹 [Search Agent] Processing Query: '{self.state.query}'")
 
-    @router(classify_intent)
-    def route_after_intent(self):
-        action = self.state.intent.action
+        # Fetch tools dynamically within the flow
+        self.reporter.report("Connecting to knowledge services...")
+        tools = await MCPToolFactory.get_tools(status_callback=self.reporter.report)
+        self.reporter.report_tools(tools)
 
-        if action == "reject":
-            self.state.final_response = FlowResponse(
-                action="reject",
-                response=f"ฉันไม่สามารถช่วยคุณได้ เนื่องจาก : {self.state.intent.description}",
+        # Prepare context and history
+        formatted_context = self._format_context()
+        self.reporter.report_context(self.state.context)
+        if not formatted_context:
+            formatted_context = "No attachments provided."
+
+        formatted_history = self._format_history()
+        self.reporter.report_history(self.state.history)
+        if not formatted_history:
+            formatted_history = "No chat history."
+
+        context_block = ""
+        if formatted_context or formatted_history:
+            context_block = "# CONTEXT (Current Environment & Data)\n"
+            if formatted_context:
+                context_block += formatted_context + "\n"
+            if formatted_history:
+                context_block += formatted_history + "\n"
+
+        # Determine Mode Instruction
+        mode = self.state.mode
+        mode_instruction = ""
+        if mode in ["search", "lookup", "chat"]:
+            mode_instruction = (
+                f"**STRICT MODE ENFORCED:** The user has explicitly selected '{mode.upper()}' mode. "
+                f"You MUST perform a '{mode}' action. If the user query is unrelated to '{mode}', "
+                "you must REJECT and ask for clarification.\n"
+                f"**CRITICAL:** You MUST trigger the '{mode}' tool IMMEDIATELY. "
+                "Do NOT rely on 'Attachments' to skip this step. Even if you think you have the info in context, you MUST use the tool to verify and fetch fresh content."
             )
-            return "stop_flow"
 
-        if action == "chat":
-            return "start_search"
+        # Format Metadata
+        metadata_str = ""
+        if self.state.metadata:
+            metadata_str = f"# METADATA\n- **Reference:**\n{json.dumps(self.state.metadata, indent=2, ensure_ascii=False)}"
 
-        return "start_planning"
+        # Get current time for the prompt
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    @listen("start_planning")
-    def plan_capabilities(self):
-        print("\n🔹 [Planner Crew] Loading Capabilities...")
-        agent = create_capability_planner_agent()
-        task = create_plan_capabilities_task(
-            agent, self.state.query, self._format_context()
-        )
+        # Create agent and task
+        self.reporter.report("Initializing AI agent...")
+        agent = create_search_agent(tools=tools, step_callback=self.reporter.report)
+        self.reporter.report(f'Agent ready — role: "{agent.role}"')
 
-        crew = Crew(agents=[agent], tasks=[task])
-        plan = crew.kickoff().pydantic
-        self.state.capabilities = plan.tasks
-        print(f"✅ Plan: {self.state.capabilities}")
-
-    @router(plan_capabilities)
-    def route_after_planning(self):
-        caps = [c.capability for c in self.state.capabilities]
-
-        if not caps:
-            # If no capabilities but we have context, proceed to search (synthesis)
-            if self.state.context:
-                print(
-                    "🔹 [Router] Context available, proceeding to synthesis without search tools."
-                )
-                return "start_search"
-
-            self.state.final_response = FlowResponse(
-                action="no_skill", response="ฉันไม่มีความสามารถนั้น"
-            )
-            return "stop_flow"
-
-        # Simplified routing: if we have capabilities, we likely need HyDE or just search
-        # keeping logic similar to before:
-        if "search" in caps or "graph_search" in caps:
-            return "start_hyde"
-
-        return "start_search"
-
-    @listen("start_hyde")
-    def generate_hyde(self):
-        print("\n🔹 [HyDE Crew] Generating HyDE Context...")
-        transformer = create_query_transformer_agent()
-        hyde_agent = create_hyde_generator_agent()
-
-        task_transform = create_transform_query_task(transformer, self.state.query)
-        task_hyde = create_hyde_generation_task(hyde_agent, task_transform)
-
-        crew = Crew(
-            agents=[transformer, hyde_agent],
-            tasks=[task_transform, task_hyde],
-            process=Process.sequential,
-        )
-
-        result = crew.kickoff()
-        self.state.hyde_result = result.raw
-        return "start_search"
-
-    @listen("start_search")
-    def execute_search_entry(self):
-        self.execute_search()
-
-    def execute_search(self):
-        print("\n🔹 [Knowledge Crew] Execution & Synthesis...")
-
-        # Available tools are injected via self.tools
-        available_tools = getattr(self, "tools", [])
-
-        # Filter Tools based on Plan
-        selected_tools = []
-        caps = [c.capability for c in self.state.capabilities]
-        intent_action = self.state.intent.action if self.state.intent else "search"
-
-        if intent_action != "chat":
-            # Map capabilities to tool names
-            # Map capabilities to tool names using settings
-
-            tool_map = settings.capability_tool_map
-
-            required_tools = set()
-            for cap in caps:
-                mapped_name = tool_map.get(cap)
-                if mapped_name:
-                    required_tools.add(mapped_name)
-
-            print(f"🔹 [Knowledge Crew] Required Tools: {required_tools}")
-
-            # Filter available_tools based on required_tools
-            if available_tools:
-                for tool in available_tools:
-                    # CrewAI Tool objects usually have a 'name' attribute
-                    if tool.name in required_tools:
-                        selected_tools.append(tool)
-            else:
-                print("⚠️ No MCP tools available or loaded.")
-
-        agent = create_knowledge_agent(selected_tools)
-        task = create_execute_search_task(
+        self.reporter.report(f'Building task for query "{query_preview}"')
+        task = create_search_task(
             agent=agent,
             query=self.state.query,
-            intent_action=intent_action,
-            context_str=self._format_context(),
-            history_str=self._format_history(),
-            hyde_result=self.state.hyde_result,
+            context_block=context_block,
+            mode_instruction=mode_instruction,
+            metadata=metadata_str,
+            current_time=current_time,
         )
 
         crew = Crew(
             agents=[agent],
             tasks=[task],
-            process=Process.sequential,
+            verbose=True,
+            tracing=True,
+            task_callback=self.reporter.report_task_completion,
+            step_callback=self.reporter.report,
         )
-        result = crew.kickoff()
 
+        # Async execution
+        self.reporter.report(f'Sending query "{query_preview}"')
+        result = await crew.kickoff_async()
+
+        # CrewOutput pydantic access
         self.state.final_response = result.pydantic
-        print(f"✅ Final Output: {self.state.final_response.response}")
+
+        self.reporter.report("Response ready!")
+        print(f"✅ Action: {self.state.final_response.action.upper()}")
+        print(f"✅ Response: {self.state.final_response.response[:100]}...")

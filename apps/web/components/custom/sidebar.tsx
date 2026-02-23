@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Sidebar as SidebarPrimitive,
@@ -21,7 +21,9 @@ import {
   Sparkles,
   LogOut,
   Trash2,
+  Command,
 } from 'lucide-react';
+import { useCommandStore } from '@/lib/store/command-store';
 import { cn } from '@/lib/utils';
 import type { SidebarProps } from '@/types';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -53,28 +55,41 @@ export function Sidebar({
   onNewChat,
 }: SidebarProps) {
   const router = useRouter();
-  const { user, login, logout, register } = useAuth();
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const displayHistory = chatHistory;
+  const openCommand = useCommandStore((s) => s.setOpen);
+
+  const isOnSources = pathname === '/sources';
+  const isOnChat = !isOnSources;
 
   return (
     <SidebarPrimitive
       collapsible="offcanvas"
-      className="border-purple-lighter bg-[#fcfcfc] border-r"
+      className="border-purple-lighter bg-brand-sidebar-bg border-r"
     >
       <SidebarHeader className="gap-0 px-6 pb-4 pt-6">
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-purple rounded-card flex h-10 w-10 items-center justify-center shadow-sm">
+          <div className="bg-gradient-purple rounded-card flex h-10 w-10 shrink-0 items-center justify-center shadow-sm">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-[0.2em] text-[#8c7ee1]">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-xs uppercase tracking-[0.2em] text-[var(--brand-logo-label)]">
               AIQ
             </span>
             <span className="text-primary-dark font-kiona text-lg font-semibold">
               XHIVE
             </span>
           </div>
+          <button
+            onClick={() => openCommand(true)}
+            className="ml-auto flex shrink-0 items-center gap-1 rounded-md border border-[var(--brand-blockquote-border)] bg-transparent px-2 py-1 text-[10px] text-[var(--brand-history-label)] transition-colors hover:bg-brand-new-chat-hover"
+            aria-label="Open command palette"
+          >
+            <Command className="h-3 w-3" />
+            <span>K</span>
+          </button>
         </div>
       </SidebarHeader>
 
@@ -85,8 +100,16 @@ export function Sidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Start a new chat"
-                  onClick={onNewChat}
-                  className="text-primary-light rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-[#efe9ff] px-4 py-3 shadow-none transition-colors hover:bg-[#e5dfff]"
+                  onClick={() => {
+                    onNewChat?.();
+                    if (isOnSources) router.push('/');
+                  }}
+                  className={cn(
+                    'rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all text-secondary hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
+                    !isOnSources &&
+                      !currentChatId &&
+                      'border-[var(--brand-citation-border)] bg-brand-new-chat-bg text-primary-dark',
+                  )}
                 >
                   <MessageSquare className="h-4 w-4" />
                   <span className="font-medium">New Chat</span>
@@ -95,8 +118,13 @@ export function Sidebar({
 
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  tooltip="Browse sources"
-                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-white/60"
+                  tooltip="Browse data sources"
+                  onClick={() => router.push('/sources')}
+                  className={cn(
+                    'rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all text-secondary hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
+                    isOnSources &&
+                      'border-[var(--brand-citation-border)] bg-brand-new-chat-bg text-primary-dark',
+                  )}
                 >
                   <FileText className="h-4 w-4" />
                   <span>Source</span>
@@ -106,7 +134,7 @@ export function Sidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Open prompt library"
-                  className="text-accent-purple rounded-card flex h-12 w-full items-center justify-start gap-2 px-4 py-3 hover:bg-white/60"
+                  className="rounded-card flex h-12 w-full items-center justify-start gap-2 border border-transparent bg-transparent px-4 py-3 shadow-none transition-all text-secondary hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover"
                 >
                   <Sparkles className="h-4 w-4" />
                   <span>Prompt Library</span>
@@ -117,7 +145,7 @@ export function Sidebar({
         </SidebarGroup>
 
         <SidebarGroup className="gap-3">
-          <SidebarGroupLabel className="text-[#9a92d8]">
+          <SidebarGroupLabel className="text-[var(--brand-history-label)]">
             Chat History
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -125,15 +153,18 @@ export function Sidebar({
               <AnimatePresence initial={false}>
                 {displayHistory.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="bg-purple-50 rounded-full p-3 mb-3">
-                      <MessageSquare className="h-5 w-5 text-purple-300" />
+                    <div className="bg-brand-card-purple rounded-full p-3 mb-3">
+                      <MessageSquare className="h-5 w-5 text-brand-fg-muted" />
                     </div>
-                    <span className="text-xs font-medium text-gray-500 mb-1">
+                    <span className="text-xs font-medium text-muted-foreground mb-1">
                       No history yet
                     </span>
                     <button
-                      onClick={onNewChat}
-                      className="text-[10px] text-purple-500 hover:text-purple-600 transition-colors cursor-pointer"
+                      onClick={() => {
+                        onNewChat?.();
+                        if (isOnSources) router.push('/');
+                      }}
+                      className="text-[10px] text-brand-fg-accent hover:text-brand-fg-light transition-colors cursor-pointer"
                     >
                       Start a new chat
                     </button>
@@ -156,17 +187,17 @@ export function Sidebar({
                           isActive={isActive}
                           onClick={() => onChatSelect?.(chat.id)}
                           className={cn(
-                            'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent px-4 py-3 text-left text-sm transition-all hover:border-[#dcd3ff] hover:bg-white/70',
+                            'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent bg-transparent px-4 py-3 text-left text-sm transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
                             isActive &&
-                              'shadow-elevated border-[#d4c9ff] bg-white text-primary-medium',
+                              'border-[var(--brand-citation-border)] bg-brand-new-chat-bg text-primary-dark',
                           )}
                         >
-                          <MessageSquare className="h-4 w-4 text-[#8175d4]" />
+                          <MessageSquare className="h-4 w-4 text-[var(--brand-chat-icon)]" />
                           <div className="flex min-w-0 flex-1 flex-col">
                             <span className="text-primary-medium truncate font-medium">
                               {chat.title}
                             </span>
-                            <span className="text-xs text-[#a19ad9]">
+                            <span className="text-xs text-[var(--brand-chat-time)]">
                               {chat.timestamp}
                             </span>
                           </div>
@@ -175,7 +206,7 @@ export function Sidebar({
                           <DropdownMenuTrigger asChild>
                             <SidebarMenuAction
                               showOnHover
-                              className="text-[#b1a8e9] hover:text-[#8a77eb]"
+                              className="text-[var(--brand-action-menu)] hover:text-[var(--brand-action-menu-hover)]"
                             >
                               <MoreVertical className="h-4 w-4" />
                             </SidebarMenuAction>
@@ -242,52 +273,33 @@ export function Sidebar({
       </AlertDialog>
 
       <SidebarFooter className="px-6 pb-6">
-        {user ? (
-          <div className="shadow-profile rounded-card flex items-center gap-3 bg-white/70 p-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage
-                src={`https://ui-avatars.com/api/?name=${user.displayName}`}
-              />
-              <AvatarFallback className="bg-gradient-to-br from-[#9b88ff] to-[#6f5deb] text-white">
-                {user.displayName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-sm font-semibold text-[#363161] truncate">
-                {user.displayName}
-              </span>
-              <span className="text-xs text-[#a19ad9] truncate">
-                {user.email}
-              </span>
+        {user && (
+          <>
+            <div className="shadow-profile rounded-card flex items-center gap-3 bg-card/70 dark:bg-card p-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage
+                  src={`https://ui-avatars.com/api/?name=${user.displayName}`}
+                />
+                <AvatarFallback className="bg-gradient-to-br from-[#9b88ff] to-[#6f5deb] text-white">
+                  {user.displayName.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm font-semibold text-[var(--brand-user-name)] truncate">
+                  {user.displayName}
+                </span>
+                <span className="text-xs text-[var(--brand-chat-time)] truncate">
+                  {user.email}
+                </span>
+              </div>
+              <button
+                onClick={logout}
+                className="text-gray-400 hover:text-red-500"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              onClick={logout}
-              className="text-gray-400 hover:text-red-500"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={async () => {
-                try {
-                  await login('demo@example.com', 'password');
-                } catch {
-                  // If login fails, try registering
-                  try {
-                    await register('demo@example.com', 'password', 'Demo User');
-                  } catch (e2) {
-                    console.error('Login/Register failed', e2);
-                    alert('Failed to login/register demo user');
-                  }
-                }
-              }}
-              className="w-full rounded-md bg-[#8c7ee1] py-2 text-sm font-medium text-white hover:bg-[#7c68e1]"
-            >
-              Login / Register (Demo)
-            </button>
-          </div>
+          </>
         )}
       </SidebarFooter>
     </SidebarPrimitive>

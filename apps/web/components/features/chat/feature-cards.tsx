@@ -15,7 +15,7 @@ function FeatureCard({
 }: FeatureCardProps) {
   return (
     <Card
-      className="group border-[#f0ecff] shadow-[0_8px_30px_-12px_rgba(102,88,204,0.15)] rounded-4xl flex cursor-pointer flex-col gap-3 bg-white/95 p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(102,88,204,0.3)] hover:border-[#e5deff]"
+      className="group border-brand-border-soft shadow-[0_8px_30px_-12px_rgba(102,88,204,0.15)] dark:shadow-none rounded-4xl flex cursor-pointer flex-col gap-3 bg-card/95 dark:bg-card p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_rgba(102,88,204,0.3)] dark:hover:shadow-none hover:border-brand-border-lighter"
       onClick={onClick}
     >
       {/* Top part - icon and title side by side */}
@@ -37,7 +37,9 @@ function FeatureCard({
       </div>
 
       {/* Bottom part - description */}
-      <p className="text-[#7c73b7] text-sm leading-relaxed">{description}</p>
+      <p className="text-brand-content-text text-sm leading-relaxed">
+        {description}
+      </p>
     </Card>
   );
 }
@@ -47,21 +49,21 @@ export function FeatureCards() {
     <div className="grid w-full max-w-4xl grid-cols-1 gap-5 md:grid-cols-3">
       <FeatureCard
         icon={<FileText className="h-5 w-5" />}
-        iconColor="bg-[#f4f1ff] text-[#a18fff]"
+        iconColor="bg-[var(--brand-icon-purple-bg)] text-brand-feature-icon"
         gradientColors={['#a18fff', '#8b6dff', '#a18fff', '#8b6dff', '#a18fff']}
         title="Summarize Anything"
         description="Turn long docs into crisp takeaways with citations and next steps."
       />
       <FeatureCard
         icon={<Search className="h-5 w-5" />}
-        iconColor="bg-[#e8f9f4] text-[#4ecca3]"
+        iconColor="bg-[#e8f9f4] text-[#4ecca3] dark:bg-[#0d2a22] dark:text-[#4ecca3]"
         gradientColors={['#4ecca3', '#36d4a0', '#4ecca3', '#36d4a0', '#4ecca3']}
         title="Find the source reference"
         description="Pinpoint the exact doc, page, and quote with live citations."
       />
       <FeatureCard
         icon={<Lightbulb className="h-5 w-5" />}
-        iconColor="bg-[#ffe8f0] text-[#ff6b9d]"
+        iconColor="bg-[#ffe8f0] text-[#ff6b9d] dark:bg-[#2a0d18] dark:text-[#ff6b9d]"
         gradientColors={['#ff6b9d', '#ff4d8a', '#ff6b9d', '#ff4d8a', '#ff6b9d']}
         title="Get an instant answer"
         description="Evidence-backed answers pulled from your knowledge base, with sources attached."

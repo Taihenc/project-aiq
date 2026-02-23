@@ -1,55 +1,89 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import type { UIMessage, UseChatMessagesOptions, BackendMessage } from '@/types';
-import { sendChatCompletions } from '@/lib/api/chat';
+import type { UIMessage, UseChatMessagesOptions, BackendMessage, FileRef } from '@/types';
+import { streamChatCompletions } from '@/lib/api/chat';
 import { historyApi } from '@/lib/api/history';
 import { useChatStore } from '@/lib/store/chat-store';
+import { useAuth } from '@/lib/auth/auth-context';
 import {
   createUserMessage,
   createErrorMessage,
-  transformResponseToMessage,
   convertMessagesToAPIFormat,
 } from '@/lib/utils/message-transformer';
 
 export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isDemoMode = false, initialMessages = [], chatId } = options;
 
-  const [messages, setMessages] = useState<UIMessage[]>(initialMessages);
+  // Subscribe reactively so the effect re-runs when history or its loading state changes
+  const storeHistory = useChatStore((state) => state.history);
+  const storeIsLoadingHistory = useChatStore((state) => state.isLoadingHistory);
+
+  // Initialize messages from cache immediately to avoid flash on navigation
+  const [messages, setMessages] = useState<UIMessage[]>(() => {
+    if (chatId) {
+      const cached = useChatStore.getState().getTransitionalMessages(chatId);
+      if (cached && cached.length > 0) return cached;
+    }
+    return initialMessages;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>(chatId);
   const sessionIdRef = useRef(sessionId);
-  const setTransitionalMessages = useChatStore((state) => state.setTransitionalMessages);
+  const setTransitionalMessages = useChatStore(
+    (state) => state.setTransitionalMessages,
+  );
 
   useEffect(() => {
     if (chatId) {
       setSessionId(chatId);
       sessionIdRef.current = chatId;
 
+      // Wait for auth and history to be ready
+      if (isAuthLoading || !isAuthenticated || storeIsLoadingHistory) return;
+
+      // Verify the chat exists in the local history before attempting to fetch
+      // This prevents 404 errors in the console for non-existent/unauthorized chats
+      const chatExists = storeHistory.some(h => h.id === chatId);
+      if (!chatExists) return;
+
       const cachedMessages = useChatStore.getState().getTransitionalMessages(chatId);
       if (cachedMessages && cachedMessages.length > 0) {
-        setMessages(cachedMessages);
+        // Already initialized from cache in useState, just refresh from backend silently
         loadMessages(chatId, false);
       } else {
         loadMessages(chatId);
       }
     } else {
-      setSessionId(undefined);
-      sessionIdRef.current = undefined;
-      setMessages([]);
+      // Guard: if sessionIdRef has a value, we're inside or just after a sendMessage
+      // that created a new session. The router.push('/c/{id}') is imminent.
+      // Clearing messages here would flash the welcome screen for ~100ms.
+      if (!sessionIdRef.current) {
+        setSessionId(undefined);
+        setMessages([]);
+      }
     }
-  }, [chatId]);
+  }, [chatId, isAuthenticated, isAuthLoading, storeHistory, storeIsLoadingHistory]);
 
   const loadMessages = async (id: string, showLoadingState = true) => {
     if (showLoadingState) setIsLoading(true);
     try {
       const { messages: historyMessages } = await historyApi.getSession(id);
-      const uiMessages: UIMessage[] = (historyMessages as unknown as BackendMessage[]).map((msg) => ({
+      const uiMessages: UIMessage[] = (
+        historyMessages as unknown as BackendMessage[]
+      ).map((msg) => ({
         id: msg.id,
         role: msg.role,
-        content: msg.content,
+        content:
+          typeof msg.content === 'string'
+            ? msg.content
+            : JSON.stringify(msg.content || ''),
         timestamp: new Date(msg.createdAt),
-        citations: msg.citations ? JSON.parse(msg.citations) : undefined,
+        citations:
+          typeof msg.citations === 'string'
+            ? JSON.parse(msg.citations)
+            : msg.citations,
       }));
       setMessages(uiMessages);
     } catch (error) {
@@ -59,22 +93,25 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     }
   };
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, attachments?: FileRef[]) => {
     const userMessage = createUserMessage(content);
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
     let currentSessionId = sessionId;
+    let assistantMessageId: string | undefined;
+
     try {
       if (!currentSessionId && !isDemoMode) {
         try {
-          const newSession = await historyApi.createSession(content.slice(0, 30) + '...');
+          const newSession = await historyApi.createSession(
+            content.slice(0, 30) + '...',
+          );
           currentSessionId = newSession.id;
           setSessionId(currentSessionId);
           sessionIdRef.current = currentSessionId;
-
         } catch (e) {
-          console.error("Failed to create session", e);
+          console.error('Failed to create session', e);
         }
       }
 
@@ -87,26 +124,181 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         content: content,
       });
 
-      // Send message to backend
-      const response = await sendChatCompletions(apiMessages, {
+      // Add a placeholder message for the assistant
+      assistantMessageId = (Date.now() + 2).toString();
+      const initialAiMessage: UIMessage = {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: '',
+        status: 'initializing',
+      };
+      setMessages((prev) => [...prev, initialAiMessage]);
+
+      // Start streaming from backend
+      const stream = await streamChatCompletions(apiMessages, {
         sessionId: currentSessionId,
         requestSource: 'frontend',
         temperature: 0.7,
         maxTokens: 1000,
+        attachments,
       });
 
-      // Transform and add AI response
-      const aiMessage = transformResponseToMessage(response);
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
 
-      if (sessionIdRef.current === currentSessionId) {
-        setMessages((prev) => [...prev, aiMessage]);
+      let lineBuffer = '';
 
-        useChatStore.getState().fetchHistory();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log('[SSE] Stream done. Remaining buffer:', lineBuffer);
+          break;
+        }
 
-        // If this was a newly created session (and we are still on it), navigate now
-        // This ensures the messages are persisted in DB before the new page loads them
-        if (!sessionId && currentSessionId) {
-          router.push(`/c/${currentSessionId}`);
+        const chunk = decoder.decode(value, { stream: true });
+        console.log('[SSE] Raw chunk received:', chunk.substring(0, 200));
+        lineBuffer += chunk;
+        const lines = lineBuffer.split('\n');
+
+        // Keep the last partial line in the buffer
+        lineBuffer = lines.pop() || '';
+
+        // Collect all statuses from this chunk before calling setMessages
+        // React batches synchronous setState calls, so we must do ONE update per chunk.
+        const pendingStatuses: string[] = [];
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+
+          console.log('[SSE] Processing line:', trimmedLine.substring(0, 150));
+
+          if (!trimmedLine.startsWith('data: ')) {
+            console.log('[SSE] Skipping non-data line');
+            continue;
+          }
+
+          const rawData = trimmedLine.slice(6);
+          try {
+            const event = JSON.parse(rawData);
+            console.log(
+              '[SSE] Parsed event:',
+              event.type,
+              typeof event.content === 'string'
+                ? event.content.substring(0, 50)
+                : event.content,
+            );
+
+            if (event.type === 'status') {
+              const statusContent =
+                typeof event.content === 'string'
+                  ? event.content
+                  : JSON.stringify(event.content);
+              console.log(
+                '[SSE] Setting status:',
+                statusContent.substring(0, 80),
+              );
+              pendingStatuses.push(statusContent);
+            } else if (event.type === 'error') {
+              console.error('[SSE] AI Error Event:', event.content);
+              const errorContent =
+                event.content || 'An unexpected error occurred.';
+
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessageId
+                    ? {
+                      ...m,
+                      content: `⚠️ **Failure**: ${errorContent}`,
+                      status: undefined,
+                    }
+                    : m,
+                ),
+              );
+            } else if (event.type === 'result') {
+              console.log('[SSE] AI Result Received');
+
+              let finalContent = '';
+              let citations = event.sources_used;
+
+              // Parse content if it's an object
+              if (typeof event.content === 'object' && event.content !== null) {
+                // Formatting for OLD AI Engine
+                if ('final_answer' in event.content) {
+                  finalContent = event.content.final_answer;
+                  // Handle file_path as citations if present
+                  if (Array.isArray(event.content.file_path)) {
+                    citations = event.content.file_path.map((path: string, index: number) => ({
+                      id: `citation-${index}`,
+                      title: path.split('/').pop() || path,
+                      platform: 'File',
+                      content: '',
+                    }));
+                  }
+                }
+                // Formatting for NEW Search Flow
+                else if ('response' in event.content) {
+                  finalContent = event.content.response;
+                  // Pass through enriched citations directly from backend
+                  if (Array.isArray(event.content.citations)) {
+                    citations = event.content.citations;
+                  }
+                }
+                else {
+                  finalContent = JSON.stringify(event.content);
+                }
+              } else {
+                finalContent = event.content;
+              }
+
+              const isEmptyResponse = !finalContent || finalContent.trim() === '';
+
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessageId
+                    ? {
+                      ...m,
+                      content: finalContent,
+                      citations: Array.isArray(citations) && citations.length > 0 ? citations : undefined,
+                      status: undefined,
+                      isEmpty: isEmptyResponse,
+                    }
+                    : m,
+                ),
+              );
+
+              // Trigger history refresh and navigation after full result
+              if (sessionIdRef.current === currentSessionId) {
+                useChatStore.getState().fetchHistory();
+                if (!sessionId && currentSessionId) {
+                  // Delay navigation slightly to ensure cache is written first
+                  // This prevents the flash of empty messages on re-mount
+                  setTimeout(() => {
+                    router.push(`/c/${currentSessionId}`);
+                  }, 100);
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[SSE] JSON parse error:', e, 'Raw data:', rawData.substring(0, 100));
+          }
+        }
+
+        // Flush all status updates from this chunk in one setMessages call.
+        // This prevents React's automatic batching from dropping intermediate statuses.
+        if (pendingStatuses.length > 0) {
+          const lastStatus = pendingStatuses[pendingStatuses.length - 1];
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId
+                ? {
+                  ...m,
+                  status: lastStatus,
+                  statusHistory: [...(m.statusHistory || []), ...pendingStatuses],
+                }
+                : m,
+            ),
+          );
         }
       }
     } catch (error) {
@@ -114,7 +306,10 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       // Only show error if we are still on the same session
       if (sessionIdRef.current === currentSessionId) {
         const errorMessage = createErrorMessage();
-        setMessages((prev) => [...prev, errorMessage]);
+        setMessages((prev) => [
+          ...prev.filter((m) => m.id !== assistantMessageId),
+          errorMessage,
+        ]);
       }
     } finally {
       if (sessionIdRef.current === currentSessionId) {
@@ -126,6 +321,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const clearMessages = () => {
     setMessages([]);
     setSessionId(undefined);
+    sessionIdRef.current = undefined;
   };
 
   // Cache latest messages per session to avoid flicker on navigation

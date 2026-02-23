@@ -43,3 +43,20 @@ class JobExecutorPort(ABC):
         Execute a workflow (multiple jobs) using CrewAI.
         """
         pass
+
+    @abstractmethod
+    def execute_workflow_stream(
+        self,
+        workflow: Workflow,
+        jobs: List[Job],
+        agents: Dict[str, Agent],
+        models: Dict[str, Model],
+        tools: Dict[str, Tool],
+        input_variables: Dict[str, Any],
+        manager_agent: Optional[Agent] = None,
+        manager_model: Optional[Model] = None,
+    ) -> Any:
+        """
+        Execute a workflow and return an async generator for streaming updates.
+        """
+        pass

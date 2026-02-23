@@ -1,11 +1,18 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Inject, UnauthorizedException, Injectable } from '@nestjs/common';
+import { DRIZZLE } from '../../database/drizzle.module';
+import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { users } from '../../database/schema';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    @Inject(DRIZZLE) private db: BetterSQLite3Database,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -14,6 +21,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    return { userId: payload.sub, email: payload.email, authProvider: payload.authProvider };
+    // Check if user exists in database
+    const userResult = this.db
+      .select()
+      .from(users)
+      .where(eq(users.id, payload.sub))
+      .all();
+
+    const user = userResult[0];
+    if (!user) {
+      throw new UnauthorizedException('User no longer exists');
+    }
+
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      authProvider: payload.authProvider,
+    };
   }
 }

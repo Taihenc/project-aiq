@@ -31,7 +31,7 @@ class Settings:
         self.cloudflare_tunnel_url: Optional[str] = os.getenv("CLOUDFLARE_TUNNEL_URL")
 
         # Server Configuration
-        self.server_port: int = int(os.getenv("SERVER_PORT", "8000"))
+        self.server_port: int = int(os.getenv("SERVER_PORT", "8010"))
         self.client_state: str = os.getenv("CLIENT_STATE", "mySecretClientStateForTesting")
 
         # File Sync Configuration

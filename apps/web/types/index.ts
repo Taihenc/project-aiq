@@ -21,6 +21,8 @@ export type {
   Choice,
   Usage,
   Citation,
+  ChunkMetadata,
+  FileRef,
   ChatCompletionsRequest,
   ChatCompletionsResponse,
   ChatRequest,

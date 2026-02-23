@@ -7,4 +7,4 @@ import { ChatHistoryController } from './chat-history.controller';
   providers: [ChatHistoryService],
   exports: [ChatHistoryService],
 })
-export class ChatHistoryModule { }
+export class ChatHistoryModule {}

@@ -33,7 +33,7 @@ class CrewAIJobExecutor(JobExecutorPort):
         Supported types: 'str', 'int', 'float', 'bool', 'list[str]', 'list[int]'
         All fields are made Optional to handle LLM output variations robustly.
         """
-        field_definitions = {}
+        field_definitions: Dict[str, Any] = {}
         for fname, ftype in fields.items():
             if ftype == "str":
                 field_definitions[fname] = (Optional[str], None)
@@ -359,9 +359,307 @@ class CrewAIJobExecutor(JobExecutorPort):
             }
 
         output_content = result.raw
-        # Handle pydantic output from the LAST task if applicable?
-        # CrewOutput usually contains the result of the last task.
+        # Handle pydantic output from the last task if applicable?
         if hasattr(result, "pydantic") and result.pydantic:
             output_content = result.pydantic
 
         return output_content, usage_metrics
+
+    async def execute_workflow_stream(
+        self,
+        workflow: Workflow,
+        jobs: List[Job],
+        agents: Dict[str, Agent],
+        models: Dict[str, Model],
+        tools: Dict[str, Tool],
+        input_variables: Dict[str, Any],
+        manager_agent: Optional[Agent] = None,
+        manager_model: Optional[Model] = None,
+    ):
+        import queue
+        import threading
+        import json
+        import asyncio
+
+        event_queue: queue.Queue = queue.Queue()
+
+        def agent_step_callback(step):
+            # Capture agent actions/tool usage
+            try:
+                # step structure varies significantly between CrewAI versions
+                # Sometimes it's a list of actions, sometimes an object
+                agent_name = "AI Agent"
+                message = "Analyzing next step..."
+
+                # Try to extract info from step object or dict
+                if isinstance(step, list) and len(step) > 0:
+                    step = step[0]
+
+                # Check for agent identifier
+                for attr in ["agent", "role", "agent_name"]:
+                    val = getattr(step, attr, None)
+                    if val:
+                        agent_name = val
+                        break
+
+                # Check for tool usage
+                tool_name = getattr(step, "tool", None)
+                if not tool_name and hasattr(step, "__getitem__"):
+                    try: tool_name = step.get("tool")
+                    except: pass
+
+                if tool_name:
+                    # Clean up tool name (e.g., google_search -> Google Search)
+                    friendly_tool_name = tool_name.replace('_', ' ').title()
+
+                    message = f"{agent_name} is using {friendly_tool_name}"
+
+                    # Try to get tool input
+                    tool_input = getattr(step, "tool_input", None)
+                    if not tool_input and hasattr(step, "__getitem__"):
+                        try: tool_input = step.get("tool_input")
+                        except: pass
+
+                    if tool_input:
+                        input_str = str(tool_input)
+                        parsed_input = None
+
+                        # Try to parse if it's a string looking like a dict/json
+                        if isinstance(tool_input, str):
+                            tool_input = tool_input.strip()
+                            if tool_input.startswith('{') and tool_input.endswith('}'):
+                                try:
+                                    parsed_input = json.loads(tool_input)
+                                except json.JSONDecodeError:
+                                    try:
+                                        import ast
+                                        parsed_input = ast.literal_eval(tool_input)
+                                    except:
+                                        pass
+                        elif isinstance(tool_input, dict):
+                            parsed_input = tool_input
+
+                        # Extract values if we have a dict
+                        if parsed_input and isinstance(parsed_input, dict):
+                            # Filter out empty values and join
+                            values = [str(v) for v in parsed_input.values() if v]
+                            if values:
+                                input_str = ", ".join(values)
+                        elif parsed_input:
+                             input_str = str(parsed_input)
+
+                        # Clean up technical characters
+                        input_str = input_str.replace('{', '').replace('}', '').replace('"', '').replace("'", "")
+
+                        # Remove newlines and extra spaces
+                        input_str = " ".join(input_str.split())
+
+                        if len(input_str) > 50:
+                            input_str = input_str[:47] + "..."
+
+                        if input_str:
+                            message += f": {input_str}"
+                else:
+                    # Look for thought or text
+                    thought = None
+                    for attr in ["text", "thought", "output"]:
+                        val = getattr(step, attr, None)
+                        if val and isinstance(val, str):
+                            thought = val.strip()
+                            break
+
+                    if thought:
+                        # Clean up formatting for thought
+                        thought = thought.replace('\n', ' ').strip()
+                        if len(thought) > 100:
+                            thought = thought[:97] + "..."
+                        message = f"{agent_name}: {thought}"
+                    else:
+                        message = f"{agent_name} is thinking..."
+
+                if settings.debug:
+                    print(f"DEBUG: Agent Step -> {message}")
+
+                event_queue.put({"type": "status", "content": message})
+            except Exception as e:
+                if settings.debug:
+                    print(f"DEBUG: Error in agent_step_callback: {str(e)}")
+                event_queue.put({"type": "status", "content": "AI is working..."})
+
+        def task_callback(task_output):
+            # Captured after each task completes
+            try:
+                msg = "Task completed."
+                # task_output is usually a TaskOutput object
+                if hasattr(task_output, "description"):
+                    desc = task_output.description
+                    if len(desc) > 50:
+                        desc = desc[:47] + "..."
+                    msg = f"Completed task: {desc}"
+
+                if settings.debug:
+                    print(f"DEBUG: Task Output -> {msg}")
+                event_queue.put({"type": "status", "content": msg})
+            except Exception:
+                pass
+
+        # Cache for created Crew Agents
+        created_agents: Dict[str, CrewAgent] = {}
+
+        # 1. Create Agents with callback
+        for agent_id, agent in agents.items():
+            model = models.get(agent.model_id)
+            if not model:
+                continue
+            llm = self.llm_provider.get_llm(model)
+            agent_tools = [tools[t_id] for t_id in agent.tools if t_id in tools]
+            crew_tools, mcps = self._prepare_tools_and_mcps(agent_tools)
+
+            agent_args = {
+                "role": agent.role,
+                "goal": agent.goal,
+                "backstory": agent.backstory,
+                "llm": llm,
+                "tools": crew_tools,
+                "verbose": settings.debug,
+                "allow_delegation": False,
+                "step_callback": agent_step_callback,
+            }
+            if mcps:
+                agent_args["mcps"] = mcps
+
+            created_agents[agent_id] = CrewAgent(**agent_args)
+
+        # 2. Create Tasks with callback
+        crew_tasks = []
+        for job in jobs:
+            if job.agent_id not in created_agents:
+                continue
+            crew_agent = created_agents[job.agent_id]
+            output_pydantic = None
+            if job.output_pydantic:
+                output_pydantic = self._create_dynamic_model(
+                    f"{job.name}Output", job.output_pydantic
+                )
+            task = CrewTask(
+                description=job.task_description,
+                expected_output=job.expected_output,
+                agent=crew_agent,
+                output_pydantic=output_pydantic,
+                callback=task_callback,
+            )
+            crew_tasks.append(task)
+
+        # 3. Configure Manager
+        manager_llm = None
+        crew_manager_agent = None
+        if workflow.process == "hierarchical":
+            if manager_agent and manager_model:
+                manager_llm_instance = self.llm_provider.get_llm(manager_model)
+                manager_agent_tools = [
+                    tools[t_id] for t_id in manager_agent.tools if t_id in tools
+                ]
+                crew_cols, manager_mcps = self._prepare_tools_and_mcps(manager_agent_tools)
+
+                mgr_args = {
+                    "role": manager_agent.role,
+                    "goal": manager_agent.goal,
+                    "backstory": manager_agent.backstory,
+                    "llm": manager_llm_instance,
+                    "tools": crew_cols,
+                    "verbose": settings.debug,
+                    "allow_delegation": True,
+                    "step_callback": agent_step_callback,
+                }
+                if manager_mcps:
+                    mgr_args["mcps"] = manager_mcps
+                crew_manager_agent = CrewAgent(**mgr_args)
+            elif manager_model:
+                manager_llm = self.llm_provider.get_llm(manager_model)
+
+        # 4. Create Crew
+        process_type = (
+            Process.hierarchical
+            if workflow.process == "hierarchical"
+            else Process.sequential
+        )
+        crew_args = {
+            "agents": list(created_agents.values()),
+            "tasks": crew_tasks,
+            "process": process_type,
+            "verbose": True,
+            # We can also add task_callback at crew level in some versions
+            "task_callback": task_callback,
+        }
+        if process_type == Process.hierarchical:
+            if crew_manager_agent:
+                crew_args["manager_agent"] = crew_manager_agent
+            elif manager_llm:
+                crew_args["manager_llm"] = manager_llm
+
+        crew = Crew(**crew_args)
+
+        # Send initial status
+        event_queue.put({"type": "status", "content": "Starting Crew execution..."})
+
+        # 5. Background Kickoff
+        def run_kickoff():
+            try:
+                result = crew.kickoff(inputs=input_variables)
+
+                usage_metrics = {}
+                if hasattr(result, "token_usage"):
+                    metrics = result.token_usage
+                    usage_metrics = {
+                        "total_tokens": getattr(metrics, "total_tokens", 0),
+                        "prompt_tokens": getattr(metrics, "prompt_tokens", 0),
+                        "completion_tokens": getattr(metrics, "completion_tokens", 0),
+                        "successful_requests": getattr(metrics, "successful_requests", 0),
+                    }
+
+                output_content = result.raw
+                if hasattr(result, "pydantic") and result.pydantic:
+                    output_content = result.pydantic
+
+                # Wrap final result
+                final_payload = {
+                    "type": "result",
+                    "content": output_content,
+                    "usage": usage_metrics,
+                }
+                event_queue.put(final_payload)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                event_queue.put({"type": "error", "content": f"Crew execution failed: {str(e)}"})
+            finally:
+                # Sentinel to indicate end of stream
+                event_queue.put(None)
+
+        thread = threading.Thread(target=run_kickoff)
+        thread.start()
+
+        def json_serializer(obj):
+            """JSON serializer for objects not serializable by default json code"""
+            if isinstance(obj, BaseModel):
+                return obj.model_dump()
+            if hasattr(obj, "model_dump"):
+                return obj.model_dump()
+            if hasattr(obj, "dict"):
+                return obj.dict()
+            return str(obj)
+
+        # 6. Yield from queue
+        while True:
+            try:
+                event = event_queue.get_nowait()
+                if event is None:
+                    if settings.debug: print("DEBUG: SSE Stream Finished (Sentinel received)")
+                    break
+
+                payload = json.dumps(event, default=json_serializer)
+                if settings.debug: print(f"DEBUG: Yielding SSE Event -> {payload[:100]}...")
+                yield payload + "\n"
+            except queue.Empty:
+                await asyncio.sleep(0.1)
+                continue

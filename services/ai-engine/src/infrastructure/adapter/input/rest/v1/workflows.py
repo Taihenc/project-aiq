@@ -106,3 +106,18 @@ async def execute_workflow(
     """Execute a workflow completion using CrewAI."""
     result = await service.execute_workflow(workflow_id, request)
     return BaseResponse(data=result, message="Workflow executed successfully")
+
+
+@router.post("/{workflow_id}/completion/stream")
+async def execute_workflow_stream(
+    workflow_id: str,
+    request: WorkflowCompletionRequest,
+    service: WorkflowService = Depends(get_workflow_service),
+):
+    """Execute a workflow completion with streaming updates."""
+    from fastapi.responses import StreamingResponse
+
+    return StreamingResponse(
+        service.execute_workflow_stream(workflow_id, request),
+        media_type="text/event-stream",
+    )

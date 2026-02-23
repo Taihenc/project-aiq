@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { authApi } from '@/lib/api/auth';
+import { Cookies } from '@/lib/utils/cookies';
 import type { User, DecodedToken, AuthContextType } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,7 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = Cookies.get('auth_token');
     if (token) {
       try {
         const decoded = jwtDecode<DecodedToken>(token);
@@ -26,15 +27,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           displayName: decoded.displayName || decoded.email.split('@')[0],
         });
       } catch {
-        localStorage.removeItem('access_token');
+        Cookies.remove('auth_token');
       }
     }
     setIsLoading(false);
   }, []);
 
+
+
   const login = async (email: string, pass: string) => {
     const res = await authApi.login(email, pass);
-    localStorage.setItem('access_token', res.access_token);
+    console.log('[AuthContext] Login successful. Tokens received:', !!res.access_token, !!res.refresh_token);
+
+    // Store access token (1 hour on backend, matches 1 day here roughly or we can be precise)
+    Cookies.set('auth_token', res.access_token, 1);
+    // Store refresh token (7 days)
+    Cookies.set('refresh_token', res.refresh_token, 7);
+
     setUser(res.user);
   };
 
@@ -43,9 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login(email, pass);
   };
 
-  const logout = () => {
-    localStorage.removeItem('access_token');
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    Cookies.remove('auth_token');
+    Cookies.remove('refresh_token');
     setUser(null);
+    window.location.href = '/login';
   };
 
   return (
