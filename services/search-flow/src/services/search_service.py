@@ -45,6 +45,7 @@ class SearchFlowService:
             action="reject", response="Error: No response generated from the flow."
         )
 
+    @observe(name="search_flow_stream", as_type="generation")
     async def execute_workflow_stream(self, request: SearchChatRequest):
         import asyncio
         import json
