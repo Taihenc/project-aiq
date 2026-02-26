@@ -13,12 +13,11 @@ def get_llm():
     )
 
 
-def create_search_agent(tools: list = [], step_callback=None) -> Agent:
+def create_search_agent(step_callback=None) -> Agent:
     return Agent(
         role=AgentPrompts.SEARCH_AGENT_ROLE,
         goal=AgentPrompts.SEARCH_AGENT_GOAL,
         backstory=AgentPrompts.SEARCH_AGENT_BACKSTORY,
-        tools=tools,
         llm=get_llm(),
         verbose=settings.crew_verbose,
         allow_delegation=False,

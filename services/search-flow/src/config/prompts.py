@@ -38,7 +38,7 @@ class AgentPrompts:
 
 @dataclass
 class TaskPrompts:
-    SEARCH_AGENT_TASK_TEMPLATE = f"""
+    BASE_TASK_TEMPLATE = f"""
 {ORGANIZATION_CONTEXT}
 
 # SYSTEM CONTEXT
@@ -49,8 +49,13 @@ class TaskPrompts:
 {{context_block}}
 
 # INSTRUCTION (Operational Rules)
+{{mode_rules}}
 
-{{mode_instruction}}
+# TASK (The Core Job)
+{{task_core}}
+"""
+
+    AUTO_RULES = """
 - **Action Selection Logic (STRICT):**
     1. SEARCH: **Primary Action.** If the user asks a question that COULD be answered by documents, or explicitly asks to "find", "search", or "who is...", "what is...", you **MUST** select 'search'.
        - **REJECT IF:** The user commands to search but provides NO query or subject (e.g., just says "Search").
@@ -58,10 +63,34 @@ class TaskPrompts:
        - **REJECT IF:** The user asks to "get file" or "read page" without specifying WHICH file, ID, or page number.
     3. CHAT: **Only** for greetings (e.g., "Hi", "Hello"), purely conversational inputs, or when you need to **clarify** the user's intent (e.g., asking which specific file they want if multiple match).
        - **REJECT IF:** The query is completely out of domain, gibberish, or impossible to answer (e.g., "Make me a sandwich").
-
-# TASK (The Core Job)
-Analyze the **User Query: '{{query}}'** by referencing all provided Context and following the Instructions above to determine the best Action.
 """
+    AUTO_CORE_JOB = "Analyze the **User Query: '{query}'** by referencing all provided Context and following the Instructions above to determine the best Action."
+
+    SEARCH_RULES = """
+- **STRICT MODE ENFORCED:** The user has explicitly selected 'SEARCH'.
+- You ONLY have search tools.
+- You MUST perform a search action to fulfill the user's request, setting action to 'search'.
+- **REJECT IF:** The user query is lacking information to search. In this case, select 'reject' action and ask for enough information.
+- **CRITICAL:** Do NOT rely on 'Attachments' to skip searching. You MUST trigger the tool IMMEDIATELY to fetch fresh content.
+"""
+    SEARCH_CORE_JOB = "Execute a SEARCH for the **User Query: '{query}'**. If successful, return the result. If not enough info, reject."
+
+    LOOKUP_RULES = """
+- **STRICT MODE ENFORCED:** The user has explicitly selected 'LOOKUP'.
+- You ONLY have lookup tools.
+- You MUST perform a lookup action (e.g. read specific file or chunks), setting action to 'lookup'.
+- **REJECT IF:** The user query is lacking information to lookup. In this case, select 'reject' action and ask for enough information.
+"""
+    LOOKUP_CORE_JOB = "Execute a LOOKUP for the **User Query: '{query}'**. If successful, return the result. If not enough info, reject."
+
+    CHAT_RULES = """
+- **STRICT MODE ENFORCED:** The user has explicitly selected 'CHAT'.
+- You have NO retrieval tools.
+- You MUST act as a conversational bot and answer directly without using any external retrieve tools. Set action to 'chat'.
+"""
+    CHAT_CORE_JOB = (
+        "Respond conversationally directly to the **User Query: '{query}'**."
+    )
 
     SEARCH_AGENT_OUTPUT = """
 # OUTPUT (Format Requirement)
