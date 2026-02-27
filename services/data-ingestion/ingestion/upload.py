@@ -9,13 +9,13 @@ class Upload:
     def __init__(self):
         self.API_URL = settings.api_url
 
-    async def upload(self, contexts: List[Dict[str, Any]]):
+    async def upload(self, contexts: List[Dict[str, Any]], file_id: str | None = None):
 
         documents = []
 
         for context in contexts:
             metadata = context.get("metadata", {})
-            
+
             # Construct the payload to match the DocumentUploadRequest model
             documents.append({
                 "id": context.get("id"),
@@ -41,10 +41,12 @@ class Upload:
                 }
             })
 
-        payload = {
-            "documents": documents
-        }
-        
+        payload: dict = {"documents": documents}
+        # Propagate file_id so the embedding service can optionally PATCH FSS
+        # directly via FSS_CALLBACK_URL (belt-and-suspenders path).
+        if file_id:
+            payload["file_id"] = file_id
+
         res = requests.post(self.API_URL, json=payload)
         try:
             res.raise_for_status()

@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   Query,
+  UnauthorizedException,
   UploadedFile,
   UseInterceptors,
   Param,
@@ -51,10 +52,23 @@ export class SharePointController {
 
   // ── Real-time status feed ──────────────────────────────────────
 
+  /**
+   * Issue a short-lived one-time token for SSE. Requires normal JWT auth.
+   * The token is passed as a query param on the EventSource URL because
+   * EventSource cannot send Authorization headers.
+   */
+  @Get('sse-token')
+  getSSEToken() {
+    return { token: this.sharePointService.issueSSEToken() };
+  }
+
   /** SSE stream — frontend clients subscribe here for live status events. */
   @Public()
   @Sse('events')
-  streamEvents(): Observable<MessageEvent> {
+  streamEvents(@Query('token') token: string): Observable<MessageEvent> {
+    if (!this.sharePointService.validateSSEToken(token)) {
+      throw new UnauthorizedException('Invalid or expired SSE token');
+    }
     return this.sharePointService.getStatusStream();
   }
 
