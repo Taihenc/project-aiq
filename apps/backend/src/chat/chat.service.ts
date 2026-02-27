@@ -6,7 +6,6 @@ import { ConfigService } from '@nestjs/config';
 import {
   ChatRequestDto,
   ChatCompletionsRequestDto,
-  FileRefDto,
 } from './dto/chat-request.dto';
 import {
   ChatResponseDto,
@@ -21,7 +20,6 @@ import { ChatHistoryService } from '../chat-history/chat-history.service';
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
-  private readonly sessionCitations = new Map<string, FileRefDto[]>();
 
   constructor(
     private readonly httpService: HttpService,
@@ -50,35 +48,7 @@ export class ChatService {
     );
   }
 
-  private mergeCitations(sessionId: string, newCitations: any[]): void {
-    if (!sessionId || !newCitations?.length) return;
-    const existing = this.sessionCitations.get(sessionId) || [];
 
-    for (const newRef of newCitations) {
-      if (!newRef.file_path || !Array.isArray(newRef.chunks)) continue;
-      const existingRef = existing.find((r) => r.file_path === newRef.file_path);
-      if (!existingRef) {
-        existing.push({
-          file_path: newRef.file_path,
-          chunks: newRef.chunks.map((c: any) => ({ ...c })),
-        });
-      } else {
-        for (const newChunk of newRef.chunks) {
-          const alreadyExists = existingRef.chunks.some(
-            (c) => (c as any).chunk_number === newChunk.chunk_number,
-          );
-          if (!alreadyExists) {
-            existingRef.chunks.push({ ...newChunk });
-          }
-        }
-      }
-    }
-
-    this.sessionCitations.set(sessionId, existing);
-    this.logger.debug(
-      `Session ${sessionId} now has citations from ${existing.length} file(s)`,
-    );
-  }
 
   async enrichResultWithCitations(resultEvent: any): Promise<any> {
     if (resultEvent.type !== 'result' || !resultEvent.content) {
@@ -298,8 +268,7 @@ export class ChatService {
             `Failed to enrich citations (non-stream): ${err.message}`,
           );
         }
-        // Store raw FileRef citations in session for future requests
-        this.mergeCitations(sessionId, rawCitations);
+
       }
 
       const transformed = this.transformAiEngineToOpenAI(parsed, chatRequest);
@@ -408,10 +377,7 @@ export class ChatService {
                           );
                         }
 
-                        // Store raw FileRef citations in session for future requests
-                        if (rawCitations.length > 0 && sessionId) {
-                          this.mergeCitations(sessionId, rawCitations);
-                        }
+
                         fullResult = json;
                       }
 
@@ -515,34 +481,11 @@ export class ChatService {
       (msg) => `${msg.role === 'user' ? 'User' : 'Agent'}: ${msg.content}`,
     );
 
-    // Merge user-provided attachments with session-stored citations (dedup by chunk_number)
-    const sessionId = chatRequest.session_id || '';
-    const sessionAttachments = this.sessionCitations.get(sessionId) || [];
+    // Use only user-provided attachments (no session accumulation)
     const allAttachments = [...(chatRequest.attachments || [])].map((a) => ({
       file_path: a.file_path,
       chunks: [...(a.chunks || [])],
     }));
-
-    for (const sessRef of sessionAttachments) {
-      const existing = allAttachments.find(
-        (r) => r.file_path === sessRef.file_path,
-      );
-      if (!existing) {
-        allAttachments.push({
-          file_path: sessRef.file_path,
-          chunks: sessRef.chunks.map((c) => ({ ...c })),
-        });
-      } else {
-        for (const sessChunk of sessRef.chunks) {
-          const alreadyExists = existing.chunks.some(
-            (c) => (c as any).chunk_number === (sessChunk as any).chunk_number,
-          );
-          if (!alreadyExists) {
-            existing.chunks.push({ ...sessChunk });
-          }
-        }
-      }
-    }
 
     return {
       query:
