@@ -39,6 +39,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   useEffect(() => {
     setCurrentChatId(initialChatId);
     useChatStore.getState().setCurrentChatId(initialChatId);
+    setAttachments([]); // Clear attachments when switching chats
   }, [initialChatId]);
 
   const { history, isLoading: isLoadingHistory } = useHistory();
@@ -188,7 +189,10 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
         <div className="relative z-0 flex flex-1 min-h-0 flex-col px-6 pt-2 sm:px-10 lg:px-12">
           {showWelcomeScreen ? (
-            <ChatWelcome onSendMessage={sendMessage} isLoading={isLoading} />
+            <ChatWelcome
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+            />
           ) : (
             <ChatMessagesArea
               messages={messages}
@@ -211,6 +215,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
             isLoading={isLoading}
             attachments={attachments}
             onRemoveAttachment={handleRemoveAttachment}
+            onRemoveChunk={handleRemoveChunk}
+            onAddAttachment={handleAddAttachment}
+            availableCitations={extractCitations(messages)}
           />
         )}
 

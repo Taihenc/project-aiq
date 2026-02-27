@@ -404,8 +404,13 @@ function SourceCard({
     currentAttachment?.chunks.some((c) => c.chunk_number === chunkNumber) ??
     false;
 
-  const isAllAttached =
-    chunks.length > 0 && chunks.every((c) => isChunkAttached(c.chunk_number));
+  // Count only chunks that belong to THIS citation and are attached
+  // (the same file may appear with different chunk sets across different response cards)
+  const attachedCount = chunks.filter((c) =>
+    isChunkAttached(c.chunk_number),
+  ).length;
+  const isAnyAttached = attachedCount > 0;
+  const isAllAttached = chunks.length > 0 && attachedCount === chunks.length;
 
   const handleToggleChunk = (c: ChunkMetadata) => {
     if (isChunkAttached(c.chunk_number)) {
@@ -458,9 +463,11 @@ function SourceCard({
         'rounded-card overflow-hidden transition-colors duration-200',
         isAllAttached
           ? 'border-brand-attached-border bg-brand-attached-bg shadow-[0_20px_60px_-48px_rgba(72,187,120,0.4)] dark:shadow-none'
-          : 'border-[var(--brand-source-border)] bg-card/95 dark:bg-card shadow-[0_20px_60px_-48px_rgba(102,88,204,0.6)] dark:shadow-none',
-        !isOpen && !isAllAttached && 'hover:bg-[var(--brand-source-hover-bg)]',
-        !isOpen && isAllAttached && 'hover:bg-brand-attached-hover-bg',
+          : isAnyAttached
+            ? 'border-brand-attached-border bg-card/95 dark:bg-card shadow-[0_20px_60px_-48px_rgba(72,187,120,0.25)] dark:shadow-none'
+            : 'border-[var(--brand-source-border)] bg-card/95 dark:bg-card shadow-[0_20px_60px_-48px_rgba(102,88,204,0.6)] dark:shadow-none',
+        !isOpen && isAnyAttached && 'hover:bg-brand-attached-hover-bg',
+        !isOpen && !isAnyAttached && 'hover:bg-[var(--brand-source-hover-bg)]',
       )}
     >
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -485,6 +492,11 @@ function SourceCard({
                     {chunks.length > 0 &&
                       ` · ${chunks.length} chunk${chunks.length !== 1 ? 's' : ''}`}
                   </span>
+                  {isAnyAttached && (
+                    <span className="mt-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      {attachedCount}/{chunks.length} attached
+                    </span>
+                  )}
                 </div>
               </div>
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-[var(--brand-source-icon)] transition-transform duration-200 group-data-[state=open]:rotate-180" />
@@ -499,18 +511,26 @@ function SourceCard({
               onClick={handleToggleAll}
               className={cn(
                 'mr-2 h-7 shrink-0 rounded-full px-3 text-xs font-medium gap-1.5 transition-colors',
-                isAllAttached
+                isAnyAttached
                   ? 'text-brand-attached-text hover:bg-brand-attached-hover-bg'
                   : 'text-[var(--brand-source-icon)] hover:bg-[var(--brand-source-attach-bg)] hover:text-[var(--brand-link)]',
               )}
-              title={isAllAttached ? 'Remove all chunks' : 'Attach all chunks'}
+              title={
+                isAllAttached
+                  ? 'Remove all chunks'
+                  : isAnyAttached
+                    ? `${attachedCount}/${chunks.length} chunks attached — click to attach all`
+                    : 'Attach all chunks'
+              }
             >
-              {isAllAttached ? (
+              {isAnyAttached ? (
                 <Check className="h-3 w-3" />
               ) : (
                 <Plus className="h-3 w-3" />
               )}
-              {isAllAttached ? 'Attached' : 'Attach all'}
+              {isAnyAttached
+                ? `${attachedCount}/${chunks.length}`
+                : 'Attach all'}
             </Button>
           )}
         </div>
