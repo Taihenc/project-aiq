@@ -13,7 +13,13 @@ import type { FileRef, ChunkMetadata } from '@/types/api';
 
 // ── Ext badge ────────────────────────────────────────────────────────────────
 
-export function FileExtBadge({ ext }: { ext: string | undefined }) {
+export function FileExtBadge({
+  ext,
+  size = 'sm',
+}: {
+  ext: string | undefined;
+  size?: 'sm' | 'md';
+}) {
   const colorMap: Record<string, string> = {
     pdf: 'bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400',
     docx: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400',
@@ -32,7 +38,10 @@ export function FileExtBadge({ ext }: { ext: string | undefined }) {
   return (
     <span
       className={cn(
-        'flex h-5 w-5 shrink-0 items-center justify-center rounded text-[8px] font-bold leading-none border border-current/10',
+        'flex shrink-0 items-center justify-center font-bold leading-none border border-current/10',
+        size === 'md'
+          ? 'h-8 w-8 rounded-md text-[9px]'
+          : 'h-5 w-5 rounded text-[8px]',
         color,
       )}
     >

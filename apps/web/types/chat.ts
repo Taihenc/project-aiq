@@ -23,6 +23,7 @@ export interface UIMessage {
   processing_time_ms?: number;
   // Usage information from response.usage
   usage?: {
+    prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
   };
