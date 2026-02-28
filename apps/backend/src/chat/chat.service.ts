@@ -282,6 +282,7 @@ export class ChatService {
           transformed,
           sessionData?.lastSummarizedMessageId ?? undefined,
           existingSummary,
+          chatRequest.attachments,
         );
       }
 
@@ -421,6 +422,7 @@ export class ChatService {
                     transformed,
                     sessionData?.lastSummarizedMessageId ?? undefined,
                     existingSummary,
+                    chatRequest.attachments,
                   ).catch((err) =>
                     this.logger.error(
                       'Streaming post-chat actions failed',
@@ -514,6 +516,7 @@ export class ChatService {
     transformedResponse: ChatCompletionsResponseDto,
     lastSummarizedMessageId: string | undefined,
     existingSummary: string,
+    sentAttachments?: any[],
   ): Promise<void> {
     this.logger.debug(
       `Post-chat actions for session: ${sessionId}, user: ${userId}`,
@@ -533,6 +536,8 @@ export class ChatService {
         userId,
         'user',
         userQueryContent,
+        undefined,
+        sentAttachments && sentAttachments.length > 0 ? sentAttachments : null,
       );
       await this.chatHistoryService.addMessage(
         sessionId,

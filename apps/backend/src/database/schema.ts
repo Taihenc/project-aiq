@@ -28,6 +28,7 @@ export const chatMessages = sqliteTable('chat_messages', {
   role: text('role').notNull(), // 'user' | 'assistant'
   content: text('content').notNull(),
   citations: text('citations', { mode: 'json' }), // JSON string
+  sentAttachments: text('sent_attachments', { mode: 'json' }), // JSON — FileRef[] attached by user when sending
   sessionId: text('session_id')
     .references(() => chatSessions.id)
     .notNull(),
