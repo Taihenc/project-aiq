@@ -63,7 +63,6 @@ DEFAULT_METADATA = {
         "clearance_level": "Level 4 (Confidential)",
     },
     "preferences": {
-        "language": "Thai",
         "timezone": "Asia/Bangkok (GMT+7)",
     },
     "session_context": {
@@ -343,21 +342,11 @@ class SearchClient:
         )
 
     def chat_loop(self):
-        # Color mapping for actions
-        ACTION_COLORS = {
-            "chat": "green",
-            "search": "yellow",
-            "reject": "red",
-            "lookup": "blue",
-            "ask": "blue",
-            "no_skill": "magenta",
-            "unknown": "white",
-        }
-
+        # Display Info
         console.print(
             Panel.fit(
                 "[bold cyan]AINGO SEARCH FLOW[/bold cyan]\n[dim]AI-Powered Intelligence Engine[/dim]\n"
-                "[dim]Commands: /chat, /search, /lookup, /auto, /metadata <json>, /reset[/dim]",
+                "[dim]Commands: /chat, /search, /lookup (get pages/chunks), /auto, /reset[/dim]",
                 subtitle="Type 'exit' to quit",
                 border_style="cyan",
                 padding=(1, 2),
@@ -453,11 +442,8 @@ class SearchClient:
                     data = api_response.get("data", {})
 
                 # 3. Output Phase
-                action = data.get("action", "unknown")
                 response_text = data.get("response", "")
                 citations = data.get("citations") or []
-
-                color = ACTION_COLORS.get(action, "white")
 
                 rprint(
                     Panel(
@@ -470,7 +456,7 @@ class SearchClient:
                 )
 
                 # Update History
-                if action != "unknown":
+                if response_text:
                     self.history.append(f"User: {query}")
                     self.history.append(f"Agent: {response_text}")
 

@@ -36,16 +36,16 @@ class SearchCrewFlow(Flow[FlowState]):
 
     def _get_tools_for_mode(self, mode: str, all_tools: list) -> list:
         # Mock map for tool names based on action/mode
-        mock_search_tools = ["search"]  # Replace with actual mock names
-        mock_lookup_tools = ["lookup"]
+        search_tools = ["search_documents"]  # Replace with actual mock names
+        lookup_tools = ["get_pages", "get_chunks"]
 
         if mode == "auto":
             return all_tools
         elif mode == "search":
-            tools = [t for t in all_tools if t.name in mock_search_tools]
+            tools = [t for t in all_tools if t.name in search_tools]
             return tools if tools else all_tools
         elif mode == "lookup":
-            tools = [t for t in all_tools if t.name in mock_lookup_tools]
+            tools = [t for t in all_tools if t.name in lookup_tools]
             return tools if tools else all_tools
         elif mode == "chat":
             return []
@@ -138,5 +138,4 @@ class SearchCrewFlow(Flow[FlowState]):
         self.state.final_response = result.pydantic
 
         self.reporter.report("Response ready!")
-        print(f"✅ Action: {self.state.final_response.action.upper()}")
         print(f"✅ Response: {self.state.final_response.response[:100]}...")

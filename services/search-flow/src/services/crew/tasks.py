@@ -1,5 +1,5 @@
 from crewai import Task, Agent
-from src.config.prompts import TaskPrompts
+from src.config.prompts import TaskPrompts, MODE_PROMPTS
 from src.models.state import FlowResponse
 
 
@@ -12,43 +12,33 @@ def create_task(
     metadata: str = "",
     tools: list = [],
 ) -> Task:
-    mode_rules = ""
-    task_core = ""
+    # Map the mode to the correct prompt constants
+    prompt_config = MODE_PROMPTS.get(mode, MODE_PROMPTS["auto"])
+
     task_name = f"{mode.title()} Task"
 
-    # Map the mode to the correct prompt constants
-    if mode == "auto":
-        mode_rules = TaskPrompts.AUTO_RULES
-        task_core = TaskPrompts.AUTO_CORE_JOB
-    elif mode == "search":
-        mode_rules = TaskPrompts.SEARCH_RULES
-        task_core = TaskPrompts.SEARCH_CORE_JOB
-    elif mode == "lookup":
-        mode_rules = TaskPrompts.LOOKUP_RULES
-        task_core = TaskPrompts.LOOKUP_CORE_JOB
-    elif mode == "chat":
-        mode_rules = TaskPrompts.CHAT_RULES
-        task_core = TaskPrompts.CHAT_CORE_JOB
-    else:
-        # Fallback to auto
-        mode_rules = TaskPrompts.AUTO_RULES
-        task_core = TaskPrompts.AUTO_CORE_JOB
-
     # Format the core job instruction with the query
-    formatted_task_core = task_core.format(query=query)
+    formatted_task_core = prompt_config.core_job.format(query=query)
+
+    formatted_metadata = f"{metadata.strip()}\n" if metadata.strip() else ""
+    formatted_context = f"{context_block.strip()}\n" if context_block.strip() else ""
 
     task_description = TaskPrompts.BASE_TASK_TEMPLATE.format(
         current_time=current_time,
-        metadata=metadata,
-        context_block=context_block,
-        mode_rules=mode_rules,
+        metadata=formatted_metadata,
+        context_block=formatted_context,
+        mode_rules=prompt_config.rules.strip(),
         task_core=formatted_task_core,
+    ).strip()
+
+    expected_output = TaskPrompts.BASE_OUTPUT_TEMPLATE.format(
+        query=query, output_scenarios=prompt_config.output_scenarios
     )
 
     return Task(
         name=task_name,
         description=task_description,
-        expected_output=TaskPrompts.SEARCH_AGENT_OUTPUT,
+        expected_output=expected_output,
         agent=agent,
         tools=tools,
         output_pydantic=FlowResponse,

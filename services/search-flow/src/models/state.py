@@ -5,7 +5,6 @@ from .search import FileRef
 
 class FlowResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    action: str = Field(default="chat", description="The action type: search, lookup, chat, or reject.")
     response: str = Field(..., description="The response content.")
     citations: Optional[List[FileRef]] = Field(
         None,

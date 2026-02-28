@@ -36,14 +36,10 @@ class SearchFlowService:
             await flow.kickoff_async(inputs=inputs)
         except Exception as e:
             print(f"❌ Error during flow execution: {e}")
-            return FlowResponse(
-                action="reject", response=f"Error executing search flow: {str(e)}"
-            )
+            return FlowResponse(response=f"Error executing search flow: {str(e)}")
         if flow.state.final_response:
             return flow.state.final_response
-        return FlowResponse(
-            action="reject", response="Error: No response generated from the flow."
-        )
+        return FlowResponse(response="Error: No response generated from the flow.")
 
     @observe(name="search_flow_stream", as_type="generation")
     async def execute_workflow_stream(self, request: SearchChatRequest):
@@ -71,15 +67,19 @@ class SearchFlowService:
                 await flow.kickoff_async()
 
                 if flow.state.final_response:
-                    await event_queue.put({
-                        "type": "result",
-                        "content": flow.state.final_response.model_dump()
-                    })
+                    await event_queue.put(
+                        {
+                            "type": "result",
+                            "content": flow.state.final_response.model_dump(),
+                        }
+                    )
                 else:
-                    await event_queue.put({
-                        "type": "error",
-                        "content": "Flow finished but no final response was generated."
-                    })
+                    await event_queue.put(
+                        {
+                            "type": "error",
+                            "content": "Flow finished but no final response was generated.",
+                        }
+                    )
 
             except Exception as e:
                 print(f"❌ Async Flow Error: {e}")

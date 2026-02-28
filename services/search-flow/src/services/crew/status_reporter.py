@@ -26,7 +26,9 @@ class FlowStatusReporter:
         """Emit attachment status from an enriched context string."""
         if context:
             lines = [l for l in context.splitlines() if l.strip()]
-            self.report(f"Processing attached documents ({len(lines)} lines of context)...")
+            self.report(
+                f"Processing attached documents ({len(lines)} lines of context)..."
+            )
         else:
             self.report("No attachments detected.")
 
@@ -42,29 +44,13 @@ class FlowStatusReporter:
             if content:
                 snippet = content if len(content) <= 40 else content[:37] + "..."
                 preview = f' — last: "{snippet}"'
-        self.report(f"Loading {count} previous message{'s' if count > 1 else ''}{preview}")
+        self.report(
+            f"Loading {count} previous message{'s' if count > 1 else ''}{preview}"
+        )
 
     def report_task_completion(self, output):
         """Parse crew task output and emit a meaningful completion status."""
         try:
-            msg = "Finalizing results..."
-            if hasattr(output, "raw") and output.raw:
-                raw = output.raw.strip()
-                if raw.startswith("{") and '"action"' in raw:
-                    try:
-                        parsed = json.loads(raw)
-                        action = parsed.get("action", "").upper()
-                        action_msgs = {
-                            "SEARCH": "Search complete — composing response...",
-                            "CHAT": "Preparing response...",
-                            "REJECT": "Query analyzed — preparing response...",
-                            "LOOKUP": "Lookup complete — composing response...",
-                        }
-                        msg = action_msgs.get(action, "Analysis complete — preparing response...")
-                    except Exception:
-                        msg = "Analysis complete — preparing response..."
-                else:
-                    msg = "Analysis complete — preparing response..."
-            self.report(msg)
+            self.report("Analysis complete — preparing response...")
         except Exception:
             pass

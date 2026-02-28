@@ -11,6 +11,7 @@ def create_agent_step_callback(report_func):
     Tool invocation status is handled directly by the MCPTool instances
     via their own status_callback.
     """
+
     def agent_step_callback(step):
         agent_name = "AI Agent"
         try:
@@ -54,11 +55,13 @@ def create_agent_step_callback(report_func):
             if output_text:
                 # Check if the output is the final JSON response
                 clean = output_text.strip()
-                if clean.startswith('{') and ('"action"' in clean or "'action'" in clean):
+                if clean.startswith("{") and (
+                    '"response"' in clean or "'response'" in clean
+                ):
                     message = "Formulating final answer..."
                 else:
                     # Truncate long thoughts
-                    thought = output_text.replace('\n', ' ').strip()
+                    thought = output_text.replace("\n", " ").strip()
                     if len(thought) > 80:
                         thought = thought[:77] + "..."
                     message = f"{thought}"
