@@ -20,6 +20,8 @@ export interface ChatMessageProps {
   onRemoveAttachment?: (index: number) => void;
   onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
   attachments?: FileRef[];
+  /** Citation FileRefs that were attached when this user message was sent (read-only) */
+  sentAttachments?: FileRef[];
 }
 
 export interface ChatInputProps {
