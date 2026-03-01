@@ -1,7 +1,6 @@
 from crewai import Agent, LLM
 from src.config.settings import settings
 from src.config.prompts import AgentPrompts
-from src.services.crew.tools.mcp import MCPTool
 
 
 def get_llm():

@@ -103,7 +103,7 @@ MODE_PROMPTS = {
 """,
         core_job="Analyze the **User Query: '{query}'** by referencing all provided Context and following the Instructions above to determine the best Action.",
         output_scenarios=(
-            '    1. **Natural Intro:** Start your response with a brief, friendly sentence mentioning what action you took or are taking (e.g., "หนูไปค้นหาข้อมูลเรื่อง...มาให้ค่ะ", "ดึงหน้าเอกสารที่ต้องการมาให้แล้วค่ะ"). Do NOT use rigid formatting like "Selected Action:".\n'
+            '    1. **Natural Intro:** Start your response with a brief, friendly sentence mentioning what action you took or are taking (e.g., "I went to search for information about...", "I\'ve retrieved the document pages you requested."). Do NOT use rigid formatting like "Selected Action:".\n'
             "    2. **Response Body:** Follow the intro by answering the query comprehensively based on the chosen action's typical outcome."
         ),
     ),

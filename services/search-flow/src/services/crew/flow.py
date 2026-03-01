@@ -8,7 +8,6 @@ from src.models.state import (
 )
 from src.services.crew.agents import create_search_agent
 from src.services.crew.tasks import create_task
-from src.services.crew.tools.factory import MCPToolFactory
 from src.services.crew.status_reporter import FlowStatusReporter
 
 
@@ -33,24 +32,6 @@ class SearchCrewFlow(Flow[FlowState]):
         if not self.state.history:
             return ""
         return f"- **Conversation Record (History):**\n{json.dumps(self.state.history, indent=2, ensure_ascii=False)}\n"
-
-    def _get_tools_for_mode(self, mode: str, all_tools: list) -> list:
-        # Mock map for tool names based on action/mode
-        search_tools = ["search_documents"]  # Replace with actual mock names
-        lookup_tools = ["get_pages", "get_chunks"]
-
-        if mode == "auto":
-            return all_tools
-        elif mode == "search":
-            tools = [t for t in all_tools if t.name in search_tools]
-            return tools if tools else all_tools
-        elif mode == "lookup":
-            tools = [t for t in all_tools if t.name in lookup_tools]
-            return tools if tools else all_tools
-        elif mode == "chat":
-            return []
-
-        return all_tools
 
     def _build_context_block(self) -> str:
         formatted_context = self._format_context()
@@ -83,12 +64,28 @@ class SearchCrewFlow(Flow[FlowState]):
         self.reporter.report(f'Analyzing request "{query_preview}"')
         print(f"\n🔹 [Search Agent] Processing Query: '{self.state.query}'")
 
-        # Fetch tools dynamically within the flow
         self.reporter.report("Connecting to knowledge services...")
-        all_tools = await MCPToolFactory.get_tools(status_callback=self.reporter.report)
+        from src.services.crew.tools.proxies import get_proxy_tools
+
+        all_tools = get_proxy_tools(self.reporter.report)
+        search_documents_proxy, get_pages_proxy, get_chunks_proxy = all_tools
 
         mode = self.state.mode
-        tools_for_task = self._get_tools_for_mode(mode, all_tools)
+        tools_for_task = []
+
+        if mode == "auto":
+            tools_for_task = [
+                search_documents_proxy,
+                get_pages_proxy,
+                get_chunks_proxy,
+            ]
+        elif mode == "search":
+            tools_for_task = [search_documents_proxy]
+        elif mode == "lookup":
+            tools_for_task = [get_pages_proxy, get_chunks_proxy]
+        elif mode == "chat":
+            tools_for_task = []
+
         self.reporter.report_tools(tools_for_task)
 
         # Prepare context and history
