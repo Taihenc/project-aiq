@@ -12,9 +12,13 @@ from src.services.crew.status_reporter import FlowStatusReporter
 
 
 class SearchCrewFlow(Flow[FlowState]):
-    def __init__(self, step_callback=None):
+    def __init__(
+        self, step_callback=None, llm_callbacks=None, stream_llm: bool = False
+    ):
         super().__init__()
         self.reporter = FlowStatusReporter(step_callback)
+        self.llm_callbacks = llm_callbacks
+        self.stream_llm = stream_llm
 
     def _format_context(self) -> str:
         """Helper to format structured context for LLM prompts."""
@@ -101,7 +105,11 @@ class SearchCrewFlow(Flow[FlowState]):
 
         # Create agent
         self.reporter.report("Initializing AI agent...")
-        agent = create_search_agent(step_callback=self.reporter.report)
+        agent = create_search_agent(
+            step_callback=self.reporter.report,
+            llm_callbacks=self.llm_callbacks,
+            stream_llm=self.stream_llm,
+        )
         self.reporter.report(f'Agent ready — role: "{agent.role}"')
 
         self.reporter.report(

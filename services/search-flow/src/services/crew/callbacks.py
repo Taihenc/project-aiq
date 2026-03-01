@@ -1,5 +1,39 @@
 import json
 from src.config.settings import settings
+import litellm
+from litellm.integrations.custom_logger import CustomLogger
+
+
+class TokenStreamingHandler(CustomLogger):
+    """
+    LiteLLM CustomLogger that intercepts stream chunks and pushes them to a sync callback.
+    """
+
+    def __init__(self, token_callback):
+        self.token_callback = token_callback
+        super().__init__()
+
+    async def async_log_stream_event(self, kwargs, response_obj, start_time, end_time):
+        self._process_chunk(kwargs)
+
+    def log_stream_event(self, kwargs, response_obj, start_time, end_time):
+        self._process_chunk(kwargs)
+
+    def _process_chunk(self, kwargs):
+        if self.token_callback and "chunk" in kwargs:
+            chunk = kwargs["chunk"]
+            try:
+                # Most chunks have text in choices[0].delta.content
+                if hasattr(chunk, "choices") and chunk.choices:
+                    delta = chunk.choices[0].delta
+                    if hasattr(delta, "content") and delta.content:
+                        self.token_callback(delta.content)
+            except Exception:
+                pass
+
+    def cleanup(self):
+        if hasattr(litellm, "success_callback") and self in litellm.success_callback:
+            litellm.success_callback.remove(self)
 
 
 def create_agent_step_callback(report_func):

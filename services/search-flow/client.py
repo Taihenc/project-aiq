@@ -80,6 +80,7 @@ class SearchClient:
         self.attachments: List[Dict[str, Any]] = []  # List of FileRef objects
         self.session = requests.Session()
         self.mode = "auto"
+        self.use_stream = True
         self.metadata = DEFAULT_METADATA
 
     def display_attachments(
@@ -346,7 +347,7 @@ class SearchClient:
         console.print(
             Panel.fit(
                 "[bold cyan]AINGO SEARCH FLOW[/bold cyan]\n[dim]AI-Powered Intelligence Engine[/dim]\n"
-                "[dim]Commands: /chat, /search, /lookup (get pages/chunks), /auto, /reset[/dim]",
+                "[dim]Commands: /chat, /search, /lookup, /auto, /stream [on/off], /reset[/dim]",
                 subtitle="Type 'exit' to quit",
                 border_style="cyan",
                 padding=(1, 2),
@@ -399,6 +400,16 @@ class SearchClient:
                 rprint("[green]Mode set to AUTO[/green]")
                 continue
 
+            if query.startswith("/stream"):
+                parts = query.split()
+                if len(parts) > 1 and parts[1].lower() == "off":
+                    self.use_stream = False
+                    rprint("[yellow]Streaming DISABLED[/yellow]")
+                else:
+                    self.use_stream = True
+                    rprint("[green]Streaming ENABLED[/green]")
+                continue
+
             if query.startswith("/metadata "):
                 parts = query.split(" ", 1)
                 if len(parts) > 1:
@@ -433,27 +444,83 @@ class SearchClient:
             }
 
             try:
-                with console.status(
-                    "[bold cyan]Processing...[/bold cyan]", spinner="bouncingBar"
-                ):
-                    response = self.session.post(API_URL, json=payload, timeout=120)
-                    response.raise_for_status()
-                    api_response = response.json()
-                    data = api_response.get("data", {})
+                if not self.use_stream:
+                    # Sync Mode
+                    with console.status(
+                        "[bold cyan]Processing (Sync)...[/bold cyan]",
+                        spinner="bouncingBar",
+                    ):
+                        response = self.session.post(API_URL, json=payload, timeout=120)
+                        response.raise_for_status()
+                        api_response = response.json()
+                        data = api_response.get("data", {})
 
-                # 3. Output Phase
-                response_text = data.get("response", "")
-                citations = data.get("citations") or []
+                    response_text = data.get("response", "")
+                    citations = data.get("citations") or []
 
-                rprint(
-                    Panel(
-                        Markdown(response_text),
-                        title="[bold cyan]AGENT RESPONSE[/bold cyan]",
-                        title_align="left",
-                        border_style="cyan",
-                        padding=(1, 2),
+                    rprint(
+                        Panel(
+                            Markdown(response_text),
+                            title="[bold cyan]AGENT RESPONSE[/bold cyan]",
+                            title_align="left",
+                            border_style="cyan",
+                            padding=(1, 2),
+                        )
                     )
-                )
+
+                else:
+                    # Stream Mode: status lines live → tokens stream live → final Markdown Panel
+                    stream_url = API_URL + "/stream"
+                    response_text = ""
+                    citations = []
+                    first_token = True
+                    streaming_started = False
+
+                    with self.session.post(
+                        stream_url, json=payload, timeout=120, stream=True
+                    ) as response:
+                        response.raise_for_status()
+                        for line in response.iter_lines():
+                            if line:
+                                try:
+                                    event = json.loads(line.decode("utf-8"))
+                                    event_type = event.get("type")
+                                    content = event.get("content", "")
+
+                                    if event_type == "status":
+                                        if not streaming_started:
+                                            rprint(
+                                                f"[dim italic]>>> {content}[/dim italic]"
+                                            )
+                                    elif event_type == "token":
+                                        if first_token:
+                                            sys.stdout.write("\n")
+                                            first_token = False
+                                            streaming_started = True
+                                        sys.stdout.write(content)
+                                        sys.stdout.flush()
+                                        response_text += content
+                                    elif event_type == "result":
+                                        citations = content.get("citations") or []
+                                        final_text = (
+                                            content.get("response", "") or response_text
+                                        )
+                                        if final_text:
+                                            sys.stdout.write("\n")
+                                            sys.stdout.flush()
+                                            console.print(
+                                                Panel(
+                                                    Markdown(final_text),
+                                                    border_style="cyan",
+                                                    padding=(1, 2),
+                                                )
+                                            )
+                                        response_text = final_text
+                                    elif event_type == "error":
+                                        rprint(f"\n[red]Error: {content}[/red]")
+                                except json.JSONDecodeError:
+                                    pass
+                    rprint("")
 
                 # Update History
                 if response_text:
@@ -471,15 +538,9 @@ class SearchClient:
                         self.select_attachments([])
 
             except requests.exceptions.ConnectionError:
-                console.print(
-                    f"[bold red]FATAL: Could not connect to {API_URL}.[/bold red]"
-                )
+                console.print(f"[bold red]FATAL: Could not connect to API.[/bold red]")
             except Exception as e:
                 console.print(f"[bold red]ERROR: {e}[/bold red]")
-                if "response" in locals():
-                    console.print(
-                        Panel(response.text, title="Debug Info", border_style="red")
-                    )
 
 
 if __name__ == "__main__":

@@ -20,8 +20,6 @@ from langfuse import observe
 class SearchFlowService:
     @observe(name="search_flow", as_type="generation")
     async def execute_workflow(self, request: SearchChatRequest) -> FlowResponse:
-        # ... (stays same as before but uses execute_workflow_stream internally or just remains as is)
-        # For simplicity, keeping existing method but adding stream below
         flow = SearchCrewFlow()
         enriched_context_str = await self._enrich_attachments(request.attachments)
 
@@ -43,57 +41,120 @@ class SearchFlowService:
 
     @observe(name="search_flow_stream", as_type="generation")
     async def execute_workflow_stream(self, request: SearchChatRequest):
-        import asyncio
         import json
+        import queue
         from src.services.crew.callbacks import create_agent_step_callback
 
-        event_queue = asyncio.Queue()
+        event_queue: queue.Queue = queue.Queue()
 
         def report_status(msg):
-            event_queue.put_nowait({"type": "status", "content": msg})
+            event_queue.put({"type": "status", "content": msg})
 
         step_callback = create_agent_step_callback(report_status)
-        flow = SearchCrewFlow(step_callback=step_callback)
-        enriched_context_str = await self._enrich_attachments(request.attachments)
+        # stream_llm=True so CrewAI fires LLMStreamChunkEvent per token
+        flow = SearchCrewFlow(step_callback=step_callback, stream_llm=True)
 
+        enriched_context_str = await self._enrich_attachments(request.attachments)
         flow.state.query = request.query
         flow.state.context = enriched_context_str
         flow.state.history = request.history
         flow.state.mode = request.mode
         flow.state.metadata = request.metadata
 
-        async def run_flow():
+        def run_flow_sync():
+            from crewai.events import crewai_event_bus
+            from crewai.events.types.llm_events import LLMStreamChunkEvent
+
+            # State machine: strips JSON wrapper {"response": "...", "citations": ...}
+            # Properly unescapes JSON sequences so token output is clean text.
+            state = {"buf": "", "in_response": False, "done": False}
+
+            def _handle_token(raw: str):
+                if state["done"]:
+                    return
+                state["buf"] += raw
+                buf = state["buf"]
+
+                if not state["in_response"]:
+                    marker = '"response":'
+                    idx = buf.find(marker)
+                    if idx != -1:
+                        after = buf[idx + len(marker) :].lstrip()
+                        if after.startswith('"'):
+                            state["in_response"] = True
+                            state["buf"] = after[1:]  # skip opening quote
+                    return
+
+                # Parse response string, handling JSON escape sequences
+                output = []
+                i = 0
+                while i < len(buf):
+                    c = buf[i]
+                    if c == "\\" and i + 1 < len(buf):
+                        nxt = buf[i + 1]
+                        escapes = {
+                            "n": "\n",
+                            "t": "\t",
+                            "r": "\r",
+                            '"': '"',
+                            "\\": "\\",
+                        }
+                        output.append(escapes.get(nxt, nxt))
+                        i += 2
+                    elif c == "\\" and i + 1 == len(buf):
+                        break  # incomplete escape at end — keep in buffer
+                    elif c == '"':
+                        state["done"] = True
+                        state["buf"] = buf[i + 1 :]
+                        break
+                    else:
+                        output.append(c)
+                        i += 1
+
+                if not state["done"]:
+                    state["buf"] = buf[i:]
+
+                text = "".join(output)
+                if text:
+                    event_queue.put({"type": "token", "content": text})
+
             try:
-                await flow.kickoff_async()
+                with crewai_event_bus.scoped_handlers():
+
+                    @crewai_event_bus.on(LLMStreamChunkEvent)
+                    def _on_chunk(source, event: LLMStreamChunkEvent) -> None:
+                        if event.chunk:
+                            _handle_token(event.chunk)
+
+                    flow.kickoff()
 
                 if flow.state.final_response:
-                    await event_queue.put(
+                    event_queue.put(
                         {
                             "type": "result",
                             "content": flow.state.final_response.model_dump(),
                         }
                     )
                 else:
-                    await event_queue.put(
-                        {
-                            "type": "error",
-                            "content": "Flow finished but no final response was generated.",
-                        }
+                    event_queue.put(
+                        {"type": "error", "content": "No response generated."}
                     )
-
             except Exception as e:
-                print(f"❌ Async Flow Error: {e}")
-                await event_queue.put({"type": "error", "content": str(e)})
+                print(f"❌ Threaded Flow Error: {e}")
+                event_queue.put({"type": "error", "content": str(e)})
             finally:
-                await event_queue.put(None)
+                event_queue.put(None)
 
-        asyncio.create_task(run_flow())
+        asyncio.create_task(asyncio.to_thread(run_flow_sync))
 
         while True:
-            event = await event_queue.get()
-            if event is None:
-                break
-            yield json.dumps(event) + "\n"
+            try:
+                event = event_queue.get_nowait()
+                if event is None:
+                    break
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+            except queue.Empty:
+                await asyncio.sleep(0.05)
 
     async def _enrich_attachments(self, attachments: List[FileRef]) -> str:
         """
