@@ -26,11 +26,14 @@ import {
 } from 'lucide-react';
 import { useCommandStore } from '@/lib/store/command-store';
 import { cn } from '@/lib/utils';
-import type { SidebarProps } from '@/types';
+import type {
+  SidebarProps,
+  ChatHistoryItem as ChatHistoryItemType,
+} from '@/types';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useChatStore } from '@/lib/store/chat-store';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +53,85 @@ import {
 import { toast } from 'sonner';
 import { MoreVertical } from 'lucide-react';
 
+// ── Memoized chat history item ──────────────────────────────────────────────
+// Extracted so that only the two items that gain/lose `isActive` re-render
+// when the current chat changes, instead of the entire list.
+const ChatHistoryItem = memo(function ChatHistoryItem({
+  chat,
+  isActive,
+  onSelect,
+  onDelete,
+}: {
+  chat: ChatHistoryItemType;
+  isActive: boolean;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const handleSelect = useCallback(
+    () => onSelect(chat.id),
+    [onSelect, chat.id],
+  );
+  const handleDeleteRequest = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDelete(chat.id);
+    },
+    [onDelete, chat.id],
+  );
+
+  return (
+    <motion.li
+      key={chat.id}
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="group/menu-item relative"
+    >
+      <SidebarMenuButton
+        tooltip={chat.title}
+        isActive={isActive}
+        onClick={handleSelect}
+        className={cn(
+          'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent bg-transparent px-4 py-3 text-left text-sm transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
+          isActive &&
+            'border-[var(--brand-citation-border)] bg-brand-new-chat-bg text-primary-dark',
+        )}
+      >
+        <MessageSquare className="h-4 w-4 text-[var(--brand-chat-icon)]" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="text-primary-medium truncate font-medium">
+            {chat.title}
+          </span>
+          <span className="text-xs text-[var(--brand-chat-time)]">
+            {chat.timestamp}
+          </span>
+        </div>
+      </SidebarMenuButton>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <SidebarMenuAction
+            showOnHover
+            className="text-[var(--brand-action-menu)] hover:text-[var(--brand-action-menu-hover)]"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </SidebarMenuAction>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem
+            className="text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/20 cursor-pointer"
+            onClick={handleDeleteRequest}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            <span>Delete</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </motion.li>
+  );
+});
+
 export function Sidebar({
   chatHistory = [],
   currentChatId,
@@ -65,6 +147,15 @@ export function Sidebar({
   const hasMoreHistory = useChatStore((s) => s.hasMoreHistory);
   const isLoadingMoreHistory = useChatStore((s) => s.isLoadingMoreHistory);
   const fetchMoreHistory = useChatStore((s) => s.fetchMoreHistory);
+
+  const handleChatSelect = useCallback(
+    (id: string) => onChatSelect?.(id),
+    [onChatSelect],
+  );
+  const handleChatDeleteRequest = useCallback(
+    (id: string) => setChatToDelete(id),
+    [],
+  );
 
   // Infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -201,63 +292,15 @@ export function Sidebar({
                         </button>
                       </div>
                     ) : (
-                      displayHistory.map((chat) => {
-                        const isActive = currentChatId === chat.id;
-                        return (
-                          <motion.li
-                            key={chat.id}
-                            layout
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.2 }}
-                            className="group/menu-item relative"
-                          >
-                            <SidebarMenuButton
-                              tooltip={chat.title}
-                              isActive={isActive}
-                              onClick={() => onChatSelect?.(chat.id)}
-                              className={cn(
-                                'rounded-card relative flex h-12 w-full items-center justify-start gap-3 border border-transparent bg-transparent px-4 py-3 text-left text-sm transition-all hover:border-[var(--brand-blockquote-border)] hover:bg-brand-new-chat-hover',
-                                isActive &&
-                                  'border-[var(--brand-citation-border)] bg-brand-new-chat-bg text-primary-dark',
-                              )}
-                            >
-                              <MessageSquare className="h-4 w-4 text-[var(--brand-chat-icon)]" />
-                              <div className="flex min-w-0 flex-1 flex-col">
-                                <span className="text-primary-medium truncate font-medium">
-                                  {chat.title}
-                                </span>
-                                <span className="text-xs text-[var(--brand-chat-time)]">
-                                  {chat.timestamp}
-                                </span>
-                              </div>
-                            </SidebarMenuButton>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <SidebarMenuAction
-                                  showOnHover
-                                  className="text-[var(--brand-action-menu)] hover:text-[var(--brand-action-menu-hover)]"
-                                >
-                                  <MoreVertical className="h-4 w-4" />
-                                </SidebarMenuAction>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem
-                                  className="text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/20 cursor-pointer"
-                                  onClick={(_e) => {
-                                    _e.stopPropagation();
-                                    setChatToDelete(chat.id);
-                                  }}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  <span>Delete</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </motion.li>
-                        );
-                      })
+                      displayHistory.map((chat) => (
+                        <ChatHistoryItem
+                          key={chat.id}
+                          chat={chat}
+                          isActive={currentChatId === chat.id}
+                          onSelect={handleChatSelect}
+                          onDelete={handleChatDeleteRequest}
+                        />
+                      ))
                     )}
                   </AnimatePresence>
                   {/* Infinite scroll sentinel */}

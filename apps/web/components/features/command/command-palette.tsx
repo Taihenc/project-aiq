@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
@@ -38,7 +38,9 @@ export function CommandPalette() {
   const router = useRouter();
   const { setTheme } = useTheme();
   const { logout } = useAuth();
-  const history = useChatStore((s) => s.history);
+  // Only subscribe to history while the dialog is open — avoids re-renders on
+  // every chat store update when the palette is closed.
+  const history = useChatStore((s) => (open ? s.history : null)) ?? [];
 
   const [pages, setPages] = useState<Page[]>(['root']);
   const [inputValue, setInputValue] = useState('');
@@ -90,10 +92,13 @@ export function CommandPalette() {
     setTimeout(() => inputRef.current?.focus(), 0);
   }, []);
 
-  function run(action: () => void) {
-    handleOpenChange(false);
-    setTimeout(action, 50);
-  }
+  const run = useCallback(
+    (action: () => void) => {
+      handleOpenChange(false);
+      setTimeout(action, 50);
+    },
+    [handleOpenChange],
+  );
 
   const placeholder =
     currentPage === 'chats'
