@@ -1,11 +1,16 @@
 import asyncio
 import json as _json
-from typing import Optional, Callable
+from typing import Any, Optional, Callable
+from abc import ABC
 from mcp import ClientSession
 from mcp.client.sse import sse_client
+from pydantic import BaseModel as PydanticBaseModel, Field, create_model
+from crewai.tools import BaseTool
 from src.config.settings import settings
 
+# ──────────────────────────────────────────────
 # Friendly display config for known tools
+# ──────────────────────────────────────────────
 _TOOL_CONFIG = {
     "search_documents": {
         "start": "Searching knowledge base",
@@ -29,6 +34,10 @@ _TOOL_CONFIG = {
         "result_key": "chunks",
     },
 }
+
+# ──────────────────────────────────────────────
+# Core MCP execution
+# ──────────────────────────────────────────────
 
 
 async def execute_mcp_operation(
@@ -126,3 +135,119 @@ def run_mcp_sync(coro):
         return asyncio.run(coro)
     except RuntimeError:
         return asyncio.run(coro)
+
+
+# ──────────────────────────────────────────────
+# Dynamic MCP Tool Discovery & Creation
+# ──────────────────────────────────────────────
+
+_JSON_TYPE_MAP = {
+    "string": str,
+    "integer": int,
+    "number": float,
+    "boolean": bool,
+    "array": list,
+    "object": dict,
+}
+
+
+def _json_schema_to_pydantic(name: str, schema: dict) -> type[PydanticBaseModel]:
+    """Convert a JSON Schema 'properties' block into a dynamic Pydantic model."""
+    properties = schema.get("properties", {})
+    required = set(schema.get("required", []))
+
+    fields: dict[str, Any] = {}
+    for field_name, prop in properties.items():
+        python_type = _JSON_TYPE_MAP.get(prop.get("type", "string"), str)
+        description = prop.get("description", "")
+
+        if field_name in required:
+            fields[field_name] = (python_type, Field(description=description))
+        else:
+            fields[field_name] = (
+                Optional[python_type],
+                Field(default=None, description=description),
+            )
+
+    model_name = f"{name.title().replace('_', '')}Input"
+    return create_model(model_name, **fields)
+
+
+async def fetch_mcp_schemas() -> list[dict]:
+    """Connect to MCP server and retrieve all tool schemas."""
+    async with sse_client(settings.mcp_server_url) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            tools_result = await session.list_tools()
+            return [
+                {
+                    "name": tool.name,
+                    "description": tool.description or f"Execute {tool.name}",
+                    "input_schema": tool.inputSchema,
+                }
+                for tool in tools_result.tools
+            ]
+
+
+async def build_mcp_tools(
+    status_callback: Optional[Callable] = None,
+    overrides: Optional[dict[str, Callable]] = None,
+) -> dict[str, BaseTool]:
+    """
+    Dynamically create CrewAI tools from MCP server schemas.
+
+    Args:
+        status_callback: Optional callback for reporting tool execution status.
+        overrides: Dict of {mcp_tool_name: override_fn}.
+                   override_fn receives (params: dict) and must return a modified dict.
+                   Use this to inject/transform params or run pre-call logic.
+
+    Returns:
+        Dict of {tool_name: BaseTool instance} for easy access by name.
+    """
+    overrides = overrides or {}
+
+    try:
+        schemas = await fetch_mcp_schemas()
+    except Exception as e:
+        print(f"⚠️  Failed to fetch MCP schemas: {e}")
+        return {}
+
+    tools: dict[str, BaseTool] = {}
+
+    for schema in schemas:
+        tool_name = schema["name"]
+        description = schema["description"]
+        input_schema = schema.get("input_schema", {})
+
+        # Build Pydantic model from JSON Schema
+        args_model = _json_schema_to_pydantic(tool_name, input_schema)
+
+        # Capture variables for the closure
+        _tool_name = tool_name
+        _description = description
+        _override_fn = overrides.get(tool_name)
+        _status_cb = status_callback
+
+        # Dynamically create a BaseTool subclass
+        class DynamicTool(BaseTool):
+            name: str = f"proxy_{_tool_name}"
+            description: str = _description
+            args_schema: type[PydanticBaseModel] = args_model
+
+            # Store in private attrs to avoid Pydantic field issues
+            _mcp_name: str = _tool_name
+            _override: Optional[Callable] = _override_fn
+            _callback: Optional[Callable] = _status_cb
+
+            def _run(self, **kwargs) -> str:
+                params = dict(kwargs)
+                if self._override:
+                    params = self._override(params)
+                return run_mcp_sync(
+                    execute_mcp_operation(self._mcp_name, params, self._callback)
+                )
+
+        tools[tool_name] = DynamicTool()
+
+    return tools
