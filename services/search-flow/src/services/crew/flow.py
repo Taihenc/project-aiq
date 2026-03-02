@@ -12,9 +12,7 @@ from src.services.crew.status_reporter import FlowStatusReporter
 
 
 class SearchCrewFlow(Flow[FlowState]):
-    def __init__(
-        self, step_callback=None, llm_callbacks=None, stream_llm: bool = False
-    ):
+    def __init__(self, step_callback=None, llm_callbacks=None, stream_llm: bool = True):
         super().__init__()
         self.reporter = FlowStatusReporter(step_callback)
         self.llm_callbacks = llm_callbacks
@@ -126,21 +124,18 @@ class SearchCrewFlow(Flow[FlowState]):
             tools=tools_for_task,
         )
 
+        from src.config.settings import settings
+
         crew = Crew(
             agents=[agent],
             tasks=[task],
-            verbose=True,
-            tracing=True,
+            verbose=settings.crew_verbose,
+            tracing=settings.crew_tracing,
             task_callback=self.reporter.report_task_completion,
             step_callback=self.reporter.report,
+            stream=self.stream_llm,
         )
 
         # Async execution
         self.reporter.report(f'Sending query "{query_preview}"')
-        result = await crew.kickoff_async()
-
-        # CrewOutput pydantic access
-        self.state.final_response = result.pydantic
-
-        self.reporter.report("Response ready!")
-        print(f"✅ Response: {self.state.final_response.response[:100]}...")
+        return await crew.kickoff_async()
