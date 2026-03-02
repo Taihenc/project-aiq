@@ -1,6 +1,6 @@
 from crewai import Task, Agent
-from src.config.prompts import TaskPrompts, MODE_PROMPTS
-from src.models.state import FlowResponse
+from src.config.prompts import TaskPrompts, MODE_PROMPTS, HyDEPrompts
+from src.models.state import FlowResponse, HyDEResponse
 
 
 def create_task(
@@ -42,4 +42,15 @@ def create_task(
         agent=agent,
         tools=tools,
         output_pydantic=FlowResponse,
+    )
+
+
+def create_hyde_task(agent: Agent, query: str) -> Task:
+
+    return Task(
+        name="HyDE Generation Task",
+        description=HyDEPrompts.TASK_DESCRIPTION.format(query=query),
+        expected_output=HyDEPrompts.TASK_EXPECTED_OUTPUT,
+        agent=agent,
+        output_pydantic=HyDEResponse,
     )

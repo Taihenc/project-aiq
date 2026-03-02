@@ -12,6 +12,18 @@ class FlowResponse(BaseModel):
     )
 
 
+class HyDEResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(
+        ...,
+        description="A short, descriptive title for the hypothetical document snippet.",
+    )
+    query: str = Field(
+        ...,
+        description="The generated hypothetical document snippet answering the original query.",
+    )
+
+
 class FlowState(BaseModel):
     # Inputs
     query: str = ""

@@ -7,6 +7,7 @@ from mcp.client.sse import sse_client
 from pydantic import BaseModel as PydanticBaseModel, Field, create_model
 from crewai.tools import BaseTool
 from src.config.settings import settings
+from loguru import logger
 
 # ──────────────────────────────────────────────
 # Friendly display config for known tools
@@ -210,7 +211,7 @@ async def build_mcp_tools(
     try:
         schemas = await fetch_mcp_schemas()
     except Exception as e:
-        print(f"⚠️  Failed to fetch MCP schemas: {e}")
+        logger.error(f"Failed to fetch MCP schemas: {e}")
         return {}
 
     tools: dict[str, BaseTool] = {}
@@ -243,7 +244,8 @@ async def build_mcp_tools(
             def _run(self, **kwargs) -> str:
                 params = dict(kwargs)
                 if self._override:
-                    params = self._override(params)
+                    # Pass the status callback to the override so it can report progress
+                    params = self._override(params, self._callback)
                 return run_mcp_sync(
                     execute_mcp_operation(self._mcp_name, params, self._callback)
                 )

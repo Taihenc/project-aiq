@@ -37,6 +37,29 @@ class AgentPrompts:
 
 
 @dataclass
+class HyDEPrompts:
+    AGENT_ROLE = "SCB TechX Domain Expert"
+    AGENT_GOAL = "Provide factual, concise hypothetical answers to search queries about SCB TechX."
+    AGENT_BACKSTORY = (
+        "You are an expert at answering questions about SCB TechX. "
+        "Your expertise lies in generating realistic, document-style context blocks. "
+        "You do not use conversational filler; you only provide the expected informational text "
+        "that would likely be found in an official document addressing the topic."
+    )
+    TASK_DESCRIPTION = f"""
+{ORGANIZATION_CONTEXT}
+
+# INSTRUCTION
+Analyze the User Query and generate a hypothetical document snippet answering it.
+Think about what keywords, facts, and structure a real document about this would have.
+
+# QUERY
+'{{query}}'
+"""
+    TASK_EXPECTED_OUTPUT = "A structured JSON object with a `title` and `query` field. The `query` should contain a concise, factual, and direct informational text block (no introductions or conversational filler)."
+
+
+@dataclass
 class TaskPrompts:
     SYSTEM_CAPABILITIES = """
 ## SYSTEM CAPABILITIES (Modes)
