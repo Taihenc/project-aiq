@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
-
-const DEBOUNCE_MS = 300;
+import { AUTO_SCROLL_DEBOUNCE_MS } from '@/constants/chat';
 
 /**
  * Custom hook to auto-scroll to bottom with debounce + smooth scroll.
@@ -71,7 +70,7 @@ export function useAutoScroll<T>(dependency: T, enabled: boolean = true) {
         requestAnimationFrame(() => {
           scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
         });
-      }, DEBOUNCE_MS);
+      }, AUTO_SCROLL_DEBOUNCE_MS);
     }
   }, [dependency, enabled]);
 

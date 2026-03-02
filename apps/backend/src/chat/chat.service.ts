@@ -16,6 +16,11 @@ import {
 } from './dto/chat-response.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatHistoryService } from '../chat-history/chat-history.service';
+import {
+  SUMMARIZE_ENABLED,
+  SUMMARIZE_TRIGGER_COUNT,
+  SUMMARIZE_TEMPERATURE,
+} from '../constants/chat.constants';
 
 @Injectable()
 export class ChatService {
@@ -562,7 +567,7 @@ export class ChatService {
 
     this.logger.debug(`Unsummarized message count: ${unsummarized.length}`);
 
-    if (unsummarized.length >= 6) {
+    if (SUMMARIZE_ENABLED && unsummarized.length >= SUMMARIZE_TRIGGER_COUNT) {
       this.summarizeAndSaveSession(
         sessionId,
         unsummarized,
@@ -629,7 +634,7 @@ export class ChatService {
           { role: 'user', content: prompt },
         ],
         config: {
-          temperature: 0.3,
+          temperature: SUMMARIZE_TEMPERATURE,
         },
       };
 

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { historyApi } from '@/lib/api/history';
 import { formatProgressiveTime } from '@/lib/utils/date-formatter';
-import { PAGINATION } from '@/lib/config/pagination';
+import { PAGINATION } from '@/constants/pagination';
 import type { ChatStore } from '@/types';
 
 export const useChatStore = create<ChatStore>((set, get) => ({

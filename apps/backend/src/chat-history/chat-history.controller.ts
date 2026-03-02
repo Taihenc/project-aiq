@@ -10,6 +10,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ChatHistoryService } from './chat-history.service';
+import { DEFAULT_CONTEXT_LIMIT } from '../constants/chat.constants';
 import {
   ApiTags,
   ApiOperation,
@@ -61,7 +62,7 @@ export class ChatHistoryController {
     @Query('limit') limit: number,
     @Query('tokenLimit') tokenLimit: number,
   ) {
-    const limitNum = limit ? parseInt(limit.toString()) : 20;
+    const limitNum = limit ? parseInt(limit.toString()) : DEFAULT_CONTEXT_LIMIT;
     const tokenLimitNum = tokenLimit
       ? parseInt(tokenLimit.toString())
       : undefined;

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PassportModule } from '@nestjs/passport';
+import { JWT_FALLBACK_SECRET, JWT_ACCESS_TOKEN_EXPIRY } from '../constants/auth.constants';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthController } from './auth.controller';
@@ -13,8 +14,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'dev_secret_key',
-        signOptions: { expiresIn: '60m' },
+        secret: configService.get<string>('JWT_SECRET') || JWT_FALLBACK_SECRET,
+        signOptions: { expiresIn: JWT_ACCESS_TOKEN_EXPIRY },
       }),
       inject: [ConfigService],
     }),

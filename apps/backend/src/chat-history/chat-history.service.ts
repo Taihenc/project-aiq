@@ -5,6 +5,11 @@ import { chatSessions, chatMessages, users } from '../database/schema';
 import { eq, desc, and, lt } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { encode } from 'gpt-tokenizer';
+import {
+  DEFAULT_HISTORY_PAGE_LIMIT,
+  DEFAULT_MESSAGES_PAGE_LIMIT,
+  DEFAULT_SESSION_TITLE,
+} from '../constants/chat.constants';
 
 @Injectable()
 export class ChatHistoryService {
@@ -12,7 +17,7 @@ export class ChatHistoryService {
 
   constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) {}
 
-  async getHistory(userId: string, limit: number = 20, cursor?: string) {
+  async getHistory(userId: string, limit: number = DEFAULT_HISTORY_PAGE_LIMIT, cursor?: string) {
     this.logger.debug(
       `Fetching history for user: ${userId}, limit: ${limit}, cursor: ${cursor}`,
     );
@@ -43,7 +48,7 @@ export class ChatHistoryService {
   async getSession(
     sessionId: string,
     userId: string,
-    limit: number = 30,
+    limit: number = DEFAULT_MESSAGES_PAGE_LIMIT,
     before?: string,
   ) {
     this.logger.debug(
@@ -89,7 +94,7 @@ export class ChatHistoryService {
     return { session, messages, nextCursor, hasMore };
   }
 
-  async createSession(userId: string, title: string = 'New Chat') {
+  async createSession(userId: string, title: string = DEFAULT_SESSION_TITLE) {
     const id = uuidv4();
     this.logger.log(`Creating new session: ${id} for user: ${userId}`);
     this.db

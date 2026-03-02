@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, LogLevel } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { DEFAULT_PORT, SWAGGER_PATH, API_VERSION, CORS_ORIGINS } from './constants/app.constants';
 
 async function bootstrap() {
   const logLevelsEnv = process.env.LOG_LEVELS;
@@ -21,29 +22,25 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('AINGO Backend API')
     .setDescription('The core API for the AINGO platform')
-    .setVersion('1.0')
+    .setVersion(API_VERSION)
     .addTag('auth', 'User Authentication')
     .addTag('chat', 'Chat and AI completions')
     .addTag('history', 'Conversation history management')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup(SWAGGER_PATH, app, document);
 
   // Enable CORS for frontend
   app.enableCors({
-    origin: [
-      'http://localhost:3001', // Local Next.js dev server
-      'http://localhost:8501', // Docker web service
-      'http://web:8501', // Docker internal network
-    ],
+    origin: CORS_ORIGINS,
     credentials: true,
   });
 
-  const port = Number(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT ?? DEFAULT_PORT);
   await app.listen(port, '0.0.0.0');
   logger.log(`Backend service is running on http://localhost:${port}`);
-  logger.log(`Swagger documentation available at http://localhost:${port}/api`);
+  logger.log(`Swagger documentation available at http://localhost:${port}/${SWAGGER_PATH}`);
   logger.log(`Active log levels: ${logLevels.join(', ')}`);
 }
 bootstrap();

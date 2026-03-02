@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UIMessage, UseChatMessagesOptions, BackendMessage, FileRef } from '@/types';
-import { PAGINATION } from '@/lib/config/pagination';
+import { PAGINATION } from '@/constants/pagination';
+import { CHAT_TEMPERATURE, CHAT_MAX_TOKENS } from '@/constants/chat';
 import { streamChatCompletions } from '@/lib/api/chat';
 import { historyApi } from '@/lib/api/history';
 import { useChatStore } from '@/lib/store/chat-store';
@@ -186,8 +187,8 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       const stream = await streamChatCompletions(apiMessages, {
         sessionId: currentSessionId,
         requestSource: 'frontend',
-        temperature: 0.7,
-        maxTokens: 1000,
+        temperature: CHAT_TEMPERATURE,
+        maxTokens: CHAT_MAX_TOKENS,
         attachments,
       });
 

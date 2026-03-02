@@ -13,9 +13,7 @@ import { cn } from '@/lib/utils';
 import type { FileRef, ChunkMetadata } from '@/types';
 import { FileExtBadge } from './attachment-pill';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-export const PILL_VISIBLE_DEFAULT = 3;
+import { PILL_VISIBLE_DEFAULT } from '@/constants/chat';
 
 // ── SentAttachmentsPillRow ────────────────────────────────────────────────────
 

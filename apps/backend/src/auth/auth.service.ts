@@ -12,6 +12,12 @@ import * as bcrypt from 'bcrypt';
 import { AuthUser } from './auth.types';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  JWT_ACCESS_TOKEN_EXPIRY,
+  JWT_REFRESH_TOKEN_EXPIRY,
+  BCRYPT_SALT_ROUNDS,
+  AUTH_PROVIDER_LOCAL,
+} from '../constants/auth.constants';
 
 @Injectable()
 export class AuthService {
@@ -50,14 +56,14 @@ export class AuthService {
       authProvider: user.authProvider,
     };
 
-    // Access token (1 hour)
+    // Access token
     const access_token = this.jwtService.sign(payload, {
-      expiresIn: '1h',
+      expiresIn: JWT_ACCESS_TOKEN_EXPIRY,
     });
 
-    // Refresh token (7 days)
+    // Refresh token
     const refresh_token = this.jwtService.sign(payload, {
-      expiresIn: '7d',
+      expiresIn: JWT_REFRESH_TOKEN_EXPIRY,
     });
 
     // Save hashed refresh token to database
@@ -104,7 +110,7 @@ export class AuthService {
       };
 
       const access_token = this.jwtService.sign(newPayload, {
-        expiresIn: '1h',
+        expiresIn: JWT_ACCESS_TOKEN_EXPIRY,
       });
 
       return {
@@ -142,7 +148,7 @@ export class AuthService {
       throw new Error('User already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(pass, 10);
+    const hashedPassword = await bcrypt.hash(pass, BCRYPT_SALT_ROUNDS);
     const id = uuidv4();
 
     this.logger.verbose(`Inserting new user record for ${email}`);
@@ -153,7 +159,7 @@ export class AuthService {
         email,
         password: hashedPassword,
         displayName: displayName || email.split('@')[0],
-        authProvider: 'local',
+        authProvider: AUTH_PROVIDER_LOCAL,
       })
       .run();
 
