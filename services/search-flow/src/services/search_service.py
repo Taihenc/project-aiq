@@ -10,6 +10,8 @@ from src.dtos.embedding import (
     FileReferenceRequest,
     FileReferenceResponse,
 )
+import json
+from src.services.crew.callbacks import create_agent_step_callback
 from src.services.crew.flow import SearchCrewFlow
 import httpx
 from src.config.settings import settings
@@ -20,9 +22,7 @@ from langfuse import observe
 class SearchFlowService:
     @observe(name="search_flow", as_type="generation")
     async def execute_workflow(self, request: SearchChatRequest) -> FlowResponse:
-        # ... (stays same as before but uses execute_workflow_stream internally or just remains as is)
-        # For simplicity, keeping existing method but adding stream below
-        flow = SearchCrewFlow()
+        flow = SearchCrewFlow(stream_llm=False)
         enriched_context_str = await self._enrich_attachments(request.attachments)
 
         inputs = {
@@ -31,25 +31,26 @@ class SearchFlowService:
             "history": request.history,
             "mode": request.mode,
             "metadata": request.metadata,
+            "title": request.title,
         }
         try:
-            await flow.kickoff_async(inputs=inputs)
+            result = await flow.kickoff_async(inputs=inputs)
+            if result and hasattr(result, "pydantic"):
+                return result.pydantic
+            elif result and hasattr(result, "json_dict"):
+                return FlowResponse(**result.json_dict)
+            else:
+                return FlowResponse(
+                    response=str(result), title=request.title or "Summary"
+                )
         except Exception as e:
             print(f"❌ Error during flow execution: {e}")
             return FlowResponse(
-                action="reject", response=f"Error executing search flow: {str(e)}"
+                response=f"Error executing search flow: {str(e)}", title="Error"
             )
-        if flow.state.final_response:
-            return flow.state.final_response
-        return FlowResponse(
-            action="reject", response="Error: No response generated from the flow."
-        )
 
     @observe(name="search_flow_stream", as_type="generation")
     async def execute_workflow_stream(self, request: SearchChatRequest):
-        import asyncio
-        import json
-        from src.services.crew.callbacks import create_agent_step_callback
 
         event_queue = asyncio.Queue()
 
@@ -58,42 +59,119 @@ class SearchFlowService:
 
         step_callback = create_agent_step_callback(report_status)
         flow = SearchCrewFlow(step_callback=step_callback)
+
         enriched_context_str = await self._enrich_attachments(request.attachments)
 
-        flow.state.query = request.query
-        flow.state.context = enriched_context_str
-        flow.state.history = request.history
-        flow.state.mode = request.mode
-        flow.state.metadata = request.metadata
+        inputs = {
+            "query": request.query,
+            "context": enriched_context_str,
+            "history": request.history,
+            "mode": request.mode,
+            "metadata": request.metadata,
+            "title": request.title,
+        }
 
-        async def run_flow():
-            try:
-                await flow.kickoff_async()
+        state = {"buf": "", "in_response": False, "done": False}
 
-                if flow.state.final_response:
-                    await event_queue.put({
-                        "type": "result",
-                        "content": flow.state.final_response.model_dump()
-                    })
+        def _handle_token(raw: str):
+            if state["done"]:
+                return
+            state["buf"] += raw
+            buf = state["buf"]
+
+            if not state["in_response"]:
+                marker = '"response":'
+                idx = buf.find(marker)
+                if idx != -1:
+                    after = buf[idx + len(marker) :].lstrip()
+                    if after.startswith('"'):
+                        state["in_response"] = True
+                        state["buf"] = after[1:]
+                return
+
+            output = []
+            i = 0
+            while i < len(buf):
+                c = buf[i]
+                if c == "\\" and i + 1 < len(buf):
+                    nxt = buf[i + 1]
+                    escapes = {
+                        "n": "\n",
+                        "t": "\t",
+                        "r": "\r",
+                        '"': '"',
+                        "\\": "\\",
+                    }
+                    output.append(escapes.get(nxt, nxt))
+                    i += 2
+                elif c == "\\" and i + 1 == len(buf):
+                    break
+                elif c == '"':
+                    state["done"] = True
+                    state["buf"] = buf[i + 1 :]
+                    break
                 else:
-                    await event_queue.put({
-                        "type": "error",
-                        "content": "Flow finished but no final response was generated."
-                    })
+                    output.append(c)
+                    i += 1
 
+            if not state["done"]:
+                state["buf"] = buf[i:]
+
+            text = "".join(output)
+            if text:
+                event_queue.put_nowait({"type": "token", "content": text})
+
+        async def run_flow_async():
+            try:
+                # Perform the kickoff without any EventBus listeners
+                output = await flow.kickoff_async(inputs=inputs)
+
+                # 1. Native Streaming Iteration (Token Events)
+                if hasattr(output, "__aiter__"):
+                    async for chunk in output:
+                        # Extract the string content from StreamChunk
+                        # and send it to our parser to remove JSON artifacts
+                        if chunk and hasattr(chunk, "content"):
+                            _handle_token(chunk.content)
+
+                # 2. Final Result Event
+                final_text = ""
+                if hasattr(output, "get_full_text"):
+                    try:
+                        final_text = output.get_full_text()
+                    except Exception as e:
+                        print(f"⚠️ Could not get full text natively: {e}")
+
+                if final_text:
+                    try:
+                        result_data = json.loads(final_text)
+                    except json.JSONDecodeError:
+                        result_data = {"response": final_text}  # Fallback
+
+                    await event_queue.put(
+                        {
+                            "type": "result",
+                            "content": result_data,
+                        }
+                    )
+                else:
+                    await event_queue.put(
+                        {"type": "error", "content": "No response generated."}
+                    )
             except Exception as e:
                 print(f"❌ Async Flow Error: {e}")
                 await event_queue.put({"type": "error", "content": str(e)})
             finally:
+                # 3. Stream Closure Event
                 await event_queue.put(None)
 
-        asyncio.create_task(run_flow())
+        asyncio.create_task(run_flow_async())
 
         while True:
             event = await event_queue.get()
             if event is None:
                 break
-            yield json.dumps(event) + "\n"
+            yield json.dumps(event, ensure_ascii=False) + "\n"
 
     async def _enrich_attachments(self, attachments: List[FileRef]) -> str:
         """

@@ -11,7 +11,7 @@ service = SearchFlowService()
 
 
 @router.post("/completions", response_model=APIResponse[FlowResponse])
-async def completions(request: SearchChatRequest):
+async def completions_sync(request: SearchChatRequest):
     try:
         response = await service.execute_workflow(request)
         return APIResponse(data=response)
