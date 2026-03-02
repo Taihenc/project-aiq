@@ -161,10 +161,9 @@ export function ChatInput({
                 <Button
                   variant="ghost"
                   className={cn(
-                    'h-9 gap-1.5 rounded-full px-2.5 text-xs font-medium hover:bg-[var(--brand-new-chat-bg)]',
-                    mode !== 'auto'
-                      ? 'bg-[var(--brand-link)]/10 text-[var(--brand-link)] hover:bg-[var(--brand-link)]/15'
-                      : 'text-muted-purple',
+                    'h-9 gap-1.5 rounded-full px-2.5 text-xs font-medium text-[var(--brand-link)] hover:bg-[var(--brand-new-chat-bg)]',
+                    mode !== 'auto' &&
+                      'bg-[var(--brand-link)]/10 hover:bg-[var(--brand-link)]/15',
                   )}
                 >
                   {(() => {

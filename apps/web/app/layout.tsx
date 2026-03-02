@@ -1,12 +1,18 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist_Mono } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from '@/components/providers';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
+const notoSansThai = localFont({
+  src: [
+    {
+      path: '../public/fonts/Noto_Sans_Thai/NotoSansThai-VariableFont_wdth,wght.ttf',
+      style: 'normal',
+    },
+  ],
+  variable: '--font-noto-sans-thai',
+  display: 'swap',
 });
 
 const geistMono = Geist_Mono({
@@ -34,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${kiona.variable} antialiased`}
+        className={`${notoSansThai.variable} ${geistMono.variable} ${kiona.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

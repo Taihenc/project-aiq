@@ -98,7 +98,7 @@ export function UploadPopover({
           <p className="text-xs font-medium text-muted-foreground">File</p>
           <button
             type="button"
-            className="flex w-full items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 text-xs text-muted-foreground hover:text-foreground transition-colors text-left"
+            className="flex w-full items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 text-xs text-muted-foreground hover:text-[var(--brand-fg-accent)] transition-colors text-left"
             onClick={() => fileInputRef.current?.click()}
           >
             <FileIcon className="h-3.5 w-3.5 shrink-0 text-[var(--brand-feature-icon)]" />
