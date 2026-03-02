@@ -75,6 +75,7 @@ export class ChatHistoryService {
     role: string,
     content: any,
     citations?: any,
+    sentAttachments?: any,
   ) {
     this.logger.debug(
       `Adding message to session ${sessionId}. Role: ${role}, User: ${userId}`,
@@ -136,6 +137,7 @@ export class ChatHistoryService {
           role,
           content: stringContent,
           citations: citations || null,
+          sentAttachments: sentAttachments || null,
           createdAt: Date.now(),
         })
         .run();

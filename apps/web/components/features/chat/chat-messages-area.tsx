@@ -30,6 +30,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
             status={message.status}
             statusHistory={message.statusHistory}
             isEmpty={message.isEmpty}
+            sentAttachments={message.sentAttachments}
             onAddAttachment={onAddAttachment}
             onRemoveAttachment={onRemoveAttachment}
             onRemoveChunk={onRemoveChunk}

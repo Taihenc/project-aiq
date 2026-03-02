@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Paperclip, Globe, ArrowUp } from 'lucide-react';
+import { Globe, ArrowUp } from 'lucide-react';
 import { useState, useRef } from 'react';
 import {
   Tooltip,
@@ -12,12 +12,18 @@ import {
 import { cn } from '@/lib/utils';
 import type { ChatInputProps } from '@/types';
 import { AttachmentPill } from './attachment-pill';
+import { CitationPicker } from './citation-picker';
+
+// ── Main ChatInput ────────────────────────────────────────────────────────────
 
 export function ChatInput({
   onSendMessage,
   disabled = false,
   attachments = [],
   onRemoveAttachment,
+  onRemoveChunk,
+  onAddAttachment,
+  availableCitations = [],
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -59,6 +65,7 @@ export function ChatInput({
                   att={att}
                   index={index}
                   onRemove={onRemoveAttachment}
+                  onRemoveChunk={onRemoveChunk}
                 />
               ))}
             </div>
@@ -84,22 +91,14 @@ export function ChatInput({
 
           {/* Lower part - tools icons */}
           <div className="flex items-center gap-3">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="rounded-pill h-9 w-9 text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]"
-                  >
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Attach file</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {/* Citation / attachment picker */}
+            <CitationPicker
+              availableCitations={availableCitations}
+              attachments={attachments}
+              onAddAttachment={onAddAttachment}
+              onRemoveAttachment={onRemoveAttachment}
+              onRemoveChunk={onRemoveChunk}
+            />
 
             <TooltipProvider>
               <Tooltip>

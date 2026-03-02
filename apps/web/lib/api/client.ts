@@ -12,9 +12,14 @@ export const client = axios.create({
 
 // Flag to prevent multiple refresh calls
 let isRefreshing = false;
-let failedQueue: any[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+interface FailedQueueItem {
+  resolve: (token: string | null) => void;
+  reject: (error: unknown) => void;
+}
+let failedQueue: FailedQueueItem[] = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -117,7 +122,7 @@ const BACKEND_URL_DIRECT =
     ? process.env.NEXT_PUBLIC_BACKEND_URL
     : process.env.NEXT_PUBLIC_BACKEND_URL) || 'http://localhost:3000';
 
-export const streamFetch = async (endpoint: string, body: any): Promise<ReadableStream<Uint8Array> | null> => {
+export const streamFetch = async (endpoint: string, body: object): Promise<ReadableStream<Uint8Array> | null> => {
   const attemptFetch = async (token: string | undefined) => {
     const url = `${BACKEND_URL_DIRECT}/api/v1${endpoint}`;
     console.log('[streamFetch] Calling backend:', url);

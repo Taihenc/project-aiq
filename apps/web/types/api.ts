@@ -142,5 +142,6 @@ export interface BackendMessage {
   content: string;
   createdAt: number;
   citations?: string;
+  sentAttachments?: string | unknown[];
 }
 

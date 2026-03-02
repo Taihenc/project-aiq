@@ -20,6 +20,8 @@ export interface ChatMessageProps {
   onRemoveAttachment?: (index: number) => void;
   onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
   attachments?: FileRef[];
+  /** Citation FileRefs that were attached when this user message was sent (read-only) */
+  sentAttachments?: FileRef[];
 }
 
 export interface ChatInputProps {
@@ -27,6 +29,9 @@ export interface ChatInputProps {
   disabled?: boolean;
   attachments?: FileRef[];
   onRemoveAttachment?: (index: number) => void;
+  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onAddAttachment?: (attachment: FileRef) => void;
+  availableCitations?: Citation[];
 }
 
 export interface ChatInputAreaProps {
@@ -34,6 +39,9 @@ export interface ChatInputAreaProps {
   isLoading: boolean;
   attachments?: FileRef[];
   onRemoveAttachment?: (index: number) => void;
+  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onAddAttachment?: (attachment: FileRef) => void;
+  availableCitations?: Citation[];
 }
 
 export interface ChatMessagesAreaProps {

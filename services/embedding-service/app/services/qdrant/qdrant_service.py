@@ -6,6 +6,9 @@ from qdrant_client.models import (
 )
 from typing import List, Dict, Any, Optional
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 from app.config import settings
 from app.services.embedding.embedding_service import embedding_service
 from app.models.models import (
@@ -25,13 +28,13 @@ class QdrantService:
             if settings.use_local_qdrant:
                 # Connect to local Docker Qdrant instance
                 self.client = QdrantClient(url="http://localhost:6333")
-                print("Connected to local Qdrant at http://localhost:6333/dashboard")
+                logger.info("Connected to local Qdrant at http://localhost:6333/dashboard")
             else:
                 self.client = QdrantClient(
                     url=settings.qdrant_url,
                     api_key=settings.qdrant_api_key
                 )
-                print(f"Connected to Qdrant at {settings.qdrant_url}")
+                logger.info("Connected to Qdrant at %s", settings.qdrant_url)
             self._ensure_collection()
 
     def _ensure_collection(self):
@@ -40,7 +43,7 @@ class QdrantService:
             col.name == self.collection_name for col in collections)
 
         if not collection_exists:
-            print(f"Creating collection: {self.collection_name}")
+            logger.info("Creating collection: %s", self.collection_name)
             self.client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=VectorParams(
@@ -48,7 +51,7 @@ class QdrantService:
                     distance=Distance.COSINE
                 )
             )
-            print(f"Collection {self.collection_name} created")
+            logger.info("Collection %s created", self.collection_name)
 
     def _ensure_duplicate(self, path: str) -> bool:
         self._ensure_collection()
@@ -70,6 +73,7 @@ class QdrantService:
             return len(results) > 0
 
         except Exception:
+            logger.exception("Error checking for duplicate path '%s'", path)
             return False
 
     def _delete_by_metadata(self, metadata_filter: Filter) -> None:
@@ -180,6 +184,7 @@ class QdrantService:
                 }
             return None
         except Exception:
+            logger.exception("Error retrieving document '%s'", doc_id)
             return None
 
     def get_documents(self, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
@@ -248,6 +253,7 @@ class QdrantService:
             )
             return True
         except Exception:
+            logger.exception("Error deleting document '%s'", doc_id)
             return False
 
     def delete_documents_by_file(self, file_name: str) -> None:
@@ -261,6 +267,31 @@ class QdrantService:
             ]
         )
         self._delete_by_metadata(metadata_filter=metadata_filter)
+
+    def count_documents_by_file(self, file_name: str) -> int:
+        """
+        Return the number of Qdrant points whose 'file' metadata field matches
+        file_name.  Used by the reconciliation watchdog to verify whether a file
+        was actually indexed without having to fetch all vectors.
+        """
+        self._ensure_collection()
+        try:
+            result = self.client.count(
+                collection_name=self.collection_name,
+                count_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="file",
+                            match=MatchValue(value=file_name),
+                        )
+                    ]
+                ),
+                exact=True,
+            )
+            return result.count
+        except Exception:
+            logger.exception("Error counting documents for file '%s'", file_name)
+            return 0
 
     def get_collection_info(self) -> Dict[str, Any]:
         self._ensure_collection()
@@ -384,10 +415,10 @@ class QdrantService:
             target_order = int(target_metadata.get("order", -1))
         except (ValueError, TypeError):
             # Fallback if order is somehow not an integer
-             raise ValueError(f"Invalid 'order' value in chunk {chunk_id}")
+            raise ValueError(f"Invalid 'order' value in chunk {chunk_id}")
 
         if not file_path or target_order == -1:
-             raise ValueError(f"Chunk {chunk_id} missing required 'file_path' or 'order' metadata")
+            raise ValueError(f"Chunk {chunk_id} missing required 'file_path' or 'order' metadata")
 
         min_order = target_order - backward
         max_order = target_order + forward
@@ -439,16 +470,15 @@ class QdrantService:
             with_vectors=False
         )
 
-        point = points[0]
-
-        if point:
-            return {
-                "id": point.id,
-                "text": point.payload.get("text", ""),
-                "metadata": {k: v for k, v in point.payload.items() if k != "text"},
-            }
-        else:
+        if not points:
             raise ValueError(f"Chunk with file_path {file_path} and order {order} not found")
+
+        point = points[0]
+        return {
+            "id": point.id,
+            "text": point.payload.get("text", ""),
+            "metadata": {k: v for k, v in point.payload.items() if k != "text"},
+        }
 
 
     def get_file(self, file_path:str):

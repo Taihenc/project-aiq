@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { IngestionStatus } from '@/components/features/sharepoint/file-status-badge';
+import { sharePointApi } from '@/lib/api/sharepoint';
 
 export interface FileStatusEvent {
   file_id: string;
@@ -29,13 +30,25 @@ export function useFileStatusEvents(
   useEffect(() => {
     const backendUrl =
       process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
-    const url = `${backendUrl}/api/v1/sharepoint/events`;
+    const baseUrl = `${backendUrl}/api/v1/sharepoint/events`;
 
     let es: EventSource;
     let retryTimeout: ReturnType<typeof setTimeout>;
 
-    function connect() {
-      es = new EventSource(url, { withCredentials: true });
+    async function connect() {
+      let token: string;
+      try {
+        const data = await sharePointApi.getSSEToken();
+        token = data.token;
+      } catch {
+        retryTimeout = setTimeout(connect, 5_000);
+        return;
+      }
+
+      es = new EventSource(
+        `${baseUrl}?token=${encodeURIComponent(token)}`,
+        { withCredentials: true },
+      );
 
       es.onmessage = (e: MessageEvent<string>) => {
         try {
@@ -47,8 +60,6 @@ export function useFileStatusEvents(
       };
 
       es.onerror = () => {
-        // EventSource automatically tries to reconnect for transient errors.
-        // For a persistent failure we do a manual back-off reconnect.
         es.close();
         retryTimeout = setTimeout(connect, 5_000);
       };

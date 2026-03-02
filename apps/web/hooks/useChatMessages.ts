@@ -84,6 +84,11 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
           typeof msg.citations === 'string'
             ? JSON.parse(msg.citations)
             : msg.citations,
+        sentAttachments: msg.sentAttachments
+          ? typeof msg.sentAttachments === 'string'
+            ? JSON.parse(msg.sentAttachments)
+            : msg.sentAttachments
+          : undefined,
       }));
       setMessages(uiMessages);
     } catch (error) {
@@ -94,7 +99,10 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
   };
 
   const sendMessage = async (content: string, attachments?: FileRef[]) => {
-    const userMessage = createUserMessage(content);
+    const userMessage: UIMessage = {
+      ...createUserMessage(content),
+      ...(attachments && attachments.length > 0 ? { sentAttachments: attachments } : {}),
+    };
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
