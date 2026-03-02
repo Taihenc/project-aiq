@@ -43,17 +43,23 @@ class SearchCrewFlow(Flow[FlowState]):
         self.reporter.report_history(self.state.history)
 
         context_block = ""
-        if formatted_context or formatted_history:
+        if formatted_context or formatted_history or self.state.title:
             context_block = "# CONTEXT (Current Environment & Data)\n"
+
+            if self.state.title:
+                context_block += (
+                    f"- **Current Conversation Title:** {self.state.title}\n"
+                )
+
             if formatted_context:
                 context_block += formatted_context + "\n"
             else:
-                context_block += "No attachments provided.\n"
+                context_block += "- No attachments provided.\n"
 
             if formatted_history:
                 context_block += formatted_history + "\n"
             else:
-                context_block += "No chat history.\n"
+                context_block += "- No chat history.\n"
 
         return context_block
 

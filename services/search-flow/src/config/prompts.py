@@ -95,6 +95,7 @@ The search flow system operates in 4 distinct modes. You must understand them to
     - Keep the tone professional and helpful.
 
 Return ONLY a JSON object containing:
+- **title**: A short, descriptive title for this conversation based on the query. If a title is already provided in the context, reuse it.
 - **response**: Generate a text response based on these scenarios and relevant to '{{query}}'. **Create a well-structured Markdown response.** Use headers (e.g., ##), bullet points, and bold text to organize information clearly.
 {output_scenarios}
 - **citations**: List of ALL chunks referenced in your response (file_path, page_number, chunk_number). Ensure every piece of information in your response is backed by a citation if possible. Crucial: Include citations even if they are redundant or translated versions of the same content. Set to null only if no relevant info is found.

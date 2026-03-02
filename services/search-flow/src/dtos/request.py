@@ -15,6 +15,7 @@ class SearchFilter(BaseModel):
 
 
 class SearchChatRequest(BaseModel):
+    title: Optional[str] = Field(default=None)
     query: str
     history: List[str] = []
     attachments: List[FileRef] = Field(default=[])

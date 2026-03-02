@@ -31,6 +31,7 @@ class SearchFlowService:
             "history": request.history,
             "mode": request.mode,
             "metadata": request.metadata,
+            "title": request.title,
         }
         try:
             result = await flow.kickoff_async(inputs=inputs)
@@ -39,10 +40,14 @@ class SearchFlowService:
             elif result and hasattr(result, "json_dict"):
                 return FlowResponse(**result.json_dict)
             else:
-                return FlowResponse(response=str(result))
+                return FlowResponse(
+                    response=str(result), title=request.title or "Summary"
+                )
         except Exception as e:
             print(f"❌ Error during flow execution: {e}")
-            return FlowResponse(response=f"Error executing search flow: {str(e)}")
+            return FlowResponse(
+                response=f"Error executing search flow: {str(e)}", title="Error"
+            )
 
     @observe(name="search_flow_stream", as_type="generation")
     async def execute_workflow_stream(self, request: SearchChatRequest):
@@ -63,6 +68,7 @@ class SearchFlowService:
             "history": request.history,
             "mode": request.mode,
             "metadata": request.metadata,
+            "title": request.title,
         }
 
         state = {"buf": "", "in_response": False, "done": False}
