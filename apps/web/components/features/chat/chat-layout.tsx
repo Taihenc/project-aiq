@@ -179,7 +179,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
         onNewChat={handleNewChat}
       />
 
-      <SidebarInset className="relative flex h-screen flex-1 flex-col overflow-hidden bg-background">
+      <SidebarInset className="relative flex h-screen flex-1 flex-col overflow-hidden overscroll-none bg-background">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
         <ChatHeader
