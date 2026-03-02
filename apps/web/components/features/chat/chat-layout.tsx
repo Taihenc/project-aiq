@@ -168,8 +168,8 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   }, []);
 
   const handleSendMessage = useCallback(
-    (message: string) => {
-      sendMessage(message, attachments);
+    (message: string, mode?: import('@/types/api').SearchMode) => {
+      sendMessage(message, attachments, mode);
       setAttachments([]);
     },
     [sendMessage, attachments],

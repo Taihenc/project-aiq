@@ -53,6 +53,9 @@ export interface FileRef {
   content?: string;
 }
 
+// Search mode for the search-flow service
+export type SearchMode = 'auto' | 'search' | 'lookup' | 'chat';
+
 // OpenAI-compatible chat completions request
 export interface ChatCompletionsRequest {
   messages: APIMessage[];
@@ -71,6 +74,8 @@ export interface ChatCompletionsRequest {
   provider?: string;
   top_k?: number;
   attachments?: FileRef[];
+  /** Search mode forwarded to search-flow service */
+  mode?: SearchMode;
 }
 
 // OpenAI-compatible chat completions response

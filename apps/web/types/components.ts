@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Citation, FileRef } from './api';
+import type { Citation, FileRef, SearchMode } from './api';
 import type { UIMessage } from './chat';
 
 /**
@@ -25,7 +25,7 @@ export interface ChatMessageProps {
 }
 
 export interface ChatInputProps {
-  onSendMessage?: (message: string) => void;
+  onSendMessage?: (message: string, mode?: SearchMode) => void;
   disabled?: boolean;
   attachments?: FileRef[];
   onRemoveAttachment?: (index: number) => void;
@@ -35,7 +35,7 @@ export interface ChatInputProps {
 }
 
 export interface ChatInputAreaProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, mode?: SearchMode) => void;
   isLoading: boolean;
   attachments?: FileRef[];
   onRemoveAttachment?: (index: number) => void;
@@ -63,7 +63,7 @@ export interface ChatHeaderProps {
 }
 
 export interface ChatWelcomeProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, mode?: SearchMode) => void;
   isLoading: boolean;
 }
 

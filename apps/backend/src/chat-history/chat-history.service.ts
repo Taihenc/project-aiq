@@ -292,6 +292,7 @@ export class ChatHistoryService {
   async getSessionSummary(sessionId: string) {
     const session = this.db
       .select({
+        title: chatSessions.title,
         summary: chatSessions.summary,
         lastSummarizedMessageId: chatSessions.lastSummarizedMessageId,
       })
@@ -299,6 +300,15 @@ export class ChatHistoryService {
       .where(eq(chatSessions.id, sessionId))
       .get();
     return session;
+  }
+
+  async updateSessionTitle(sessionId: string, title: string): Promise<void> {
+    this.logger.log(`Auto-titling session ${sessionId}: "${title}"`);
+    this.db
+      .update(chatSessions)
+      .set({ title, updatedAt: Date.now() })
+      .where(eq(chatSessions.id, sessionId || ''))
+      .run();
   }
 
   async updateSessionSummary(

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UIMessage, UseChatMessagesOptions, BackendMessage, FileRef } from '@/types';
+import type { SearchMode } from '@/types/api';
 import { PAGINATION } from '@/constants/pagination';
 import { CHAT_TEMPERATURE, CHAT_MAX_TOKENS } from '@/constants/chat';
 import { streamChatCompletions } from '@/lib/api/chat';
@@ -139,7 +140,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     }
   }, [sessionId, messagesNextCursor, isLoadingOlder, hasOlderMessages]);
 
-  const sendMessage = async (content: string, attachments?: FileRef[]) => {
+  const sendMessage = async (content: string, attachments?: FileRef[], mode?: SearchMode) => {
     const userMessage: UIMessage = {
       ...createUserMessage(content),
       ...(attachments && attachments.length > 0 ? { sentAttachments: attachments } : {}),
@@ -190,6 +191,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         temperature: CHAT_TEMPERATURE,
         maxTokens: CHAT_MAX_TOKENS,
         attachments,
+        mode,
       });
 
       const reader = stream.getReader();

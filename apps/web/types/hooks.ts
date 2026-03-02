@@ -1,5 +1,5 @@
 import type { UIMessage } from './chat';
-import type { FileRef } from './api';
+import type { FileRef, SearchMode } from './api';
 
 /**
  * Hook Options and Return Types
@@ -17,7 +17,7 @@ export interface UseChatMessagesReturn {
   messages: UIMessage[];
   isLoading: boolean;
   sessionId: string | undefined;
-  sendMessage: (content: string, attachments?: FileRef[]) => Promise<void>;
+  sendMessage: (content: string, attachments?: FileRef[], mode?: SearchMode) => Promise<void>;
   clearMessages: () => void;
   hasOlderMessages: boolean;
   loadOlderMessages: () => Promise<void>;

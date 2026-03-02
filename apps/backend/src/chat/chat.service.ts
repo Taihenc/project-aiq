@@ -20,6 +20,7 @@ import {
   SUMMARIZE_ENABLED,
   SUMMARIZE_TRIGGER_COUNT,
   SUMMARIZE_TEMPERATURE,
+  DEFAULT_SESSION_TITLE,
 } from '../constants/chat.constants';
 
 @Injectable()
@@ -240,10 +241,15 @@ export class ChatService {
       );
 
       // 2. Prepare and Call AI Engine
+      // Only forward title after the first message so the LLM generates one on the first request
+      const isFirstMessage = unsummarizedMessages.length === 0 && !existingSummary;
+      const titleForEngine = !isFirstMessage ? sessionData?.title : undefined;
       const aiEngineRequest = this.prepareAiEngineRequest(
         chatRequest,
         unsummarizedMessages,
         existingSummary,
+        titleForEngine,
+        chatRequest.mode,
       );
 
       const aiEngineUrl = this.getAiEngineCompletionUrl();
@@ -288,6 +294,7 @@ export class ChatService {
           sessionData?.lastSummarizedMessageId ?? undefined,
           existingSummary,
           chatRequest.attachments,
+          parsed.title,
         );
       }
 
@@ -317,13 +324,18 @@ export class ChatService {
           sessionData?.lastSummarizedMessageId,
         );
 
+      // Only forward title after the first message so the LLM generates one on the first request
+      const isFirstMessage = unsummarizedMessages.length === 0 && !existingSummary;
+      const titleForEngine = !isFirstMessage ? sessionData?.title : undefined;
       const aiEngineRequest = this.prepareAiEngineRequest(
         chatRequest,
         unsummarizedMessages,
         existingSummary,
+        titleForEngine,
+        chatRequest.mode,
       );
 
-      this.logger.debug(`Prepared AI Engine streaming request for session: ${sessionId}`);
+      this.logger.debug(`Prepared AI Engine streaming request for session: ${sessionId}`);;
       this.logger.debug(`Sent to AI Engine: ${JSON.stringify(aiEngineRequest, null, 2)}`);
 
       const aiEngineUrl = this.getAiEngineStreamUrl();
@@ -428,6 +440,7 @@ export class ChatService {
                     sessionData?.lastSummarizedMessageId ?? undefined,
                     existingSummary,
                     chatRequest.attachments,
+                    parsedResponse.title,
                   ).catch((err) =>
                     this.logger.error(
                       'Streaming post-chat actions failed',
@@ -479,6 +492,8 @@ export class ChatService {
     chatRequest: ChatCompletionsRequestDto,
     unsummarizedMessages: any[],
     existingSummary: string,
+    sessionTitle?: string,
+    mode?: string,
   ) {
     const lastUserMessage = [...chatRequest.messages]
       .reverse()
@@ -499,7 +514,9 @@ export class ChatService {
         lastUserMessage?.content ||
         chatRequest.messages.slice(-1)[0]?.content ||
         '',
+      title: sessionTitle,
       history: historyStrings,
+      ...(mode ? { mode } : {}),
       attachments: allAttachments.map((att) => ({
         file_path: att.file_path,
         chunks: (att.chunks || []).map((chunk: any) => {
@@ -522,6 +539,7 @@ export class ChatService {
     lastSummarizedMessageId: string | undefined,
     existingSummary: string,
     sentAttachments?: any[],
+    responseTitle?: string,
   ): Promise<void> {
     this.logger.debug(
       `Post-chat actions for session: ${sessionId}, user: ${userId}`,
@@ -557,6 +575,11 @@ export class ChatService {
         err.stack,
       );
       throw err;
+    }
+
+    // Auto-title session from AI response
+    if (responseTitle) {
+      await this.chatHistoryService.updateSessionTitle(sessionId, responseTitle);
     }
 
     // Trigger summarization if needed
@@ -654,19 +677,22 @@ export class ChatService {
     response_type: string;
     sources_used: any[];
     language: string;
+    title?: string;
   } {
-    // Handle the new FlowResponse format from AIQ-164
-    if (data && (data.response !== undefined || data.action !== undefined)) {
+    // Handle the new FlowResponse format (AIQ-164 / AIQ-200)
+    if (data && data.response !== undefined) {
       const response = data.response || data.final_answer || '';
       const response_type = data.action || 'DIRECT';
       const sources_used: any[] = data.citations || data.file_path || [];
       const language = data.language || 'en';
+      const title: string | undefined = data.title || undefined;
 
       return {
         response,
         response_type: response_type.toUpperCase(),
         sources_used,
         language,
+        title,
       };
     }
 
