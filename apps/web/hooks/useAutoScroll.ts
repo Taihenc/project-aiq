@@ -16,6 +16,7 @@ export function useAutoScroll<T>(dependency: T, enabled: boolean = true) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevCountRef = useRef(0);
   const prevLastContentRef = useRef('');
+  const prevLastIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const messages = Array.isArray(dependency) ? dependency[0] : dependency;
@@ -23,6 +24,7 @@ export function useAutoScroll<T>(dependency: T, enabled: boolean = true) {
     const count = msgArray.length;
     const lastMsg = msgArray[count - 1];
     const lastContent = lastMsg?.content || '';
+    const lastId = lastMsg?.id;
 
     const isNewMessage = count !== prevCountRef.current;
     const isContentArrived =
@@ -31,13 +33,25 @@ export function useAutoScroll<T>(dependency: T, enabled: boolean = true) {
     // Detect initial load: messages jump from 0 to many (e.g. opening old chat)
     const isInitialLoad = prevCountRef.current === 0 && count > 1;
 
+    // Detect prepend: count increased but the last message ID hasn't changed
+    // This means older messages were added to the top, not new messages at the bottom
+    const isPrepend =
+      isNewMessage &&
+      count > prevCountRef.current &&
+      lastId !== undefined &&
+      lastId === prevLastIdRef.current;
+
     prevCountRef.current = count;
     prevLastContentRef.current = lastContent;
+    prevLastIdRef.current = lastId;
 
     if (!enabled) {
       if (timerRef.current) clearTimeout(timerRef.current);
       return;
     }
+
+    // Skip scroll when older messages are prepended to the top
+    if (isPrepend) return;
 
     if (!isNewMessage && !isContentArrived) return;
 

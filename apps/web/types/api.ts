@@ -145,3 +145,16 @@ export interface BackendMessage {
   sentAttachments?: string | unknown[];
 }
 
+// Paginated responses
+export interface PaginatedHistoryResponse {
+  sessions: ChatSession[];
+  nextCursor: string | null;
+}
+
+export interface PaginatedMessagesResponse {
+  session: ChatSession;
+  messages: BackendMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+

@@ -2,7 +2,7 @@ import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { DRIZZLE } from '../database/drizzle.module';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { chatSessions, chatMessages, users } from '../database/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, lt } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { encode } from 'gpt-tokenizer';
 
@@ -12,18 +12,43 @@ export class ChatHistoryService {
 
   constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) {}
 
-  async getHistory(userId: string) {
-    this.logger.debug(`Fetching history for user: ${userId}`);
-    return this.db
+  async getHistory(userId: string, limit: number = 20, cursor?: string) {
+    this.logger.debug(
+      `Fetching history for user: ${userId}, limit: ${limit}, cursor: ${cursor}`,
+    );
+
+    const conditions = [eq(chatSessions.userId, userId || '')];
+    if (cursor) {
+      conditions.push(lt(chatSessions.updatedAt, parseInt(cursor)));
+    }
+
+    const results = this.db
       .select()
       .from(chatSessions)
-      .where(eq(chatSessions.userId, userId || ''))
+      .where(and(...conditions))
       .orderBy(desc(chatSessions.updatedAt))
+      .limit(limit + 1)
       .all();
+
+    const hasMore = results.length > limit;
+    const sessions = hasMore ? results.slice(0, limit) : results;
+    const nextCursor =
+      hasMore && sessions.length > 0
+        ? String(sessions[sessions.length - 1].updatedAt)
+        : null;
+
+    return { sessions, nextCursor };
   }
 
-  async getSession(sessionId: string, userId: string) {
-    this.logger.debug(`Fetching session: ${sessionId} for user: ${userId}`);
+  async getSession(
+    sessionId: string,
+    userId: string,
+    limit: number = 30,
+    before?: string,
+  ) {
+    this.logger.debug(
+      `Fetching session: ${sessionId} for user: ${userId}, limit: ${limit}, before: ${before}`,
+    );
     const session = this.db
       .select()
       .from(chatSessions)
@@ -40,14 +65,28 @@ export class ChatHistoryService {
       throw new NotFoundException('Session not found');
     }
 
-    const messages = this.db
+    const messageConditions = [eq(chatMessages.sessionId, sessionId)];
+    if (before) {
+      messageConditions.push(lt(chatMessages.createdAt, parseInt(before)));
+    }
+
+    const results = this.db
       .select()
       .from(chatMessages)
-      .where(eq(chatMessages.sessionId, sessionId))
-      .orderBy(chatMessages.createdAt)
+      .where(and(...messageConditions))
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(limit + 1)
       .all();
 
-    return { session, messages };
+    const hasMore = results.length > limit;
+    const messagesDesc = hasMore ? results.slice(0, limit) : results;
+    const messages = messagesDesc.reverse();
+    const nextCursor =
+      hasMore && messages.length > 0
+        ? String(messages[0].createdAt)
+        : null;
+
+    return { session, messages, nextCursor, hasMore };
   }
 
   async createSession(userId: string, title: string = 'New Chat') {
@@ -190,6 +229,23 @@ export class ChatHistoryService {
       `Session ${sessionId} and its messages deleted successfully`,
     );
     return true;
+  }
+
+  async checkSession(
+    sessionId: string,
+    userId: string,
+  ): Promise<{ exists: boolean }> {
+    const session = this.db
+      .select({ id: chatSessions.id })
+      .from(chatSessions)
+      .where(
+        and(
+          eq(chatSessions.id, sessionId || ''),
+          eq(chatSessions.userId, userId || ''),
+        ),
+      )
+      .get();
+    return { exists: !!session };
   }
 
   async getRecentMessages(

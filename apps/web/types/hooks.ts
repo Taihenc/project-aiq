@@ -19,6 +19,9 @@ export interface UseChatMessagesReturn {
   sessionId: string | undefined;
   sendMessage: (content: string, attachments?: FileRef[]) => Promise<void>;
   clearMessages: () => void;
+  hasOlderMessages: boolean;
+  loadOlderMessages: () => Promise<void>;
+  isLoadingOlder: boolean;
 }
 
 // useAutoScroll hook

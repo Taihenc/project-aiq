@@ -18,6 +18,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { Cookies } from '@/lib/utils/cookies';
 import { NotFoundScreen } from '@/components/features/chat/not-found-screen';
 import { ThemeToggle } from '@/components/custom/theme-toggle';
+import { historyApi } from '@/lib/api/history';
 import type { FileRef, ChatHistoryItem } from '@/types';
 
 interface ChatLayoutProps {
@@ -42,9 +43,17 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     setAttachments([]); // Clear attachments when switching chats
   }, [initialChatId]);
 
-  const { history, isLoading: isLoadingHistory } = useHistory();
+  const { history } = useHistory();
 
-  const { messages, isLoading, sendMessage, sessionId } = useChatMessages({
+  const {
+    messages,
+    isLoading,
+    sendMessage,
+    sessionId,
+    hasOlderMessages,
+    loadOlderMessages,
+    isLoadingOlder,
+  } = useChatMessages({
     isDemoMode,
     initialMessages: [],
     chatId: currentChatId,
@@ -53,15 +62,42 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   // Authentication & Session Guard logic
   // ---------------------------------------------------------
 
-  // Decide what screen to show
-  const isHistoryEmpty = history.length === 0;
-  const isDeterminingAccess =
-    isAuthLoading || (initialChatId && isLoadingHistory && isHistoryEmpty);
+  // Lightweight session existence check — only used for the "not found" screen.
+  // Does NOT block the main UI; the transitional cache keeps the switch smooth.
+  const [sessionExists, setSessionExists] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!initialChatId) {
+      setSessionExists(null);
+      return;
+    }
+    if (isAuthLoading || !isAuthenticated) return;
 
-  // A chat is "not found" if we're authenticated but the chat ID is not in history.
-  const chatExistsInHistory = history.some((h) => h.id === initialChatId);
+    // Optimistic: if the chat is already in the loaded history, skip the API call
+    const knownInHistory = history.some((h) => h.id === initialChatId);
+    if (knownInHistory) {
+      setSessionExists(true);
+      return;
+    }
+
+    let cancelled = false;
+    historyApi
+      .checkSession(initialChatId)
+      .then((exists) => {
+        if (!cancelled) setSessionExists(exists);
+      })
+      .catch(() => {
+        if (!cancelled) setSessionExists(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialChatId, isAuthenticated, isAuthLoading, history]);
+
+  // Only show "not found" once we've confirmed the session doesn't exist.
+  // While the check is in-flight (sessionExists === null), render the main UI
+  // so the transitional message cache keeps the switch seamless.
   const showNotFound =
-    !isDeterminingAccess && !!initialChatId && !chatExistsInHistory;
+    !isAuthLoading && !!initialChatId && sessionExists === false;
 
   // Client-side guard: handles expired JWTs that bypass the middleware cookie check.
   useEffect(() => {
@@ -147,11 +183,8 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     router.push(`/c/${id}`);
   };
 
-  // 1. Loading State Guard
-  if (
-    isAuthLoading ||
-    (initialChatId && isLoadingHistory && history.length === 0)
-  ) {
+  // 1. Loading State Guard — only for initial auth, NOT for chat switches
+  if (isAuthLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
         <div className="flex flex-col items-center gap-4">
@@ -202,6 +235,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
               onRemoveAttachment={handleRemoveAttachment}
               onRemoveChunk={handleRemoveChunk}
               attachments={attachments}
+              hasOlderMessages={hasOlderMessages}
+              isLoadingOlder={isLoadingOlder}
+              onLoadOlder={loadOlderMessages}
             />
           )}
           {!showWelcomeScreen && (

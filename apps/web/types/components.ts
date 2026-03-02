@@ -52,6 +52,9 @@ export interface ChatMessagesAreaProps {
   onRemoveAttachment?: (index: number) => void;
   onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
   attachments?: FileRef[];
+  hasOlderMessages?: boolean;
+  isLoadingOlder?: boolean;
+  onLoadOlder?: () => void;
 }
 
 export interface ChatHeaderProps {
