@@ -122,7 +122,7 @@ export function CitationsPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex flex-col w-[420px] sm:w-[520px] border-l border-[var(--brand-source-border)] bg-background dark:bg-[var(--brand-surface-purple)] p-0 gap-0">
+      <SheetContent className="flex flex-col w-[420px] sm:w-[520px] max-w-[calc(100vw-1rem)] border-l border-[var(--brand-source-border)] bg-background dark:bg-[var(--brand-surface-purple)] p-0 gap-0">
         {/* Fixed header */}
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-[var(--brand-source-border)]">
           <SheetTitle className="text-primary-dark font-kiona">
@@ -205,8 +205,8 @@ export function CitationsPanel({
         </div>
 
         {/* Scrollable list */}
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="flex flex-col gap-3 p-6">
+        <ScrollArea className="flex-1 min-h-0 [&>[data-slot=scroll-area-viewport]>div]:!block">
+          <div className="flex flex-col gap-3 p-6 min-w-0">
             {searchResults.length > 0 ? (
               searchResults.map(({ citation, visibleChunks }) => (
                 <CitationCard

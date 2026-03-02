@@ -101,29 +101,33 @@ export function CitationCard({
   const open = isSearching ? true : isOpen;
 
   return (
-    <Collapsible open={open} onOpenChange={isSearching ? undefined : setIsOpen}>
+    <Collapsible
+      open={open}
+      onOpenChange={isSearching ? undefined : setIsOpen}
+      className="w-full min-w-0"
+    >
       <div
         className={cn(
-          'rounded-xl border transition-colors duration-200 overflow-hidden',
+          'rounded-xl border transition-colors duration-200 overflow-hidden w-full min-w-0',
           open
             ? 'border-[var(--brand-source-border)] bg-card/95 dark:bg-card'
             : 'border-[var(--brand-source-border)] bg-card/95 dark:bg-card hover:bg-[var(--brand-source-hover-bg)]',
         )}
       >
         {/* Header */}
-        <div className="group/header flex w-full items-center gap-2 px-4 py-3">
+        <div className="group/header flex w-full min-w-0 items-center gap-2 px-4 py-3 overflow-hidden">
           {/* Clickable title area */}
           <CollapsibleTrigger asChild disabled={isSearching}>
             <button
-              className="flex min-w-0 flex-1 items-center gap-3 text-left"
+              className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden text-left"
               aria-disabled={isSearching}
             >
               <FileExtBadge ext={ext} />
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="truncate text-sm font-medium text-[var(--brand-source-text)] leading-tight">
+              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                <span className="block truncate text-sm font-medium text-[var(--brand-source-text)] leading-tight">
                   {citation.title}
                 </span>
-                <span className="text-[11px] text-[var(--brand-source-time)]">
+                <span className="block truncate text-[11px] text-[var(--brand-source-time)]">
                   {citation.platform}
                   {isSearching && visibleChunks
                     ? ` · ${visibleChunks.length} of ${allChunks.length} chunk${allChunks.length !== 1 ? 's' : ''} matched`
