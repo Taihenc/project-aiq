@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
   MessageSquare,
@@ -15,7 +15,9 @@ import {
   ChevronRight,
   ArrowLeft,
   Search,
+  GitBranch,
 } from 'lucide-react';
+import { useBranchMapStore } from '@/hooks/useBranchMap';
 
 import {
   CommandDialog,
@@ -36,7 +38,10 @@ type Page = 'root' | 'chats';
 export function CommandPalette() {
   const { open, setOpen } = useCommandStore();
   const router = useRouter();
+  const pathname = usePathname();
   const { setTheme } = useTheme();
+  const toggleBranchMap = useBranchMapStore((s) => s.toggle);
+  const isOnChatPage = pathname?.startsWith('/c/');
   const { logout } = useAuth();
   // Only subscribe to history while the dialog is open — avoids re-renders on
   // every chat store update when the palette is closed.
@@ -185,6 +190,15 @@ export function CommandPalette() {
             <CommandSeparator />
 
             <CommandGroup heading="Chat">
+              {isOnChatPage && (
+                <CommandItem
+                  value="open branch map conversation tree"
+                  onSelect={() => run(() => toggleBranchMap())}
+                >
+                  <GitBranch className="mr-2 h-4 w-4 text-[var(--brand-fg-accent)]" />
+                  <span>Open Branch Map</span>
+                </CommandItem>
+              )}
               <CommandItem
                 value="search chat history past conversations"
                 onSelect={() => pushPage('chats')}

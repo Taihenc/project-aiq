@@ -15,6 +15,9 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
   hasOlderMessages,
   isLoadingOlder,
   onLoadOlder,
+  onNavigateBranch,
+  onEditMessage,
+  onRegenerate,
 }) => {
   // Check if we already have an assistant message that is "thinking" or "streaming"
   const hasThinkingAssistantMessage = messages.some(
@@ -121,6 +124,12 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
             onRemoveAttachment={onRemoveAttachment}
             onRemoveChunk={onRemoveChunk}
             attachments={attachments}
+            messageId={message.id}
+            branchIndex={message.branchIndex}
+            siblingCount={message.siblingCount}
+            onNavigateBranch={onNavigateBranch}
+            onEditMessage={onEditMessage}
+            onRegenerate={onRegenerate}
           />
         ))}
         {isLoading && !hasThinkingAssistantMessage && (

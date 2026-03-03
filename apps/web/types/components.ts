@@ -24,6 +24,19 @@ export interface ChatMessageProps {
   attachments?: FileRef[];
   /** Citation FileRefs that were attached when this user message was sent (read-only) */
   sentAttachments?: FileRef[];
+  // --- Tree / branch navigation props ---
+  /** Unique message ID in the tree */
+  messageId?: string;
+  /** 0-based sibling index of this message */
+  branchIndex?: number;
+  /** Total siblings at this level (1 = no branching) */
+  siblingCount?: number;
+  /** Called with this message's ID and direction to switch branches */
+  onNavigateBranch?: (messageId: string, direction: 'prev' | 'next') => void;
+  /** Called when user submits an edit for a user message */
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  /** Called when user requests a regenerate for an assistant message */
+  onRegenerate?: (assistantMessageId: string) => void;
 }
 
 export interface ChatInputProps {
@@ -57,6 +70,10 @@ export interface ChatMessagesAreaProps {
   hasOlderMessages?: boolean;
   isLoadingOlder?: boolean;
   onLoadOlder?: () => void;
+  // --- Tree callbacks ---
+  onNavigateBranch?: (messageId: string, direction: 'prev' | 'next') => void;
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  onRegenerate?: (assistantMessageId: string) => void;
 }
 
 export interface ChatHeaderProps {

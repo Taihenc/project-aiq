@@ -34,4 +34,11 @@ export interface UIMessage {
   isStreaming?: boolean;
   /** Attachments (citation FileRefs) that were sent with this user message */
   sentAttachments?: FileRef[];
+  // --- Message tree fields ---
+  /** ID of the parent message in the tree; null = root of session */
+  parentId?: string | null;
+  /** Sibling order under the same parent (0-based) */
+  branchIndex?: number;
+  /** Total sibling count at this level (computed by useChatMessages from the tree) */
+  siblingCount?: number;
 }

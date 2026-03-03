@@ -127,6 +127,20 @@ export class ChatCompletionsRequestDto {
   @IsOptional()
   @IsString()
   mode?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID of the parent user message when branching (edit or regenerate). If provided the history path is resolved from this message upward.',
+  })
+  @IsOptional()
+  @IsString()
+  parent_message_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID of an assistant message to regenerate. When set, a new sibling assistant response is created under the same parent user message.',
+  })
+  @IsOptional()
+  @IsString()
+  regenerate_from_id?: string;
 }
 
 // Search-flow FileRef DTOs
