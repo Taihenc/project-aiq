@@ -34,6 +34,12 @@ export const chatMessages = sqliteTable('chat_messages', {
     .references(() => chatSessions.id)
     .notNull(),
   createdAt: integer('created_at').default(Date.now()),
+  // Message tree support (branching / edit & regenerate)
+  parentId: text('parent_id'), // FK to chat_messages.id; NULL = root of session
+  branchIndex: integer('branch_index').default(0).notNull(), // sibling order at this parent
+  // Per-path rolling summary stored on the TIP message of each branch
+  pathSummary: text('path_summary'),
+  pathLastSummarizedId: text('path_last_summarized_id'),
 });
 
 export type User = typeof users.$inferSelect;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UIMessage, UseChatMessagesOptions, BackendMessage, FileRef } from '@/types';
 import type { SearchMode } from '@/types/api';
@@ -16,76 +16,12 @@ import {
 } from '@/lib/utils/message-transformer';
 import { StreamingTextGuard } from '@/lib/utils/streaming-parser';
 
-export function useChatMessages(options: UseChatMessagesOptions = {}) {
-  const router = useRouter();
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const { isDemoMode = false, initialMessages = [], chatId } = options;
+// ---------------------------------------------------------------------------
+// Tree helpers
+// ---------------------------------------------------------------------------
 
-  // Initialize messages from cache immediately to avoid flash on navigation
-  const [messages, setMessages] = useState<UIMessage[]>(() => {
-    if (chatId) {
-      const cached = useChatStore.getState().getTransitionalMessages(chatId);
-      if (cached && cached.messages.length > 0) return cached.messages;
-    }
-    return initialMessages;
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<string | undefined>(chatId);
-  const sessionIdRef = useRef(sessionId);
-
-  // Pagination state for loading older messages
-  const [messagesNextCursor, setMessagesNextCursor] = useState<string | null>(() => {
-    if (chatId) {
-      const cached = useChatStore.getState().getTransitionalMessages(chatId);
-      return cached?.cursor ?? null;
-    }
-    return null;
-  });
-  const [hasOlderMessages, setHasOlderMessages] = useState<boolean>(() => {
-    if (chatId) {
-      const cached = useChatStore.getState().getTransitionalMessages(chatId);
-      return cached?.hasMore ?? false;
-    }
-    return false;
-  });
-  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-
-  // Available citations accumulated for this session (stored on the session row)
-  const [sessionAvailableCitations, setSessionAvailableCitations] = useState<Citation[]>([]);
-
-  const setTransitionalMessages = useChatStore(
-    (state) => state.setTransitionalMessages,
-  );
-
-  useEffect(() => {
-    if (chatId) {
-      setSessionId(chatId);
-      sessionIdRef.current = chatId;
-
-      // Wait for auth to be ready
-      if (isAuthLoading || !isAuthenticated) return;
-
-      const cachedEntry = useChatStore.getState().getTransitionalMessages(chatId);
-      if (cachedEntry && cachedEntry.messages.length > 0) {
-        // Already initialized from cache in useState, just refresh from backend silently
-        loadMessages(chatId, false);
-      } else {
-        loadMessages(chatId);
-      }
-    } else {
-      // Guard: if sessionIdRef has a value, we're inside or just after a sendMessage
-      // that created a new session. The router.push('/c/{id}') is imminent.
-      // Clearing messages here would flash the welcome screen for ~100ms.
-      if (!sessionIdRef.current) {
-        setSessionId(undefined);
-        setMessages([]);
-        setMessagesNextCursor(null);
-        setHasOlderMessages(false);
-      }
-    }
-  }, [chatId, isAuthenticated, isAuthLoading]);
-
-  const parseBackendMessage = (msg: BackendMessage): UIMessage => ({
+function parseBackendMessageToUI(msg: BackendMessage): UIMessage {
+  return {
     id: msg.id,
     role: msg.role,
     content:
@@ -96,77 +32,320 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     citations:
       typeof msg.citations === 'string'
         ? JSON.parse(msg.citations)
-        : msg.citations,
+        : (msg.citations as unknown as Citation[]),
     sentAttachments: msg.sentAttachments
       ? typeof msg.sentAttachments === 'string'
-        ? JSON.parse(msg.sentAttachments)
-        : msg.sentAttachments
+        ? JSON.parse(msg.sentAttachments as string)
+        : (msg.sentAttachments as FileRef[])
       : undefined,
+    parentId: msg.parentId ?? null,
+    branchIndex: msg.branchIndex ?? 0,
+  };
+}
+
+/**
+ * Given a flat tree Map and an ordered activePath (IDs root→leaf),
+ * returns active messages with siblingCount computed.
+ */
+function deriveActiveMessages(
+  tree: Map<string, UIMessage>,
+  activePath: string[],
+): UIMessage[] {
+  // Pre-compute sibling groups per parentId, sorted stably by branchIndex then created
+  const siblingGroups = new Map<string | null, UIMessage[]>();
+  for (const m of tree.values()) {
+    const key = m.parentId ?? null;
+    if (!siblingGroups.has(key)) siblingGroups.set(key, []);
+    siblingGroups.get(key)!.push(m);
+  }
+  for (const group of siblingGroups.values()) {
+    group.sort((a, b) => {
+      const ai = a.branchIndex ?? 0;
+      const bi = b.branchIndex ?? 0;
+      if (ai !== bi) return ai - bi;
+      return (a.created ?? 0) - (b.created ?? 0); // tiebreak by insertion time
+    });
+  }
+
+  return activePath
+    .map((id) => {
+      const msg = tree.get(id);
+      if (!msg) return null;
+      const group = siblingGroups.get(msg.parentId ?? null) ?? [msg];
+      // Use sorted position so the display is correct even when DB branchIndex
+      // values are duplicated (e.g. two root msgs both have branchIndex=0)
+      const position = group.findIndex((s) => s.id === msg.id);
+      return {
+        ...msg,
+        branchIndex: position >= 0 ? position : (msg.branchIndex ?? 0),
+        siblingCount: group.length,
+      };
+    })
+    .filter(Boolean) as UIMessage[];
+}
+
+/**
+ * Given a full tree map, walk from root always choosing the child with the
+ * highest branchIndex to build the default "latest" path.
+ */
+function buildDefaultActivePath(tree: Map<string, UIMessage>): string[] {
+  if (tree.size === 0) return [];
+  const byParent = new Map<string | null, UIMessage[]>();
+  for (const m of tree.values()) {
+    const key = m.parentId ?? null;
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key)!.push(m);
+  }
+  const roots = byParent.get(null) ?? [];
+  if (roots.length === 0) return [];
+  // Pick root with highest branchIndex (latest branch); tiebreak by latest created
+  const root = roots.reduce((a, b) => {
+    const ai = a.branchIndex ?? 0;
+    const bi = b.branchIndex ?? 0;
+    if (ai !== bi) return ai >= bi ? a : b;
+    return (a.created ?? 0) >= (b.created ?? 0) ? a : b;
   });
 
-  const loadMessages = async (id: string, showLoadingState = true) => {
+  const path: string[] = [];
+  let current: UIMessage | undefined = root;
+  const visited = new Set<string>();
+  while (current) {
+    if (visited.has(current.id)) break;
+    visited.add(current.id);
+    path.push(current.id);
+    const children: UIMessage[] = byParent.get(current.id) ?? [];
+    if (children.length === 0) break;
+    // Pick child with highest branchIndex; tiebreak by latest created
+    current = children.reduce((a, b) => {
+      const ai = a.branchIndex ?? 0;
+      const bi = b.branchIndex ?? 0;
+      if (ai !== bi) return ai >= bi ? a : b;
+      return (a.created ?? 0) >= (b.created ?? 0) ? a : b;
+    });
+  }
+  return path;
+}
+
+/**
+ * Walk from a tip message upward to the root, building a root→tip path.
+ */
+function buildPathToTip(tree: Map<string, UIMessage>, tipId: string): string[] {
+  const path: string[] = [];
+  let current = tree.get(tipId);
+  const visited = new Set<string>();
+  while (current) {
+    if (visited.has(current.id)) break;
+    visited.add(current.id);
+    path.unshift(current.id);
+    current = current.parentId ? tree.get(current.parentId) : undefined;
+  }
+  return path;
+}
+
+/**
+ * From a node, walk downward always choosing the latest-branchIndex child.
+ */
+function buildPathFromNodeToLatestLeaf(
+  tree: Map<string, UIMessage>,
+  nodeId: string,
+): string[] {
+  const byParent = new Map<string, UIMessage[]>();
+  for (const m of tree.values()) {
+    if (m.parentId) {
+      if (!byParent.has(m.parentId)) byParent.set(m.parentId, []);
+      byParent.get(m.parentId)!.push(m);
+    }
+  }
+  const path: string[] = [];
+  let current = tree.get(nodeId);
+  const visited = new Set<string>();
+  while (current) {
+    if (visited.has(current.id)) break;
+    visited.add(current.id);
+    path.push(current.id);
+    const children: UIMessage[] = byParent.get(current.id) ?? [];
+    if (children.length === 0) break;
+    current = children.reduce((a, b) => {
+      const ai = a.branchIndex ?? 0;
+      const bi = b.branchIndex ?? 0;
+      if (ai !== bi) return ai >= bi ? a : b;
+      return (a.created ?? 0) >= (b.created ?? 0) ? a : b;
+    });
+  }
+  return path;
+}
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
+export function useChatMessages(options: UseChatMessagesOptions = {}) {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isDemoMode = false, initialMessages = [], chatId } = options;
+
+  // Core tree state
+  const [messageTree, setMessageTree] = useState<Map<string, UIMessage>>(() => {
+    if (chatId) {
+      const cached = useChatStore.getState().getTransitionalMessages(chatId);
+      if (cached && cached.messages.length > 0) {
+        const tree = new Map(cached.messages.map((m) => [m.id, m]));
+        return tree;
+      }
+    }
+    if (initialMessages.length > 0) {
+      return new Map(initialMessages.map((m) => [m.id, m]));
+    }
+    return new Map();
+  });
+
+  const [activePath, setActivePath] = useState<string[]>(() => {
+    if (chatId) {
+      const cached = useChatStore.getState().getTransitionalMessages(chatId);
+      if (cached && cached.messages.length > 0) {
+        const tree = new Map(cached.messages.map((m) => [m.id, m]));
+        return buildDefaultActivePath(tree);
+      }
+    }
+    if (initialMessages.length > 0) {
+      const tree = new Map(initialMessages.map((m) => [m.id, m]));
+      return buildDefaultActivePath(tree);
+    }
+    return [];
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string | undefined>(chatId);
+  const sessionIdRef = useRef(sessionId);
+
+  // Available citations accumulated for this session
+  const [sessionAvailableCitations, setSessionAvailableCitations] = useState<Citation[]>([]);
+
+  const setTransitionalMessages = useChatStore((state) => state.setTransitionalMessages);
+
+  // Derived: flat messages array from active path (what components consume)
+  const messages = useMemo(
+    () => deriveActiveMessages(messageTree, activePath),
+    [messageTree, activePath],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Load / refresh tree from backend
+  // ---------------------------------------------------------------------------
+
+  const loadMessages = useCallback(async (id: string, showLoadingState = true) => {
     if (showLoadingState) setIsLoading(true);
     try {
-      const { session, messages: historyMessages, nextCursor, hasMore } =
-        await historyApi.getSession(id, { limit: PAGINATION.MESSAGES_PAGE_SIZE });
-      const uiMessages = (historyMessages as unknown as BackendMessage[]).map(
-        parseBackendMessage,
+      const { messages: rawMessages, activePath: serverPath } =
+        await historyApi.getSessionTree(id);
+
+      const tree = new Map(
+        rawMessages.map((m) => [m.id, parseBackendMessageToUI(m)]),
       );
-      setMessages(uiMessages);
-      setMessagesNextCursor(nextCursor);
-      setHasOlderMessages(hasMore);
-      // Restore accumulated session citations (Drizzle mode:'json' returns parsed array)
-      const raw = session?.availableCitations;
-      setSessionAvailableCitations(
-        Array.isArray(raw) ? (raw as Citation[]) : [],
-      );
+      setMessageTree(tree);
+      setActivePath(serverPath.length > 0 ? serverPath : buildDefaultActivePath(tree));
+
+      // Restore available citations: fetch session via legacy endpoint for session metadata
+      const sessionResp = await historyApi.getSession(id, { limit: 1 });
+      const raw = sessionResp.session?.availableCitations;
+      setSessionAvailableCitations(Array.isArray(raw) ? (raw as Citation[]) : []);
     } catch (error) {
       console.error('Failed to load messages:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const loadOlderMessages = useCallback(async () => {
-    if (!sessionId || !messagesNextCursor || isLoadingOlder || !hasOlderMessages) return;
+  useEffect(() => {
+    if (chatId) {
+      setSessionId(chatId);
+      sessionIdRef.current = chatId;
+      if (isAuthLoading || !isAuthenticated) return;
 
-    setIsLoadingOlder(true);
-    try {
-      const { messages: olderMsgs, nextCursor, hasMore } =
-        await historyApi.getSession(sessionId, {
-          limit: PAGINATION.MESSAGES_PAGE_SIZE,
-          before: messagesNextCursor,
-        });
-      const olderUiMessages = (olderMsgs as unknown as BackendMessage[]).map(
-        parseBackendMessage,
-      );
-      setMessages((prev) => [...olderUiMessages, ...prev]);
-      setMessagesNextCursor(nextCursor);
-      setHasOlderMessages(hasMore);
-    } catch (error) {
-      console.error('Failed to load older messages:', error);
-    } finally {
-      setIsLoadingOlder(false);
+      const cachedEntry = useChatStore.getState().getTransitionalMessages(chatId);
+      if (cachedEntry && cachedEntry.messages.length > 0) {
+        loadMessages(chatId, false);
+      } else {
+        loadMessages(chatId);
+      }
+    } else {
+      if (!sessionIdRef.current) {
+        setSessionId(undefined);
+        setMessageTree(new Map());
+        setActivePath([]);
+      }
     }
-  }, [sessionId, messagesNextCursor, isLoadingOlder, hasOlderMessages]);
+  }, [chatId, isAuthenticated, isAuthLoading, loadMessages]);
 
-  const sendMessage = async (content: string, attachments?: FileRef[], mode?: SearchMode) => {
-    const userMessage: UIMessage = {
+  // Cache active messages per session for seamless navigation
+  useEffect(() => {
+    if (sessionIdRef.current && messages.length > 0) {
+      setTransitionalMessages(sessionIdRef.current, {
+        messages,
+        cursor: null,
+        hasMore: false,
+      });
+    }
+  }, [messages, setTransitionalMessages]);
+
+  // ---------------------------------------------------------------------------
+  // Core sendMessage (internal) — accepts an optional parentMessageId
+  // ---------------------------------------------------------------------------
+
+  const sendMessageInternal = useCallback(async (
+    content: string,
+    attachments?: FileRef[],
+    mode?: SearchMode,
+    parentMessageId?: string | null,
+  ) => {
+    // Optimistic user message
+    const tempUserId = `__temp_user_${Date.now()}`;
+    const tempAsstId = `__temp_asst_${Date.now() + 1}`;
+
+    const userMsg: UIMessage = {
       ...createUserMessage(content),
+      id: tempUserId,
+      parentId: parentMessageId ?? (activePath[activePath.length - 1] ?? null),
+      branchIndex: 0,
       ...(attachments && attachments.length > 0 ? { sentAttachments: attachments } : {}),
     };
-    setMessages((prev) => [...prev, userMessage]);
+
+    const asstMsg: UIMessage = {
+      id: tempAsstId,
+      role: 'assistant',
+      content: '',
+      status: 'initializing',
+      parentId: tempUserId,
+      branchIndex: 0,
+    };
+
+    // Compute the effective parent for the tree insertion
+    const effectiveParent = parentMessageId !== undefined
+      ? parentMessageId
+      : (activePath[activePath.length - 1] ?? null);
+
+    // Build new optimistic active path
+    const pathToParent = effectiveParent
+      ? buildPathToTip(messageTree, effectiveParent)
+      : [];
+    const newActivePath = [...pathToParent, tempUserId, tempAsstId];
+
+    setMessageTree((prev) => {
+      const next = new Map(prev);
+      next.set(tempUserId, userMsg);
+      next.set(tempAsstId, asstMsg);
+      return next;
+    });
+    setActivePath(newActivePath);
     setIsLoading(true);
 
     let currentSessionId = sessionId;
-    let assistantMessageId: string | undefined;
+    let assistantMessageId = tempAsstId;
 
     try {
       if (!currentSessionId && !isDemoMode) {
         try {
-          const newSession = await historyApi.createSession(
-            content.slice(0, 30) + '...',
-          );
+          const newSession = await historyApi.createSession(content.slice(0, 30) + '...');
           currentSessionId = newSession.id;
           setSessionId(currentSessionId);
           sessionIdRef.current = currentSessionId;
@@ -175,26 +354,13 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         }
       }
 
-      // Convert current messages to OpenAI format
-      const apiMessages = convertMessagesToAPIFormat(messages);
+      // Build context messages from the path up to the effective parent
+      const pathMessages = pathToParent
+        .map((id) => messageTree.get(id))
+        .filter(Boolean) as UIMessage[];
+      const apiMessages = convertMessagesToAPIFormat(pathMessages);
+      apiMessages.push({ role: 'user', content });
 
-      // Add the new user message
-      apiMessages.push({
-        role: 'user',
-        content: content,
-      });
-
-      // Add a placeholder message for the assistant
-      assistantMessageId = (Date.now() + 2).toString();
-      const initialAiMessage: UIMessage = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        status: 'initializing',
-      };
-      setMessages((prev) => [...prev, initialAiMessage]);
-
-      // Start streaming from backend
       const stream = await streamChatCompletions(apiMessages, {
         sessionId: currentSessionId,
         requestSource: 'frontend',
@@ -202,164 +368,110 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         maxTokens: CHAT_MAX_TOKENS,
         attachments,
         mode,
+        parentMessageId: effectiveParent ?? undefined,
       });
 
       const reader = stream.getReader();
       const decoder = new TextDecoder();
-
       let lineBuffer = '';
-      // Guard that strips any residual JSON structural chars from token events.
       const tokenGuard = new StreamingTextGuard();
       tokenGuard.reset();
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          console.log('[SSE] Stream done. Remaining buffer:', lineBuffer);
-          break;
-        }
+        if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        console.log('[SSE] Raw chunk received:', chunk.substring(0, 200));
         lineBuffer += chunk;
         const lines = lineBuffer.split('\n');
-
-        // Keep the last partial line in the buffer
         lineBuffer = lines.pop() || '';
 
-        // Collect all statuses from this chunk before calling setMessages
-        // React batches synchronous setState calls, so we must do ONE update per chunk.
         const pendingStatuses: string[] = [];
 
         for (const line of lines) {
           const trimmedLine = line.trim();
-          if (!trimmedLine) continue;
-
-          console.log('[SSE] Processing line:', trimmedLine.substring(0, 150));
-
-          if (!trimmedLine.startsWith('data: ')) {
-            console.log('[SSE] Skipping non-data line');
-            continue;
-          }
+          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
 
           const rawData = trimmedLine.slice(6);
           try {
             const event = JSON.parse(rawData);
-            console.log(
-              '[SSE] Parsed event:',
-              event.type,
-              typeof event.content === 'string'
-                ? event.content.substring(0, 50)
-                : event.content,
-            );
 
             if (event.type === 'status') {
-              const statusContent =
-                typeof event.content === 'string'
-                  ? event.content
-                  : JSON.stringify(event.content);
-              console.log(
-                '[SSE] Setting status:',
-                statusContent.substring(0, 80),
-              );
-              pendingStatuses.push(statusContent);
+              const sc = typeof event.content === 'string' ? event.content : JSON.stringify(event.content);
+              pendingStatuses.push(sc);
             } else if (event.type === 'token') {
-              const rawToken =
-                typeof event.content === 'string' ? event.content : '';
+              const rawToken = typeof event.content === 'string' ? event.content : '';
               const safeToken = tokenGuard.feed(rawToken);
               if (safeToken) {
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessageId
-                      ? { ...m, content: m.content + safeToken, isStreaming: true }
-                      : m,
-                  ),
-                );
+                setMessageTree((prev) => {
+                  const next = new Map(prev);
+                  const m = next.get(assistantMessageId);
+                  if (m) next.set(assistantMessageId, { ...m, content: m.content + safeToken, isStreaming: true });
+                  return next;
+                });
               }
             } else if (event.type === 'error') {
-              console.error('[SSE] AI Error Event:', event.content);
-              const errorContent =
-                event.content || 'An unexpected error occurred.';
-
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMessageId
-                    ? {
-                      ...m,
-                      content: `⚠️ **Failure**: ${errorContent}`,
-                      status: undefined,
-                    }
-                    : m,
-                ),
-              );
+              const errorContent = event.content || 'An unexpected error occurred.';
+              setMessageTree((prev) => {
+                const next = new Map(prev);
+                const m = next.get(assistantMessageId);
+                if (m) next.set(assistantMessageId, { ...m, content: `⚠️ **Failure**: ${errorContent}`, status: undefined });
+                return next;
+              });
             } else if (event.type === 'result') {
-              console.log('[SSE] AI Result Received');
-
               let finalContent = '';
               let citations = event.sources_used;
 
-              // Parse content if it's an object
               if (typeof event.content === 'object' && event.content !== null) {
-                // Formatting for OLD AI Engine
                 if ('final_answer' in event.content) {
                   finalContent = event.content.final_answer;
-                  // Handle file_path as citations if present
                   if (Array.isArray(event.content.file_path)) {
                     citations = event.content.file_path.map((path: string, index: number) => ({
-                      id: `citation-${index}`,
-                      title: path.split('/').pop() || path,
-                      platform: 'File',
-                      content: '',
+                      id: `citation-${index}`, title: path.split('/').pop() || path, platform: 'File', content: '',
                     }));
                   }
-                }
-                // Formatting for NEW Search Flow
-                else if ('response' in event.content) {
+                } else if ('response' in event.content) {
                   finalContent = event.content.response;
-                  // Pass through enriched citations directly from backend
-                  if (Array.isArray(event.content.citations)) {
-                    citations = event.content.citations;
-                  }
-                  // Stop the streaming cursor — the result event is the canonical
-                  // source of truth and will overwrite the progressively-streamed text.
+                  if (Array.isArray(event.content.citations)) citations = event.content.citations;
                   tokenGuard.reset();
-                }
-                else {
+                } else {
                   finalContent = JSON.stringify(event.content);
                 }
               } else {
                 finalContent = event.content;
               }
 
-              const isEmptyResponse = !finalContent || finalContent.trim() === '';
-
-              // Backend injects `available_citations` into the result event —
-              // the fully merged session set, computed server-side.
               if (Array.isArray(event.available_citations) && event.available_citations.length > 0) {
                 setSessionAvailableCitations(event.available_citations as Citation[]);
               }
 
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMessageId
-                    ? {
-                      ...m,
-                      content: finalContent,
-                      citations: Array.isArray(citations) && citations.length > 0 ? citations : undefined,
-                      status: undefined,
-                      isEmpty: isEmptyResponse,
-                      isStreaming: false,
-                    }
-                    : m,
-                ),
-              );
+              setMessageTree((prev) => {
+                const next = new Map(prev);
+                const m = next.get(assistantMessageId);
+                if (m) {
+                  next.set(assistantMessageId, {
+                    ...m,
+                    content: finalContent,
+                    citations: Array.isArray(citations) && citations.length > 0 ? citations : undefined,
+                    status: undefined,
+                    isEmpty: !finalContent || finalContent.trim() === '',
+                    isStreaming: false,
+                  });
+                }
+                return next;
+              });
 
-              // Trigger history refresh and navigation after full result
-              if (sessionIdRef.current === currentSessionId) {
+              // Refresh tree from backend to get real IDs
+              if (currentSessionId && sessionIdRef.current === currentSessionId) {
                 useChatStore.getState().fetchHistory();
+                // Reload tree after a brief delay to ensure DB writes are done
+                setTimeout(async () => {
+                  if (currentSessionId) {
+                    await loadMessages(currentSessionId, false);
+                  }
+                }, 300);
+
                 if (!sessionId && currentSessionId) {
-                  // Delay navigation slightly to ensure cache is written first
-                  // This prevents the flash of empty messages on re-mount
                   setTimeout(() => {
                     router.push(`/c/${currentSessionId}`);
                   }, 100);
@@ -371,68 +483,166 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
           }
         }
 
-        // Flush all status updates from this chunk in one setMessages call.
-        // This prevents React's automatic batching from dropping intermediate statuses.
         if (pendingStatuses.length > 0) {
           const lastStatus = pendingStatuses[pendingStatuses.length - 1];
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMessageId
-                ? {
-                  ...m,
-                  status: lastStatus,
-                  statusHistory: [...(m.statusHistory || []), ...pendingStatuses],
-                }
-                : m,
-            ),
-          );
+          setMessageTree((prev) => {
+            const next = new Map(prev);
+            const m = next.get(assistantMessageId);
+            if (m) {
+              next.set(assistantMessageId, {
+                ...m,
+                status: lastStatus,
+                statusHistory: [...(m.statusHistory || []), ...pendingStatuses],
+              });
+            }
+            return next;
+          });
         }
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      // Only show error if we are still on the same session
       if (sessionIdRef.current === currentSessionId) {
         const errorMessage = createErrorMessage();
-        setMessages((prev) => [
-          ...prev.filter((m) => m.id !== assistantMessageId),
-          errorMessage,
-        ]);
+        setMessageTree((prev) => {
+          const next = new Map(prev);
+          next.delete(tempUserId);
+          next.delete(tempAsstId);
+          next.set(errorMessage.id, errorMessage);
+          return next;
+        });
+        setActivePath((prev) => {
+          const filtered = prev.filter((id) => id !== tempUserId && id !== tempAsstId);
+          return [...filtered, errorMessage.id];
+        });
       }
     } finally {
       if (sessionIdRef.current === currentSessionId) {
         setIsLoading(false);
       }
     }
-  };
+  }, [sessionId, activePath, messageTree, isDemoMode, loadMessages, router]);
+
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
+
+  /** Send a new message at the end of the current active path */
+  const sendMessage = useCallback(
+    (content: string, attachments?: FileRef[], mode?: SearchMode) => {
+      return sendMessageInternal(content, attachments, mode, undefined);
+    },
+    [sendMessageInternal],
+  );
+
+  /**
+   * Edit a user message — creates a new branch sibling from the same parent.
+   * @param messageId  ID of the user message being edited
+   * @param newContent New text content
+   * @param attachments Optional attachments for the new turn
+   * @param mode Search mode
+   */
+  const editUserMessage = useCallback(
+    (messageId: string, newContent: string, attachments?: FileRef[], mode?: SearchMode) => {
+      const msg = messageTree.get(messageId);
+      if (!msg) return;
+      // The new message pair is a sibling of `messageId`, so parent = messageId's parent
+      const parentOfEdit = msg.parentId ?? null;
+      return sendMessageInternal(newContent, attachments, mode, parentOfEdit);
+    },
+    [messageTree, sendMessageInternal],
+  );
+
+  /**
+   * Regenerate an assistant response — re-sends the parent user message content
+   * so a new user+assistant pair is created as siblings of the original.
+   * @param assistantMessageId ID of the assistant message to regenerate
+   */
+  const regenerateResponse = useCallback(
+    (assistantMessageId: string) => {
+      const asstMsg = messageTree.get(assistantMessageId);
+      if (!asstMsg) return;
+      const userMsg = asstMsg.parentId ? messageTree.get(asstMsg.parentId) : undefined;
+      if (!userMsg) return;
+      // Parent of new pair = grandparent of the assistant message
+      const parentOfRegen = userMsg.parentId ?? null;
+      return sendMessageInternal(
+        userMsg.content,
+        userMsg.sentAttachments,
+        undefined,
+        parentOfRegen,
+      );
+    },
+    [messageTree, sendMessageInternal],
+  );
+
+  /**
+   * Navigate to a sibling branch of a given message.
+   * @param messageId  ID of the message whose siblings to navigate
+   * @param direction  'prev' | 'next'
+   */
+  const navigateBranch = useCallback(
+    (messageId: string, direction: 'prev' | 'next') => {
+      const msg = messageTree.get(messageId);
+      if (!msg) return;
+      const parentId = msg.parentId ?? null;
+
+      // Collect siblings (same parent), sort stably by branchIndex then created
+      const siblings = Array.from(messageTree.values())
+        .filter((m) => (m.parentId ?? null) === parentId)
+        .sort((a, b) => {
+          const ai = a.branchIndex ?? 0;
+          const bi = b.branchIndex ?? 0;
+          if (ai !== bi) return ai - bi;
+          return (a.created ?? 0) - (b.created ?? 0);
+        });
+
+      if (siblings.length <= 1) return;
+
+      const currentIdx = siblings.findIndex((s) => s.id === messageId);
+      if (currentIdx === -1) return;
+
+      const targetIdx = direction === 'prev' ? currentIdx - 1 : currentIdx + 1;
+      if (targetIdx < 0 || targetIdx >= siblings.length) return;
+
+      const targetSibling = siblings[targetIdx];
+
+      // Build new active path: path from root to parent + target sibling's subtree
+      const pathToParent = parentId ? buildPathToTip(messageTree, parentId) : [];
+      const pathDown = buildPathFromNodeToLatestLeaf(messageTree, targetSibling.id);
+      setActivePath([...pathToParent, ...pathDown]);
+    },
+    [messageTree],
+  );
 
   const clearMessages = () => {
-    setMessages([]);
+    setMessageTree(new Map());
+    setActivePath([]);
     setSessionId(undefined);
     sessionIdRef.current = undefined;
-    setMessagesNextCursor(null);
-    setHasOlderMessages(false);
   };
 
-  // Cache latest messages per session to avoid flicker on navigation
-  useEffect(() => {
-    if (sessionIdRef.current && messages.length > 0) {
-      setTransitionalMessages(sessionIdRef.current, {
-        messages,
-        cursor: messagesNextCursor,
-        hasMore: hasOlderMessages,
-      });
+  // Kept for backward compat — with tree loading all messages at once, this is a no-op
+  const loadOlderMessages = useCallback(async () => {
+    if (sessionIdRef.current) {
+      await loadMessages(sessionIdRef.current, false);
     }
-  }, [messages, messagesNextCursor, hasOlderMessages, setTransitionalMessages]);
+  }, [loadMessages]);
 
   return {
     messages,
+    messageTree,
+    activePath,
     isLoading,
     sessionId,
     sendMessage,
+    editUserMessage,
+    regenerateResponse,
+    navigateBranch,
     clearMessages,
-    hasOlderMessages,
+    // kept for backward compat (tree loads everything at once)
+    hasOlderMessages: false,
     loadOlderMessages,
-    isLoadingOlder,
+    isLoadingOlder: false,
     sessionAvailableCitations,
   };
 }

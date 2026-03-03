@@ -48,6 +48,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     messages,
     isLoading,
     sendMessage,
+    editUserMessage,
+    regenerateResponse,
+    navigateBranch,
     sessionId,
     hasOlderMessages,
     loadOlderMessages,
@@ -179,6 +182,27 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     router.push('/');
   };
 
+  const handleEditMessage = useCallback(
+    (messageId: string, newContent: string) => {
+      editUserMessage(messageId, newContent);
+    },
+    [editUserMessage],
+  );
+
+  const handleRegenerate = useCallback(
+    (assistantMessageId: string) => {
+      regenerateResponse(assistantMessageId);
+    },
+    [regenerateResponse],
+  );
+
+  const handleNavigateBranch = useCallback(
+    (messageId: string, direction: 'prev' | 'next') => {
+      navigateBranch(messageId, direction);
+    },
+    [navigateBranch],
+  );
+
   const handleChatSelect = (id: string) => {
     router.push(`/c/${id}`);
   };
@@ -238,6 +262,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
               hasOlderMessages={hasOlderMessages}
               isLoadingOlder={isLoadingOlder}
               onLoadOlder={loadOlderMessages}
+              onEditMessage={handleEditMessage}
+              onRegenerate={handleRegenerate}
+              onNavigateBranch={handleNavigateBranch}
             />
           )}
           {!showWelcomeScreen && (

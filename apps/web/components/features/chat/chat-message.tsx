@@ -17,11 +17,25 @@ export function ChatMessage({
   onRemoveAttachment,
   onRemoveChunk,
   attachments,
+  messageId,
+  branchIndex,
+  siblingCount,
+  onNavigateBranch,
+  onEditMessage,
+  onRegenerate,
 }: ChatMessageProps) {
   if (role === 'user') {
     return (
       <div className="flex justify-end">
-        <UserChatBubble content={content} sentAttachments={sentAttachments} />
+        <UserChatBubble
+          content={content}
+          sentAttachments={sentAttachments}
+          messageId={messageId}
+          branchIndex={branchIndex}
+          siblingCount={siblingCount}
+          onNavigateBranch={onNavigateBranch}
+          onEditMessage={onEditMessage}
+        />
       </div>
     );
   }
@@ -38,6 +52,11 @@ export function ChatMessage({
       onRemoveAttachment={onRemoveAttachment}
       onRemoveChunk={onRemoveChunk}
       attachments={attachments}
+      messageId={messageId}
+      branchIndex={branchIndex}
+      siblingCount={siblingCount}
+      onNavigateBranch={onNavigateBranch}
+      onRegenerate={onRegenerate}
     />
   );
 }

@@ -36,6 +36,20 @@
       "when": 1772500022602,
       "tag": "0004_first_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1772554305790,
+      "tag": "0005_lucky_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1772555609235,
+      "tag": "0006_true_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }

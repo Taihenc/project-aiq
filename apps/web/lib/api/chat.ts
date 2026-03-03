@@ -88,6 +88,7 @@ export async function streamChatCompletions(
     maxTokens?: number;
     attachments?: FileRef[];
     mode?: SearchMode;
+    parentMessageId?: string;
   },
 ): Promise<ReadableStream<Uint8Array>> {
   const requestBody: ChatCompletionsRequest = {
@@ -100,6 +101,7 @@ export async function streamChatCompletions(
     stream: true,
     attachments: options?.attachments,
     mode: options?.mode,
+    parent_message_id: options?.parentMessageId,
   };
 
   const stream = await streamFetch('/chat/completions/stream', requestBody);

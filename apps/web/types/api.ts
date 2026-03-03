@@ -76,6 +76,17 @@ export interface ChatCompletionsRequest {
   attachments?: FileRef[];
   /** Search mode forwarded to search-flow service */
   mode?: SearchMode;
+  /**
+   * ID of the parent message when branching.
+   * Set to the message BEFORE the edited/regenerated point so the new messages
+   * are attached as siblings in the tree.
+   */
+  parent_message_id?: string;
+  /**
+   * ID of the assistant message to regenerate.
+   * Frontend sets this so the UI can track which bubble triggered the regen.
+   */
+  regenerate_from_id?: string;
 }
 
 // OpenAI-compatible chat completions response
@@ -150,6 +161,10 @@ export interface BackendMessage {
   createdAt: number;
   citations?: string;
   sentAttachments?: string | unknown[];
+  /** ID of the parent message in the tree; null = this is the session root */
+  parentId?: string | null;
+  /** Sibling order under the same parent (0-based) */
+  branchIndex?: number;
 }
 
 // Paginated responses

@@ -2,7 +2,7 @@ import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { DRIZZLE } from '../database/drizzle.module';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { chatSessions, chatMessages, users } from '../database/schema';
-import { eq, desc, and, lt } from 'drizzle-orm';
+import { eq, desc, asc, and, lt, isNull, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { encode } from 'gpt-tokenizer';
 import {
@@ -143,6 +143,7 @@ export class ChatHistoryService {
     content: any,
     citations?: any,
     sentAttachments?: any,
+    parentId?: string | null,
   ) {
     this.logger.debug(
       `Adding message to session ${sessionId}. Role: ${role}, User: ${userId}`,
@@ -193,8 +194,24 @@ export class ChatHistoryService {
       );
     }
 
+    // Compute branch index: count existing siblings with the same parent
+    // Must handle parentId=null (root-level messages) as well.
+    const siblingCountRow = this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(chatMessages)
+      .where(
+        and(
+          eq(chatMessages.sessionId, sessionId),
+          parentId
+            ? eq(chatMessages.parentId, parentId)
+            : isNull(chatMessages.parentId),
+        ),
+      )
+      .get();
+    const branchIndex = siblingCountRow?.count ?? 0;
+
     const id = uuidv4();
-    this.logger.verbose(`Inserting message ${id} into session ${sessionId}`);
+    this.logger.verbose(`Inserting message ${id} into session ${sessionId}, parentId=${parentId ?? 'root'}, branchIndex=${branchIndex}`);
     try {
       this.db
         .insert(chatMessages)
@@ -206,6 +223,8 @@ export class ChatHistoryService {
           citations: citations || null,
           sentAttachments: sentAttachments || null,
           createdAt: Date.now(),
+          parentId: parentId ?? null,
+          branchIndex,
         })
         .run();
     } catch (err: any) {
@@ -355,13 +374,36 @@ export class ChatHistoryService {
   async getUnsummarizedMessages(
     sessionId: string,
     lastSummarizedId?: string | null,
+    activePath?: string[],
   ) {
-    const allMessages = this.db
-      .select()
-      .from(chatMessages)
-      .where(eq(chatMessages.sessionId, sessionId))
-      .orderBy(chatMessages.createdAt)
-      .all();
+    let allMessages: (typeof chatMessages.$inferSelect)[];
+
+    if (activePath !== undefined) {
+      // activePath was explicitly provided — respect it strictly.
+      if (activePath.length === 0) {
+        // Root-level branch or fresh session: no ancestor messages exist for this
+        // branch. Return an empty list so no other branch's history leaks in.
+        return [];
+      }
+      // Load only messages that are on the specified path
+      allMessages = this.db
+        .select()
+        .from(chatMessages)
+        .where(and(eq(chatMessages.sessionId, sessionId)))
+        .orderBy(asc(chatMessages.createdAt))
+        .all()
+        .filter((m) => activePath!.includes(m.id));
+      // Maintain path order
+      allMessages.sort((a, b) => activePath!.indexOf(a.id) - activePath!.indexOf(b.id));
+    } else {
+      // No activePath — legacy / session-level fallback: load everything
+      allMessages = this.db
+        .select()
+        .from(chatMessages)
+        .where(eq(chatMessages.sessionId, sessionId))
+        .orderBy(asc(chatMessages.createdAt))
+        .all();
+    }
 
     if (!lastSummarizedId) return allMessages;
 
@@ -369,5 +411,128 @@ export class ChatHistoryService {
     if (index === -1) return allMessages;
 
     return allMessages.slice(index + 1);
+  }
+
+  /**
+   * Returns ALL messages for a session as a flat list (for tree building on the frontend).
+   * Each message has parentId and branchIndex populated.
+   */
+  getMessageTree(sessionId: string) {
+    return this.db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.sessionId, sessionId))
+      .orderBy(asc(chatMessages.createdAt))
+      .all();
+  }
+
+  /**
+   * Returns the ordered list of message IDs from root to the given tip.
+   * If tipMessageId is not provided, resolves to the "latest" leaf by choosing
+   * the highest branchIndex child at every fork.
+   */
+  getActivePath(sessionId: string, tipMessageId?: string): string[] {
+    const all = this.db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.sessionId, sessionId))
+      .orderBy(asc(chatMessages.createdAt))
+      .all();
+
+    if (all.length === 0) return [];
+
+    if (tipMessageId) {
+      // Walk from tip back to root, then reverse
+      const byId = new Map(all.map((m) => [m.id, m]));
+      const path: string[] = [];
+      let current: (typeof all)[0] | undefined = byId.get(tipMessageId);
+      const visited = new Set<string>();
+      while (current) {
+        if (visited.has(current.id)) break;
+        visited.add(current.id);
+        path.unshift(current.id);
+        current = current.parentId ? byId.get(current.parentId) : undefined;
+      }
+      return path;
+    }
+
+    // Default: traverse from roots always picking the LAST child (highest branchIndex)
+    const byParent = new Map<string | null, (typeof all)[0][]>();
+    for (const m of all) {
+      const key = m.parentId ?? null;
+      if (!byParent.has(key)) byParent.set(key, []);
+      byParent.get(key)!.push(m);
+    }
+
+    const rootMessages = byParent.get(null) ?? [];
+    if (rootMessages.length === 0) return [];
+
+    // Pick root with highest branchIndex (latest branch); tiebreak by createdAt desc
+    const root = rootMessages.reduce((a, b) => {
+      if (a.branchIndex !== b.branchIndex) return a.branchIndex >= b.branchIndex ? a : b;
+      return (a.createdAt ?? 0) >= (b.createdAt ?? 0) ? a : b;
+    });
+
+    const path: string[] = [];
+    let current: (typeof all)[0] | undefined = root;
+    const visited = new Set<string>();
+    while (current) {
+      if (visited.has(current.id)) break;
+      visited.add(current.id);
+      path.push(current.id);
+      const children = byParent.get(current.id) ?? [];
+      if (children.length === 0) break;
+      // Always pick the child with the highest branchIndex; tiebreak by createdAt
+      current = children.reduce((a, b) => {
+        if (a.branchIndex !== b.branchIndex) return a.branchIndex >= b.branchIndex ? a : b;
+        return (a.createdAt ?? 0) >= (b.createdAt ?? 0) ? a : b;
+      });
+    }
+    return path;
+  }
+
+  /**
+   * Returns direct children ordered by branchIndex (siblings at a given parent).
+   */
+  getChildMessages(parentId: string) {
+    return this.db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.parentId, parentId))
+      .orderBy(asc(chatMessages.branchIndex))
+      .all();
+  }
+
+  /**
+   * Persists per-path rolling summary on the tip message node of a branch.
+   */
+  async updatePathSummary(
+    tipMessageId: string,
+    summary: string,
+    lastSummarizedId: string,
+  ) {
+    this.logger.log(`Updating path summary for tip message: ${tipMessageId}`);
+    this.db
+      .update(chatMessages)
+      .set({
+        pathSummary: summary,
+        pathLastSummarizedId: lastSummarizedId,
+      })
+      .where(eq(chatMessages.id, tipMessageId))
+      .run();
+  }
+
+  /**
+   * Retrieves path summary stored on a specific tip message.
+   */
+  getPathSummary(tipMessageId: string) {
+    return this.db
+      .select({
+        pathSummary: chatMessages.pathSummary,
+        pathLastSummarizedId: chatMessages.pathLastSummarizedId,
+      })
+      .from(chatMessages)
+      .where(eq(chatMessages.id, tipMessageId))
+      .get();
   }
 }

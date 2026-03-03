@@ -3,7 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Citation, FileRef } from '@/types/api';
 import { ThinkingIndicator } from './thinking-indicator';
@@ -21,23 +26,34 @@ export function AssistantChatBubble({
   onRemoveAttachment,
   onRemoveChunk,
   attachments,
+  messageId,
+  branchIndex = 0,
+  siblingCount = 1,
+  onNavigateBranch,
+  onRegenerate,
 }: {
   content: unknown;
   status?: string;
   statusHistory?: string[];
   isEmpty?: boolean;
-  /** True while token events are arriving. Suppresses ThinkingIndicator flicker. */
   isStreaming?: boolean;
   citations?: Citation[];
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
   onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
   attachments?: FileRef[];
+  messageId?: string;
+  branchIndex?: number;
+  siblingCount?: number;
+  onNavigateBranch?: (messageId: string, direction: 'prev' | 'next') => void;
+  onRegenerate?: (assistantMessageId: string) => void;
 }) {
   const citations = rawCitations || [];
   const cardRef = useRef<HTMLDivElement>(null);
   const [isSingleLine, setIsSingleLine] = useState(false);
   const [showCitations, setShowCitations] = useState(false);
+
+  const [isHovered, setIsHovered] = useState(false);
 
   // Show ThinkingIndicator only before the very first token arrives.
   // Once streaming has started, never flash the ThinkingIndicator back — content
@@ -74,6 +90,8 @@ export function AssistantChatBubble({
   return (
     <div
       className={cn('flex gap-4 items-start', isSingleLine && 'items-center')}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <Avatar className="h-8 w-8 shrink-0">
         <AvatarImage
@@ -152,6 +170,52 @@ export function AssistantChatBubble({
             </div>
           )}
         </div>
+
+        {/* Regenerate + branch nav row — only visible when fully settled */}
+        {!isStreaming &&
+          !isThinking &&
+          (content || isEmpty) &&
+          (messageId || siblingCount > 1) && (
+            <div
+              className={cn(
+                'flex items-center gap-2 transition-opacity duration-150',
+                isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none',
+              )}
+            >
+              {messageId && onRegenerate && (
+                <button
+                  onClick={() => onRegenerate(messageId)}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--brand-fg-secondary)] transition-colors hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)]"
+                  title="Regenerate response"
+                >
+                  <RotateCcw className="size-3.5" />
+                  <span>Regenerate</span>
+                </button>
+              )}
+
+              {siblingCount > 1 && messageId && onNavigateBranch && (
+                <div className="flex items-center gap-0.5 text-xs text-[var(--brand-fg-secondary)]">
+                  <button
+                    onClick={() => onNavigateBranch(messageId, 'prev')}
+                    disabled={branchIndex === 0}
+                    className="rounded p-0.5 transition-colors hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)] disabled:opacity-30"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                  </button>
+                  <span className="min-w-[2.5rem] text-center font-medium">
+                    {branchIndex + 1}/{siblingCount}
+                  </span>
+                  <button
+                    onClick={() => onNavigateBranch(messageId, 'next')}
+                    disabled={branchIndex === siblingCount - 1}
+                    className="rounded p-0.5 transition-colors hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)] disabled:opacity-30"
+                  >
+                    <ChevronRight className="size-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );
