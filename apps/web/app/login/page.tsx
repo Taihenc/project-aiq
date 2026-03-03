@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sparkles, ArrowRight, Palette } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,6 @@ import WhiteVeil from '@/components/WhiteVeil';
 
 export default function LoginPage() {
   const { login, register, isAuthenticated } = useAuth();
-  const router = useRouter();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

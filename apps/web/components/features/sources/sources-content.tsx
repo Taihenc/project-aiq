@@ -33,14 +33,6 @@ interface SharePointRawItem {
   lastModifiedDateTime?: string;
 }
 
-const EMPTY_COUNTS: StatusCounts = {
-  total: 0,
-  ingested: 0,
-  processing: 0,
-  failed: 0,
-  pending: 0,
-};
-
 export function SourcesContent() {
   const [currentPath, setCurrentPath] = useState<string>('');
   const [items, setItems] = useState<FileItem[]>([]);

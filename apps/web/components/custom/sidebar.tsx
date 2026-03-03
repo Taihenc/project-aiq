@@ -182,7 +182,6 @@ export function Sidebar({
   }, [loadMore]);
 
   const isOnSources = pathname === '/sources';
-  const isOnChat = !isOnSources;
 
   return (
     <SidebarPrimitive
