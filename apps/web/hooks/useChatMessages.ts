@@ -14,6 +14,7 @@ import {
   createErrorMessage,
   convertMessagesToAPIFormat,
 } from '@/lib/utils/message-transformer';
+import { StreamingTextGuard } from '@/lib/utils/streaming-parser';
 
 export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const router = useRouter();
@@ -207,6 +208,9 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       const decoder = new TextDecoder();
 
       let lineBuffer = '';
+      // Guard that strips any residual JSON structural chars from token events.
+      const tokenGuard = new StreamingTextGuard();
+      tokenGuard.reset();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -259,6 +263,19 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                 statusContent.substring(0, 80),
               );
               pendingStatuses.push(statusContent);
+            } else if (event.type === 'token') {
+              const rawToken =
+                typeof event.content === 'string' ? event.content : '';
+              const safeToken = tokenGuard.feed(rawToken);
+              if (safeToken) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMessageId
+                      ? { ...m, content: m.content + safeToken, isStreaming: true }
+                      : m,
+                  ),
+                );
+              }
             } else if (event.type === 'error') {
               console.error('[SSE] AI Error Event:', event.content);
               const errorContent =
@@ -303,6 +320,9 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                   if (Array.isArray(event.content.citations)) {
                     citations = event.content.citations;
                   }
+                  // Stop the streaming cursor — the result event is the canonical
+                  // source of truth and will overwrite the progressively-streamed text.
+                  tokenGuard.reset();
                 }
                 else {
                   finalContent = JSON.stringify(event.content);
@@ -328,6 +348,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                       citations: Array.isArray(citations) && citations.length > 0 ? citations : undefined,
                       status: undefined,
                       isEmpty: isEmptyResponse,
+                      isStreaming: false,
                     }
                     : m,
                 ),

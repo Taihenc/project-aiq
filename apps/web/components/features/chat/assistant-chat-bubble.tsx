@@ -15,6 +15,7 @@ export function AssistantChatBubble({
   status,
   statusHistory,
   isEmpty,
+  isStreaming = false,
   citations: rawCitations = [],
   onAddAttachment,
   onRemoveAttachment,
@@ -25,6 +26,8 @@ export function AssistantChatBubble({
   status?: string;
   statusHistory?: string[];
   isEmpty?: boolean;
+  /** True while token events are arriving. Suppresses ThinkingIndicator flicker. */
+  isStreaming?: boolean;
   citations?: Citation[];
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
@@ -36,17 +39,23 @@ export function AssistantChatBubble({
   const [isSingleLine, setIsSingleLine] = useState(false);
   const [showCitations, setShowCitations] = useState(false);
 
-  const isThinking = !content && !isEmpty;
+  // Show ThinkingIndicator only before the very first token arrives.
+  // Once streaming has started, never flash the ThinkingIndicator back — content
+  // may briefly be empty during the token→result state transition.
+  const isThinking = !content && !isEmpty && !isStreaming;
 
-  // Delay citations appearance to avoid layout jitter
+  // Delay citations appearance to avoid layout jitter.
+  // Only reset showCitations when not streaming — during token streaming
+  // citations.length is 0 every render, and allowing the else branch to fire
+  // would restart the timer on the first result render if there were any race.
   useEffect(() => {
     if (citations.length > 0 && (content || isEmpty)) {
       const timer = setTimeout(() => setShowCitations(true), 500);
       return () => clearTimeout(timer);
-    } else {
+    } else if (!isStreaming) {
       setShowCitations(false);
     }
-  }, [citations.length, content, isEmpty]);
+  }, [citations.length, content, isEmpty, isStreaming]);
 
   // Detect single-line cards to vertically centre the avatar
   useEffect(() => {

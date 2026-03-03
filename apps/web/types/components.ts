@@ -16,6 +16,8 @@ export interface ChatMessageProps {
   status?: string;
   statusHistory?: string[];
   isEmpty?: boolean;
+  /** True while token events are arriving (before the result event completes) */
+  isStreaming?: boolean;
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
   onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
