@@ -104,7 +104,7 @@ function AttachmentHoverContent({
       {/* Pages → Chunks */}
       <div
         className={cn(
-          'flex flex-col gap-0 overflow-y-auto transition-all duration-200',
+          'flex flex-col gap-0 overflow-y-auto custom-scrollbar transition-all duration-200',
           isExpanded ? 'max-h-[32rem]' : 'max-h-52',
         )}
       >

@@ -412,7 +412,7 @@ export function CitationPicker({
         </div>
 
         {/* Citation list */}
-        <div className="flex max-h-72 flex-col gap-1 overflow-y-auto p-2">
+        <div className="flex max-h-72 flex-col gap-1 overflow-y-auto custom-scrollbar p-2">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 px-4 text-center">
               <Search className="h-6 w-6 text-[var(--brand-source-time)]/50" />

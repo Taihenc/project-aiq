@@ -155,7 +155,7 @@ export function SentCitationPill({ att }: { att: FileRef }) {
         {/* Pages → Chunks (read-only) */}
         <div
           className={cn(
-            'flex flex-col gap-0 overflow-y-auto transition-[max-height] duration-300 ease-in-out',
+            'flex flex-col gap-0 overflow-y-auto custom-scrollbar transition-[max-height] duration-300 ease-in-out',
             expanded ? 'max-h-[60vh]' : 'max-h-52',
           )}
         >
