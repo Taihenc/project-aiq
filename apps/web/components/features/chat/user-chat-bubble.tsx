@@ -1,18 +1,18 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ChevronDown,
   ChevronUp,
   ChevronLeft,
   ChevronRight,
   Pencil,
-  X,
-  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { FileRef } from '@/types/api';
+import type { FileRef, Citation } from '@/types/api';
 import { SentAttachmentsPillRow } from './sent-citation-pill';
+import { EditMessageCard } from './edit-message-card';
 
 export function UserChatBubble({
   content,
@@ -22,6 +22,7 @@ export function UserChatBubble({
   siblingCount = 1,
   onNavigateBranch,
   onEditMessage,
+  availableCitations = [],
 }: {
   content: unknown;
   sentAttachments?: FileRef[];
@@ -29,7 +30,12 @@ export function UserChatBubble({
   branchIndex?: number;
   siblingCount?: number;
   onNavigateBranch?: (messageId: string, direction: 'prev' | 'next') => void;
-  onEditMessage?: (messageId: string, newContent: string) => void;
+  onEditMessage?: (
+    messageId: string,
+    newContent: string,
+    attachments?: FileRef[],
+  ) => void;
+  availableCitations?: Citation[];
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLong, setIsLong] = useState(false);
@@ -37,6 +43,7 @@ export function UserChatBubble({
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const [editAttachments, setEditAttachments] = useState<FileRef[]>([]);
   const msgRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -53,7 +60,7 @@ export function UserChatBubble({
     }
   }, [content, isExpanded]);
 
-  // Auto-resize textarea in edit mode
+  // Auto-focus + resize textarea when entering edit mode
   useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -70,21 +77,28 @@ export function UserChatBubble({
     setEditValue(
       typeof content === 'string' ? content : JSON.stringify(content),
     );
+    setEditAttachments(sentAttachments ? [...sentAttachments] : []);
     setIsEditing(true);
-  }, [content]);
+  }, [content, sentAttachments]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false);
     setEditValue('');
+    setEditAttachments([]);
   }, []);
 
   const handleSubmitEdit = useCallback(() => {
     const trimmed = editValue.trim();
     if (!trimmed || !messageId || !onEditMessage) return;
-    onEditMessage(messageId, trimmed);
+    onEditMessage(
+      messageId,
+      trimmed,
+      editAttachments.length > 0 ? editAttachments : undefined,
+    );
     setIsEditing(false);
     setEditValue('');
-  }, [editValue, messageId, onEditMessage]);
+    setEditAttachments([]);
+  }, [editValue, messageId, onEditMessage, editAttachments]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -98,103 +112,153 @@ export function UserChatBubble({
     [handleSubmitEdit, handleCancelEdit],
   );
 
+  // ── Attachment mutation helpers for CitationPicker ──────────────────────
+  const handleAddAttachment = useCallback((attachment: FileRef) => {
+    setEditAttachments((prev) => {
+      const idx = prev.findIndex((a) => a.file_path === attachment.file_path);
+      if (idx !== -1) {
+        const next = [...prev];
+        const merged = [...next[idx].chunks];
+        for (const c of attachment.chunks) {
+          if (!merged.some((m) => m.chunk_number === c.chunk_number)) {
+            merged.push(c);
+          }
+        }
+        next[idx] = { ...next[idx], chunks: merged };
+        return next;
+      }
+      return [...prev, attachment];
+    });
+  }, []);
+
+  const handleRemoveAttachment = useCallback((index: number) => {
+    setEditAttachments((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleRemoveChunk = useCallback(
+    (filePath: string, chunkNumber: number) => {
+      setEditAttachments((prev) =>
+        prev
+          .map((a) =>
+            a.file_path === filePath
+              ? {
+                  ...a,
+                  chunks: a.chunks.filter(
+                    (c) => c.chunk_number !== chunkNumber,
+                  ),
+                }
+              : a,
+          )
+          .filter((a) => a.chunks.length > 0),
+      );
+    },
+    [],
+  );
+
   const contentText =
     typeof content === 'string' ? content : JSON.stringify(content);
 
   return (
-    <div
-      className="flex max-w-[80%] flex-col items-end gap-3 -ml-9 pl-9"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div className="relative flex max-w-sm flex-col items-end gap-2">
-        {/* Pencil edit button — outside bubble, appears on hover */}
-        {!isEditing && messageId && onEditMessage && (
-          <button
-            onClick={handleStartEdit}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className={cn(
-              'absolute -left-8 top-2 rounded-md p-1.5 text-[var(--brand-fg-secondary)] transition-all hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)]',
-              isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none',
-            )}
-            title="Edit message"
-          >
-            <Pencil className="size-3.5" />
-          </button>
-        )}
+    <div className="flex max-w-[80%] flex-col items-end gap-3">
+      {/* Row: pencil + bubble/edit-card */}
+      <div
+        className="flex items-start gap-1.5"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {/* Pencil button — slides in on hover, aligned to top of bubble */}
+        <motion.button
+          onClick={handleStartEdit}
+          initial={false}
+          animate={
+            isHovered && !isEditing && messageId && onEditMessage
+              ? { opacity: 1, x: 0 }
+              : { opacity: 0, x: 6 }
+          }
+          transition={{ duration: 0.14, ease: 'easeOut' }}
+          className={cn(
+            'mt-2 shrink-0 rounded-md p-1.5 text-[var(--brand-fg-secondary)]',
+            'transition-colors hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)]',
+            !(isHovered && !isEditing && messageId && onEditMessage) &&
+              'pointer-events-none',
+          )}
+          title="Edit message"
+        >
+          <Pencil className="size-3.5" />
+        </motion.button>
 
-        {isEditing ? (
-          /* Inline edit mode */
-          <div className="flex w-full max-w-sm flex-col gap-2">
-            <textarea
-              ref={textareaRef}
-              value={editValue}
-              onChange={(e) => {
-                setEditValue(e.target.value);
-                e.target.style.height = 'auto';
-                e.target.style.height = `${e.target.scrollHeight}px`;
-              }}
-              onKeyDown={handleKeyDown}
-              className="min-h-[60px] w-full resize-none rounded-bubble rounded-tr-sm bg-gradient-purple-message px-5 py-3 text-sm font-medium text-white outline-none placeholder:text-white/50"
-              placeholder="Edit your message…"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={handleCancelEdit}
-                className="flex items-center gap-1 rounded-md px-3 py-1.5 text-xs text-[var(--brand-fg-secondary)] transition-colors hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)]"
+        {/* Bubble / edit card */}
+        <div className="flex w-full max-w-sm flex-col items-end gap-2">
+          <AnimatePresence mode="wait" initial={false}>
+            {isEditing ? (
+              <EditMessageCard
+                key="edit-card"
+                value={editValue}
+                attachments={editAttachments}
+                availableCitations={availableCitations}
+                textareaRef={textareaRef}
+                onChange={(e) => {
+                  setEditValue(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+                onKeyDown={handleKeyDown}
+                onRemoveAttachment={handleRemoveAttachment}
+                onRemoveChunk={handleRemoveChunk}
+                onAddAttachment={handleAddAttachment}
+                onCancel={handleCancelEdit}
+                onSubmit={handleSubmitEdit}
+              />
+            ) : (
+              /* ── Message bubble ──────────────────────────────────────── */
+              <motion.div
+                key="bubble"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.12 }}
+                className="flex w-full flex-col items-end gap-2"
               >
-                <X className="size-3" />
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitEdit}
-                disabled={!editValue.trim()}
-                className="flex items-center gap-1 rounded-md bg-[var(--brand-btn-primary)] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--brand-btn-primary-hover)] disabled:opacity-40"
-              >
-                <Send className="size-3" />
-                Send
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div
-              ref={msgRef}
-              className="relative overflow-hidden bg-gradient-purple-message shadow-message rounded-bubble rounded-tr-sm px-5 py-3 text-sm font-medium text-white transition-all duration-300 ease-in-out"
-              style={{ height: isLong ? `${height}px` : 'auto' }}
-            >
-              <p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
-                {contentText}
-              </p>
-              {isLong && !isExpanded && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#7566d9] via-[#8a77eb]/60 to-transparent" />
-              )}
-            </div>
+                <div
+                  ref={msgRef}
+                  className="relative overflow-hidden bg-gradient-purple-message shadow-message rounded-bubble rounded-tr-sm px-5 py-3 text-sm font-medium text-white transition-all duration-300 ease-in-out"
+                  style={{ height: isLong ? `${height}px` : 'auto' }}
+                >
+                  <p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                    {contentText}
+                  </p>
+                  {isLong && !isExpanded && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#7566d9] via-[#8a77eb]/60 to-transparent" />
+                  )}
+                </div>
 
-            {isLong && (
-              <button
-                onClick={() => setIsExpanded((v) => !v)}
-                className="flex items-center gap-1 text-xs font-medium text-[var(--brand-action-menu-hover)] hover:text-[var(--brand-fg-light)] transition-colors"
-              >
-                {isExpanded ? (
-                  <>
-                    <ChevronUp className="h-3 w-3" />
-                    Show less
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-3 w-3" />
-                    Show more
-                  </>
+                {isLong && (
+                  <button
+                    onClick={() => setIsExpanded((v) => !v)}
+                    className="flex items-center gap-1 text-xs font-medium text-[var(--brand-action-menu-hover)] transition-colors hover:text-[var(--brand-fg-light)]"
+                  >
+                    {isExpanded ? (
+                      <>
+                        <ChevronUp className="h-3 w-3" />
+                        Show less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="h-3 w-3" />
+                        Show more
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
+              </motion.div>
             )}
-          </>
-        )}
+          </AnimatePresence>
+        </div>
+        {/* end bubble column */}
       </div>
+      {/* end pencil+bubble row */}
 
-      {/* Branch navigation */}
+      {/* Branch navigation — hidden while editing */}
       {!isEditing && siblingCount > 1 && messageId && onNavigateBranch && (
         <div className="flex items-center gap-0.5 text-xs text-[var(--brand-fg-secondary)]">
           <button
@@ -217,7 +281,8 @@ export function UserChatBubble({
         </div>
       )}
 
-      {sentAttachments && sentAttachments.length > 0 && (
+      {/* Sent attachments — hidden while editing (edit card manages them) */}
+      {!isEditing && sentAttachments && sentAttachments.length > 0 && (
         <SentAttachmentsPillRow attachments={sentAttachments} />
       )}
     </div>

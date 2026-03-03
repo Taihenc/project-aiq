@@ -33,8 +33,10 @@ export interface ChatMessageProps {
   siblingCount?: number;
   /** Called with this message's ID and direction to switch branches */
   onNavigateBranch?: (messageId: string, direction: 'prev' | 'next') => void;
+  /** Available citations from the session, forwarded into the edit card */
+  availableCitations?: Citation[];
   /** Called when user submits an edit for a user message */
-  onEditMessage?: (messageId: string, newContent: string) => void;
+  onEditMessage?: (messageId: string, newContent: string, attachments?: FileRef[]) => void;
   /** Called when user requests a regenerate for an assistant message */
   onRegenerate?: (assistantMessageId: string) => void;
 }
@@ -72,8 +74,9 @@ export interface ChatMessagesAreaProps {
   onLoadOlder?: () => void;
   // --- Tree callbacks ---
   onNavigateBranch?: (messageId: string, direction: 'prev' | 'next') => void;
-  onEditMessage?: (messageId: string, newContent: string) => void;
+  onEditMessage?: (messageId: string, newContent: string, attachments?: FileRef[]) => void;
   onRegenerate?: (assistantMessageId: string) => void;
+  availableCitations?: Citation[];
 }
 
 export interface ChatHeaderProps {

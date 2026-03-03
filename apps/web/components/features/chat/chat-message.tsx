@@ -23,6 +23,7 @@ export function ChatMessage({
   onNavigateBranch,
   onEditMessage,
   onRegenerate,
+  availableCitations,
 }: ChatMessageProps) {
   if (role === 'user') {
     return (
@@ -35,6 +36,7 @@ export function ChatMessage({
           siblingCount={siblingCount}
           onNavigateBranch={onNavigateBranch}
           onEditMessage={onEditMessage}
+          availableCitations={availableCitations}
         />
       </div>
     );

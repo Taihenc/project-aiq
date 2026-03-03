@@ -197,9 +197,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   };
 
   const handleEditMessage = useCallback(
-    (messageId: string, newContent: string) => {
+    (messageId: string, newContent: string, attachments?: FileRef[]) => {
       if (isLoading) return;
-      editUserMessage(messageId, newContent);
+      editUserMessage(messageId, newContent, attachments);
     },
     [editUserMessage, isLoading],
   );
@@ -302,6 +302,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
               onEditMessage={handleEditMessage}
               onRegenerate={handleRegenerate}
               onNavigateBranch={handleNavigateBranch}
+              availableCitations={sessionAvailableCitations}
             />
           )}
           {!showWelcomeScreen && (
