@@ -53,6 +53,9 @@ export interface FileRef {
   content?: string;
 }
 
+// Search mode for the search-flow service
+export type SearchMode = 'auto' | 'search' | 'lookup' | 'chat';
+
 // OpenAI-compatible chat completions request
 export interface ChatCompletionsRequest {
   messages: APIMessage[];
@@ -71,6 +74,8 @@ export interface ChatCompletionsRequest {
   provider?: string;
   top_k?: number;
   attachments?: FileRef[];
+  /** Search mode forwarded to search-flow service */
+  mode?: SearchMode;
 }
 
 // OpenAI-compatible chat completions response
@@ -134,6 +139,8 @@ export interface ChatSession {
   title: string;
   createdAt: number;
   updatedAt: number;
+  /** Accumulated available citations for the session (JSON-parsed by Drizzle) */
+  availableCitations?: unknown[] | null;
 }
 
 export interface BackendMessage {
@@ -142,5 +149,19 @@ export interface BackendMessage {
   content: string;
   createdAt: number;
   citations?: string;
+  sentAttachments?: string | unknown[];
+}
+
+// Paginated responses
+export interface PaginatedHistoryResponse {
+  sessions: ChatSession[];
+  nextCursor: string | null;
+}
+
+export interface PaginatedMessagesResponse {
+  session: ChatSession;
+  messages: BackendMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 

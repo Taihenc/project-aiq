@@ -29,6 +29,8 @@ export type {
   ChatResponse,
   ChatSession,
   BackendMessage,
+  PaginatedHistoryResponse,
+  PaginatedMessagesResponse,
 } from './api';
 
 // ============================================================================
@@ -44,7 +46,7 @@ export type {
 // ============================================================================
 // Store Types
 // ============================================================================
-export type { ChatStore } from './store';
+export type { ChatStore, TransitionalCacheEntry } from './store';
 
 // ============================================================================
 // Component Props Types

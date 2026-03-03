@@ -13,7 +13,9 @@ from rich.tree import Tree
 from rich import print as rprint
 
 # Configuration
-API_URL = "http://localhost:8000/api/v1/completions"  # Port 8000 from settings.py
+API_URL = (
+    "http://localhost:8000/api/v1/completions/stream"  # Port 8000 from settings.py
+)
 HEADERS = {"Content-Type": "application/json"}
 
 console = Console()
@@ -63,7 +65,6 @@ DEFAULT_METADATA = {
         "clearance_level": "Level 4 (Confidential)",
     },
     "preferences": {
-        "language": "Thai",
         "timezone": "Asia/Bangkok (GMT+7)",
     },
     "session_context": {
@@ -343,21 +344,11 @@ class SearchClient:
         )
 
     def chat_loop(self):
-        # Color mapping for actions
-        ACTION_COLORS = {
-            "chat": "green",
-            "search": "yellow",
-            "reject": "red",
-            "lookup": "blue",
-            "ask": "blue",
-            "no_skill": "magenta",
-            "unknown": "white",
-        }
-
+        # Display Info
         console.print(
             Panel.fit(
                 "[bold cyan]AINGO SEARCH FLOW[/bold cyan]\n[dim]AI-Powered Intelligence Engine[/dim]\n"
-                "[dim]Commands: /chat, /search, /lookup, /auto, /metadata <json>, /reset[/dim]",
+                "[dim]Commands: /chat, /search, /lookup, /auto, /reset[/dim]",
                 subtitle="Type 'exit' to quit",
                 border_style="cyan",
                 padding=(1, 2),
@@ -444,33 +435,62 @@ class SearchClient:
             }
 
             try:
-                with console.status(
-                    "[bold cyan]Processing...[/bold cyan]", spinner="bouncingBar"
-                ):
-                    response = self.session.post(API_URL, json=payload, timeout=120)
+                # Stream Mode: status lines live → tokens stream live → final Markdown Panel
+                response_text = ""
+                citations = []
+                first_token = True
+                streaming_started = False
+
+                with self.session.post(
+                    API_URL, json=payload, timeout=120, stream=True
+                ) as response:
                     response.raise_for_status()
-                    api_response = response.json()
-                    data = api_response.get("data", {})
+                    for line in response.iter_lines():
+                        if line:
+                            try:
+                                event = json.loads(line.decode("utf-8"))
+                                event_type = event.get("type")
+                                content = event.get("content", "")
 
-                # 3. Output Phase
-                action = data.get("action", "unknown")
-                response_text = data.get("response", "")
-                citations = data.get("citations") or []
-
-                color = ACTION_COLORS.get(action, "white")
-
-                rprint(
-                    Panel(
-                        Markdown(response_text),
-                        title="[bold cyan]AGENT RESPONSE[/bold cyan]",
-                        title_align="left",
-                        border_style="cyan",
-                        padding=(1, 2),
-                    )
-                )
+                                if event_type == "status":
+                                    if not streaming_started:
+                                        rprint(
+                                            f"[dim italic]>>> {content}[/dim italic]"
+                                        )
+                                elif event_type == "token":
+                                    if first_token:
+                                        sys.stdout.write("\n")
+                                        first_token = False
+                                        streaming_started = True
+                                    sys.stdout.write(content)
+                                    sys.stdout.flush()
+                                    response_text += content
+                                elif event_type == "result":
+                                    citations = content.get("citations") or []
+                                    final_text = (
+                                        content.get("response", "") or response_text
+                                    )
+                                    if final_text:
+                                        sys.stdout.write("\n")
+                                        sys.stdout.flush()
+                                        console.print(
+                                            Panel(
+                                                Markdown(final_text),
+                                                border_style="cyan",
+                                                padding=(1, 2),
+                                            )
+                                        )
+                                    response_text = final_text
+                                    break  # result received — stop reading stream
+                                elif event_type == "error":
+                                    rprint(f"\n[red]Error: {content}[/red]")
+                                    break
+                            except json.JSONDecodeError:
+                                pass
+                rprint("")
 
                 # Update History
-                if action != "unknown":
+                if response_text:
                     self.history.append(f"User: {query}")
                     self.history.append(f"Agent: {response_text}")
 
@@ -485,15 +505,9 @@ class SearchClient:
                         self.select_attachments([])
 
             except requests.exceptions.ConnectionError:
-                console.print(
-                    f"[bold red]FATAL: Could not connect to {API_URL}.[/bold red]"
-                )
+                console.print(f"[bold red]FATAL: Could not connect to API.[/bold red]")
             except Exception as e:
                 console.print(f"[bold red]ERROR: {e}[/bold red]")
-                if "response" in locals():
-                    console.print(
-                        Panel(response.text, title="Debug Info", border_style="red")
-                    )
 
 
 if __name__ == "__main__":

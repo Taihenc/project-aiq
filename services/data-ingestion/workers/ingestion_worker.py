@@ -29,7 +29,7 @@ class IngestionWorker:
         self.indexer = indexer.Indexer()
         self.upload = upload.Upload()
 
-    async def ingest(self, file_path: str, chunking: bool = True, format: bool = True, qdrant_upload: bool = True):
+    async def ingest(self, file_path: str, chunking: bool = True, format: bool = True, qdrant_upload: bool = True, file_id: str | None = None):
         print(f"Starting ingestion for file: {file_path}")
         try:
             print(f"Extractor...")
@@ -50,7 +50,7 @@ class IngestionWorker:
             if not qdrant_upload:
                 return contexts
 
-            res = await self.upload.upload(contexts)
+            res = await self.upload.upload(contexts, file_id=file_id)
             print(f"Uploaded {len(contexts)} chunks for file: {file_path}")
             # print(f"Upload response: {res}")
             return res
@@ -116,17 +116,31 @@ class IngestionWorker:
             print(f"Warning: could not delete existing vectors for '{file_name}': {e}")
 
     def _update_fss_status(self, file_id: str, status: str) -> None:
-        """Push a status update back to the File Storage Service."""
+        """Push a status update back to FSS with exponential-backoff retry (Fix 4)."""
+        import logging
         fss_url = os.getenv("FILE_STORAGE_URL", "http://127.0.0.1:8007")
-        try:
-            resp = requests.patch(
-                f"{fss_url}/files/{file_id}/status",
-                json={"status": status},
-            )
-            resp.raise_for_status()
-            print(f"FSS status → {status} for file_id={file_id}")
-        except Exception as e:
-            print(f"Warning: could not update FSS status to {status} for {file_id}: {e}")
+        delays = [2, 6, 18]
+        last_exc: Exception | None = None
+        for attempt, delay in enumerate(delays, 1):
+            try:
+                resp = requests.patch(
+                    f"{fss_url}/files/{file_id}/status",
+                    json={"status": status},
+                    timeout=5,
+                )
+                resp.raise_for_status()
+                print(f"FSS status → {status} for file_id={file_id}")
+                return
+            except Exception as e:
+                last_exc = e
+                if attempt < len(delays):
+                    print(f"[fss-status] attempt {attempt} failed, retrying in {delay}s: {e}")
+                    time.sleep(delay)
+        logging.error(
+            "[fss-status] Exhausted retries updating %s for file_id=%s: %s",
+            status, file_id, last_exc,
+        )
+        raise last_exc
 
     def _download_and_process(self, file_id: str):
         fss_url = os.getenv("FILE_STORAGE_URL", "http://127.0.0.1:8007")
@@ -164,7 +178,7 @@ class IngestionWorker:
 
             print(f"Downloaded file {file_id} to {tmp_path}")
 
-            asyncio.run(self.ingest(tmp_path))
+            asyncio.run(self.ingest(tmp_path, file_id=file_id))
             print(f"Successfully ingested file {file_id}")
 
         finally:

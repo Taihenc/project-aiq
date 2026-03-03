@@ -13,7 +13,13 @@ import type { FileRef, ChunkMetadata } from '@/types/api';
 
 // ── Ext badge ────────────────────────────────────────────────────────────────
 
-export function FileExtBadge({ ext }: { ext: string | undefined }) {
+export function FileExtBadge({
+  ext,
+  size = 'sm',
+}: {
+  ext: string | undefined;
+  size?: 'sm' | 'md';
+}) {
   const colorMap: Record<string, string> = {
     pdf: 'bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400',
     docx: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400',
@@ -32,7 +38,10 @@ export function FileExtBadge({ ext }: { ext: string | undefined }) {
   return (
     <span
       className={cn(
-        'flex h-5 w-5 shrink-0 items-center justify-center rounded text-[8px] font-bold leading-none border border-current/10',
+        'flex shrink-0 items-center justify-center font-bold leading-none border border-current/10',
+        size === 'md'
+          ? 'h-8 w-8 rounded-md text-[9px]'
+          : 'h-5 w-5 rounded text-[8px]',
         color,
       )}
     >
@@ -41,9 +50,15 @@ export function FileExtBadge({ ext }: { ext: string | undefined }) {
   );
 }
 
-// ── Hover popup: page → chunk hierarchy ──────────────────────────────────────
+// ── Hover popup: page → chunk hierarchy (with per-chunk remove) ───────────────
 
-function AttachmentHoverContent({ att }: { att: FileRef }) {
+function AttachmentHoverContent({
+  att,
+  onRemoveChunk,
+}: {
+  att: FileRef;
+  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const filename = att.file_path.split('/').pop() || att.file_path;
   const ext = att.file_path.split('.').pop()?.toLowerCase();
@@ -68,14 +83,15 @@ function AttachmentHoverContent({ att }: { att: FileRef }) {
             {filename}
           </span>
           <span className="text-[10px] text-[var(--brand-source-time)]">
-            {att.chunks.length} chunk{att.chunks.length !== 1 ? 's' : ''}
+            {att.chunks.length} chunk{att.chunks.length !== 1 ? 's' : ''}{' '}
+            attached
           </span>
         </div>
         <button
           type="button"
           onClick={() => setIsExpanded((v) => !v)}
           className="shrink-0 rounded-md p-1 text-[var(--brand-source-time)] hover:bg-[var(--brand-source-hover-bg)] hover:text-[var(--brand-source-text)] transition-colors"
-          title={isExpanded ? 'Collapse' : 'Expand'}
+          title={isExpanded ? 'Collapse' : 'Expand all chunks'}
         >
           {isExpanded ? (
             <ChevronsDownUp className="h-3.5 w-3.5" />
@@ -108,15 +124,15 @@ function AttachmentHoverContent({ att }: { att: FileRef }) {
 
             {page.chunks.map((chunk, ci) => (
               <div
-                key={chunk.chunk_number || ci}
+                key={chunk.chunk_number ?? ci}
                 className={cn(
-                  'flex gap-2 px-3 py-2',
+                  'group/chunk flex gap-2 px-3 py-2',
                   ci < page.chunks.length - 1 &&
                     'border-b border-[var(--brand-source-border)]/40',
                 )}
               >
                 <span className="mt-0.5 shrink-0 self-start rounded-full bg-[var(--brand-citation-bg)] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[var(--brand-citation-text)]">
-                  #{chunk.chunk_number || ci + 1}
+                  #{chunk.chunk_number ?? ci + 1}
                 </span>
                 <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-[var(--brand-content-text)] whitespace-pre-wrap [overflow-wrap:anywhere]">
                   {chunk.content ?? (
@@ -125,6 +141,18 @@ function AttachmentHoverContent({ att }: { att: FileRef }) {
                     </span>
                   )}
                 </p>
+                {onRemoveChunk && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onRemoveChunk(att.file_path, chunk.chunk_number ?? ci + 1)
+                    }
+                    className="mt-0.5 shrink-0 self-start rounded-full p-0.5 text-[var(--brand-source-time)] opacity-0 group-hover/chunk:opacity-100 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/40 dark:hover:text-red-400 transition-all"
+                    title="Remove this chunk"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -140,16 +168,18 @@ export function AttachmentPill({
   att,
   index,
   onRemove,
+  onRemoveChunk,
 }: {
   att: FileRef;
   index: number;
   onRemove?: (index: number) => void;
+  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
 }) {
   const filename = att.file_path.split('/').pop() || att.file_path;
   const ext = att.file_path.split('.').pop()?.toLowerCase();
 
   return (
-    <HoverCard openDelay={200} closeDelay={100}>
+    <HoverCard openDelay={200} closeDelay={150}>
       <HoverCardTrigger asChild>
         <span className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand-card-purple)] pl-1.5 pr-1 py-1 text-[11px] font-medium text-[var(--brand-link)] border border-[var(--brand-citation-border)] whitespace-nowrap cursor-pointer hover:bg-[var(--brand-new-chat-hover)] transition-colors">
           <FileExtBadge ext={ext} />
@@ -164,6 +194,7 @@ export function AttachmentPill({
               onRemove?.(index);
             }}
             className="ml-0.5 rounded-full p-0.5 text-[var(--brand-source-time)] hover:bg-[var(--brand-border-light)] hover:text-[var(--brand-source-text)] transition-colors"
+            title="Remove all chunks"
           >
             <X className="h-3 w-3" />
           </button>
@@ -174,7 +205,7 @@ export function AttachmentPill({
         align="start"
         className="w-80 rounded-xl border-[var(--brand-source-border)] bg-card/98 dark:bg-card p-0 shadow-[0_20px_60px_-20px_rgba(102,88,204,0.35)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.6)]"
       >
-        <AttachmentHoverContent att={att} />
+        <AttachmentHoverContent att={att} onRemoveChunk={onRemoveChunk} />
       </HoverCardContent>
     </HoverCard>
   );

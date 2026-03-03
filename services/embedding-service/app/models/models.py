@@ -39,6 +39,15 @@ class DocumentUpload(BaseModel):
 
 class DocumentUploadRequest(BaseModel):
     documents: List[DocumentUpload] = Field(..., description="List of documents to upload")
+    file_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional FSS file_id. When provided and FSS_CALLBACK_URL env is set, "
+            "the embedding service will PATCH FSS status to INDEXED after a "
+            "successful upload — acting as a direct confirmation path alongside "
+            "the data-ingestion worker's _update_fss_status call."
+        ),
+    )
 
 class DocumentUploadResponse(BaseModel):
     ids: List[str] = Field(..., description="List of uploaded document IDs")
@@ -54,6 +63,13 @@ class Filter(BaseModel):
     team: Optional[str] = Field(default="",description="Team filter",nullable=True)
     project: Optional[str] = Field(default="",description="Project filter",nullable=True)
     tags: Optional[List[str]] = Field(default=[],description="Tags filter",nullable=True)
+
+
+class FileStatusResponse(BaseModel):
+    """Response from GET /v1/file-status — used by reconciliation watchdog."""
+    file_name: str
+    indexed: bool = Field(..., description="True when at least one chunk exists in Qdrant")
+    chunk_count: int = Field(..., description="Number of Qdrant points for this file")
 
 
 class SearchRequest(BaseModel):

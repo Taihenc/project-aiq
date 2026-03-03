@@ -6,6 +6,7 @@ import { DRIZZLE } from '../../database/drizzle.module';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { users } from '../../database/schema';
 import { eq } from 'drizzle-orm';
+import { JWT_FALLBACK_SECRET } from '../../constants/auth.constants';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -16,7 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'dev_secret_key',
+      secretOrKey: configService.get<string>('JWT_SECRET') || JWT_FALLBACK_SECRET,
     });
   }
 

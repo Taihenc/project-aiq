@@ -155,9 +155,16 @@ export function SourcesContent() {
       setAllStatuses((prev) => ({ ...prev, [item.id]: status }));
     } catch {
       toast.error(`Failed to trigger ingestion for "${item.name}"`);
-      const failed: IngestionStatus = 'FAILED';
-      setStatuses((prev) => ({ ...prev, [item.id]: failed }));
-      setAllStatuses((prev) => ({ ...prev, [item.id]: failed }));
+      try {
+        const { status } = await sharePointApi.getFileStatus(item.id);
+        setStatuses((prev) => ({ ...prev, [item.id]: status }));
+        setAllStatuses((prev) => ({ ...prev, [item.id]: status }));
+      } catch (error) {
+        console.error(
+          `Failed to fetch file status for item "${item.name}" (ID: ${item.id}) after ingestion error:`,
+          error,
+        );
+      }
     } finally {
       setIngestingIds((prev) => {
         const next = new Set(prev);
@@ -241,7 +248,7 @@ export function SourcesContent() {
     <div className="relative z-10 flex flex-col h-full overflow-hidden">
       {/* ── Top bar ─────────────────────────────────────────── */}
       <header className="flex items-center gap-3 px-5 py-3.5 border-b border-border shrink-0 bg-background/50 backdrop-blur-sm">
-        <SidebarTrigger className="text-muted-foreground hover:text-foreground shrink-0" />
+        <SidebarTrigger className="text-muted-foreground hover:text-[var(--brand-fg-accent)] shrink-0" />
 
         <div className="flex items-center gap-2.5">
           <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-violet-500/15 border border-violet-500/20 shrink-0">
@@ -324,7 +331,7 @@ export function SourcesContent() {
                       'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/6 shrink-0',
                       !currentPath
                         ? 'text-violet-400 bg-violet-500/10'
-                        : 'text-muted-foreground hover:text-foreground',
+                        : 'text-muted-foreground hover:text-[var(--brand-link)]',
                     )}
                   >
                     <Home className="h-3.5 w-3.5" />
@@ -340,7 +347,7 @@ export function SourcesContent() {
                           'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/6 truncate max-w-40',
                           i === breadcrumbs.length - 1
                             ? 'text-violet-400 bg-violet-500/10'
-                            : 'text-muted-foreground hover:text-foreground',
+                            : 'text-muted-foreground hover:text-[var(--brand-link)]',
                         )}
                         title={segment}
                       >

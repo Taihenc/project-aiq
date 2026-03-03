@@ -21,6 +21,7 @@ export const chatSessions = sqliteTable('chat_sessions', {
   updatedAt: integer('updated_at').default(Date.now()),
   summary: text('summary'),
   lastSummarizedMessageId: text('last_summarized_message_id'),
+  availableCitations: text('available_citations', { mode: 'json' }), // JSON — accumulated Citation[] for the session citation picker
 });
 
 export const chatMessages = sqliteTable('chat_messages', {
@@ -28,6 +29,7 @@ export const chatMessages = sqliteTable('chat_messages', {
   role: text('role').notNull(), // 'user' | 'assistant'
   content: text('content').notNull(),
   citations: text('citations', { mode: 'json' }), // JSON string
+  sentAttachments: text('sent_attachments', { mode: 'json' }), // JSON — FileRef[] attached by user when sending
   sessionId: text('session_id')
     .references(() => chatSessions.id)
     .notNull(),

@@ -184,7 +184,7 @@ function TreeNode({
         className={`truncate max-w-[148px] text-xs transition-colors ${
           selectedPath === item.path
             ? 'text-violet-300 font-medium'
-            : 'text-foreground/60 hover:text-foreground/90'
+            : 'text-foreground/60 hover:text-[var(--brand-link)]'
         }`}
       >
         {item.name}

@@ -30,4 +30,9 @@ export const sharePointApi = {
     const response = await client.delete(`/sharepoint/${sourceId}`);
     return response.data;
   },
+  /** Fetch a short-lived SSE token from the authenticated NestJS endpoint. */
+  getSSEToken: async () => {
+    const response = await client.get('/sharepoint/sse-token');
+    return response.data as { token: string };
+  },
 };

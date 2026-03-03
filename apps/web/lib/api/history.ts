@@ -1,14 +1,18 @@
 import { client } from './client';
-import type { ChatSession } from '@/types';
+import type { ChatSession, PaginatedHistoryResponse, PaginatedMessagesResponse } from '@/types';
 
 export const historyApi = {
-  getHistory: async (): Promise<ChatSession[]> => {
-    const response = await client.get('/history');
+  getHistory: async (params?: { limit?: number; cursor?: string }): Promise<PaginatedHistoryResponse> => {
+    const response = await client.get('/history', { params });
     return response.data;
   },
-  getSession: async (id: string): Promise<{ session: ChatSession, messages: unknown[] }> => {
-    const response = await client.get(`/history/${id}`);
+  getSession: async (id: string, params?: { limit?: number; before?: string }): Promise<PaginatedMessagesResponse> => {
+    const response = await client.get(`/history/${id}`, { params });
     return response.data;
+  },
+  checkSession: async (id: string): Promise<boolean> => {
+    const response = await client.get(`/history/check/${id}`);
+    return response.data.exists;
   },
   createSession: async (title?: string): Promise<ChatSession> => {
     const response = await client.post('/history', { title });

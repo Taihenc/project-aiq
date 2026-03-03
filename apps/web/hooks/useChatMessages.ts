@@ -1,6 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UIMessage, UseChatMessagesOptions, BackendMessage, FileRef } from '@/types';
+import type { SearchMode } from '@/types/api';
+import type { Citation } from '@/lib/api/chat';
+import { PAGINATION } from '@/constants/pagination';
+import { CHAT_TEMPERATURE, CHAT_MAX_TOKENS } from '@/constants/chat';
 import { streamChatCompletions } from '@/lib/api/chat';
 import { historyApi } from '@/lib/api/history';
 import { useChatStore } from '@/lib/store/chat-store';
@@ -16,21 +20,38 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isDemoMode = false, initialMessages = [], chatId } = options;
 
-  // Subscribe reactively so the effect re-runs when history or its loading state changes
-  const storeHistory = useChatStore((state) => state.history);
-  const storeIsLoadingHistory = useChatStore((state) => state.isLoadingHistory);
-
   // Initialize messages from cache immediately to avoid flash on navigation
   const [messages, setMessages] = useState<UIMessage[]>(() => {
     if (chatId) {
       const cached = useChatStore.getState().getTransitionalMessages(chatId);
-      if (cached && cached.length > 0) return cached;
+      if (cached && cached.messages.length > 0) return cached.messages;
     }
     return initialMessages;
   });
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>(chatId);
   const sessionIdRef = useRef(sessionId);
+
+  // Pagination state for loading older messages
+  const [messagesNextCursor, setMessagesNextCursor] = useState<string | null>(() => {
+    if (chatId) {
+      const cached = useChatStore.getState().getTransitionalMessages(chatId);
+      return cached?.cursor ?? null;
+    }
+    return null;
+  });
+  const [hasOlderMessages, setHasOlderMessages] = useState<boolean>(() => {
+    if (chatId) {
+      const cached = useChatStore.getState().getTransitionalMessages(chatId);
+      return cached?.hasMore ?? false;
+    }
+    return false;
+  });
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+
+  // Available citations accumulated for this session (stored on the session row)
+  const [sessionAvailableCitations, setSessionAvailableCitations] = useState<Citation[]>([]);
+
   const setTransitionalMessages = useChatStore(
     (state) => state.setTransitionalMessages,
   );
@@ -40,16 +61,11 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       setSessionId(chatId);
       sessionIdRef.current = chatId;
 
-      // Wait for auth and history to be ready
-      if (isAuthLoading || !isAuthenticated || storeIsLoadingHistory) return;
+      // Wait for auth to be ready
+      if (isAuthLoading || !isAuthenticated) return;
 
-      // Verify the chat exists in the local history before attempting to fetch
-      // This prevents 404 errors in the console for non-existent/unauthorized chats
-      const chatExists = storeHistory.some(h => h.id === chatId);
-      if (!chatExists) return;
-
-      const cachedMessages = useChatStore.getState().getTransitionalMessages(chatId);
-      if (cachedMessages && cachedMessages.length > 0) {
+      const cachedEntry = useChatStore.getState().getTransitionalMessages(chatId);
+      if (cachedEntry && cachedEntry.messages.length > 0) {
         // Already initialized from cache in useState, just refresh from backend silently
         loadMessages(chatId, false);
       } else {
@@ -62,30 +78,47 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       if (!sessionIdRef.current) {
         setSessionId(undefined);
         setMessages([]);
+        setMessagesNextCursor(null);
+        setHasOlderMessages(false);
       }
     }
-  }, [chatId, isAuthenticated, isAuthLoading, storeHistory, storeIsLoadingHistory]);
+  }, [chatId, isAuthenticated, isAuthLoading]);
+
+  const parseBackendMessage = (msg: BackendMessage): UIMessage => ({
+    id: msg.id,
+    role: msg.role,
+    content:
+      typeof msg.content === 'string'
+        ? msg.content
+        : JSON.stringify(msg.content || ''),
+    created: msg.createdAt,
+    citations:
+      typeof msg.citations === 'string'
+        ? JSON.parse(msg.citations)
+        : msg.citations,
+    sentAttachments: msg.sentAttachments
+      ? typeof msg.sentAttachments === 'string'
+        ? JSON.parse(msg.sentAttachments)
+        : msg.sentAttachments
+      : undefined,
+  });
 
   const loadMessages = async (id: string, showLoadingState = true) => {
     if (showLoadingState) setIsLoading(true);
     try {
-      const { messages: historyMessages } = await historyApi.getSession(id);
-      const uiMessages: UIMessage[] = (
-        historyMessages as unknown as BackendMessage[]
-      ).map((msg) => ({
-        id: msg.id,
-        role: msg.role,
-        content:
-          typeof msg.content === 'string'
-            ? msg.content
-            : JSON.stringify(msg.content || ''),
-        timestamp: new Date(msg.createdAt),
-        citations:
-          typeof msg.citations === 'string'
-            ? JSON.parse(msg.citations)
-            : msg.citations,
-      }));
+      const { session, messages: historyMessages, nextCursor, hasMore } =
+        await historyApi.getSession(id, { limit: PAGINATION.MESSAGES_PAGE_SIZE });
+      const uiMessages = (historyMessages as unknown as BackendMessage[]).map(
+        parseBackendMessage,
+      );
       setMessages(uiMessages);
+      setMessagesNextCursor(nextCursor);
+      setHasOlderMessages(hasMore);
+      // Restore accumulated session citations (Drizzle mode:'json' returns parsed array)
+      const raw = session?.availableCitations;
+      setSessionAvailableCitations(
+        Array.isArray(raw) ? (raw as Citation[]) : [],
+      );
     } catch (error) {
       console.error('Failed to load messages:', error);
     } finally {
@@ -93,8 +126,34 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     }
   };
 
-  const sendMessage = async (content: string, attachments?: FileRef[]) => {
-    const userMessage = createUserMessage(content);
+  const loadOlderMessages = useCallback(async () => {
+    if (!sessionId || !messagesNextCursor || isLoadingOlder || !hasOlderMessages) return;
+
+    setIsLoadingOlder(true);
+    try {
+      const { messages: olderMsgs, nextCursor, hasMore } =
+        await historyApi.getSession(sessionId, {
+          limit: PAGINATION.MESSAGES_PAGE_SIZE,
+          before: messagesNextCursor,
+        });
+      const olderUiMessages = (olderMsgs as unknown as BackendMessage[]).map(
+        parseBackendMessage,
+      );
+      setMessages((prev) => [...olderUiMessages, ...prev]);
+      setMessagesNextCursor(nextCursor);
+      setHasOlderMessages(hasMore);
+    } catch (error) {
+      console.error('Failed to load older messages:', error);
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }, [sessionId, messagesNextCursor, isLoadingOlder, hasOlderMessages]);
+
+  const sendMessage = async (content: string, attachments?: FileRef[], mode?: SearchMode) => {
+    const userMessage: UIMessage = {
+      ...createUserMessage(content),
+      ...(attachments && attachments.length > 0 ? { sentAttachments: attachments } : {}),
+    };
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
@@ -138,9 +197,10 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       const stream = await streamChatCompletions(apiMessages, {
         sessionId: currentSessionId,
         requestSource: 'frontend',
-        temperature: 0.7,
-        maxTokens: 1000,
+        temperature: CHAT_TEMPERATURE,
+        maxTokens: CHAT_MAX_TOKENS,
         attachments,
+        mode,
       });
 
       const reader = stream.getReader();
@@ -253,6 +313,12 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
 
               const isEmptyResponse = !finalContent || finalContent.trim() === '';
 
+              // Backend injects `available_citations` into the result event —
+              // the fully merged session set, computed server-side.
+              if (Array.isArray(event.available_citations) && event.available_citations.length > 0) {
+                setSessionAvailableCitations(event.available_citations as Citation[]);
+              }
+
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMessageId
@@ -322,14 +388,20 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     setMessages([]);
     setSessionId(undefined);
     sessionIdRef.current = undefined;
+    setMessagesNextCursor(null);
+    setHasOlderMessages(false);
   };
 
   // Cache latest messages per session to avoid flicker on navigation
   useEffect(() => {
     if (sessionIdRef.current && messages.length > 0) {
-      setTransitionalMessages(sessionIdRef.current, messages);
+      setTransitionalMessages(sessionIdRef.current, {
+        messages,
+        cursor: messagesNextCursor,
+        hasMore: hasOlderMessages,
+      });
     }
-  }, [messages, setTransitionalMessages]);
+  }, [messages, messagesNextCursor, hasOlderMessages, setTransitionalMessages]);
 
   return {
     messages,
@@ -337,5 +409,9 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     sessionId,
     sendMessage,
     clearMessages,
+    hasOlderMessages,
+    loadOlderMessages,
+    isLoadingOlder,
+    sessionAvailableCitations,
   };
 }

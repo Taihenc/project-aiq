@@ -2,9 +2,14 @@ import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { DRIZZLE } from '../database/drizzle.module';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { chatSessions, chatMessages, users } from '../database/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, lt } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { encode } from 'gpt-tokenizer';
+import {
+  DEFAULT_HISTORY_PAGE_LIMIT,
+  DEFAULT_MESSAGES_PAGE_LIMIT,
+  DEFAULT_SESSION_TITLE,
+} from '../constants/chat.constants';
 
 @Injectable()
 export class ChatHistoryService {
@@ -12,18 +17,43 @@ export class ChatHistoryService {
 
   constructor(@Inject(DRIZZLE) private db: BetterSQLite3Database) {}
 
-  async getHistory(userId: string) {
-    this.logger.debug(`Fetching history for user: ${userId}`);
-    return this.db
+  async getHistory(userId: string, limit: number = DEFAULT_HISTORY_PAGE_LIMIT, cursor?: string) {
+    this.logger.debug(
+      `Fetching history for user: ${userId}, limit: ${limit}, cursor: ${cursor}`,
+    );
+
+    const conditions = [eq(chatSessions.userId, userId || '')];
+    if (cursor) {
+      conditions.push(lt(chatSessions.updatedAt, parseInt(cursor)));
+    }
+
+    const results = this.db
       .select()
       .from(chatSessions)
-      .where(eq(chatSessions.userId, userId || ''))
+      .where(and(...conditions))
       .orderBy(desc(chatSessions.updatedAt))
+      .limit(limit + 1)
       .all();
+
+    const hasMore = results.length > limit;
+    const sessions = hasMore ? results.slice(0, limit) : results;
+    const nextCursor =
+      hasMore && sessions.length > 0
+        ? String(sessions[sessions.length - 1].updatedAt)
+        : null;
+
+    return { sessions, nextCursor };
   }
 
-  async getSession(sessionId: string, userId: string) {
-    this.logger.debug(`Fetching session: ${sessionId} for user: ${userId}`);
+  async getSession(
+    sessionId: string,
+    userId: string,
+    limit: number = DEFAULT_MESSAGES_PAGE_LIMIT,
+    before?: string,
+  ) {
+    this.logger.debug(
+      `Fetching session: ${sessionId} for user: ${userId}, limit: ${limit}, before: ${before}`,
+    );
     const session = this.db
       .select()
       .from(chatSessions)
@@ -40,17 +70,54 @@ export class ChatHistoryService {
       throw new NotFoundException('Session not found');
     }
 
-    const messages = this.db
+    const messageConditions = [eq(chatMessages.sessionId, sessionId)];
+    if (before) {
+      messageConditions.push(lt(chatMessages.createdAt, parseInt(before)));
+    }
+
+    const results = this.db
       .select()
       .from(chatMessages)
-      .where(eq(chatMessages.sessionId, sessionId))
-      .orderBy(chatMessages.createdAt)
+      .where(and(...messageConditions))
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(limit + 1)
       .all();
 
-    return { session, messages };
+    const hasMore = results.length > limit;
+    const messagesDesc = hasMore ? results.slice(0, limit) : results;
+    const messages = messagesDesc.reverse();
+    const nextCursor =
+      hasMore && messages.length > 0
+        ? String(messages[0].createdAt)
+        : null;
+
+    return { session, messages, nextCursor, hasMore };
   }
 
-  async createSession(userId: string, title: string = 'New Chat') {
+  /**
+   * Returns the accumulated available citations stored on the session row.
+   */
+  getSessionAvailableCitations(sessionId: string): any[] {
+    const row = this.db
+      .select({ availableCitations: chatSessions.availableCitations })
+      .from(chatSessions)
+      .where(eq(chatSessions.id, sessionId))
+      .get();
+    return Array.isArray(row?.availableCitations) ? row.availableCitations : [];
+  }
+
+  /**
+   * Overwrites the accumulated available citations on the session row.
+   */
+  updateSessionAvailableCitations(sessionId: string, citations: any[]): void {
+    this.db
+      .update(chatSessions)
+      .set({ availableCitations: citations })
+      .where(eq(chatSessions.id, sessionId))
+      .run();
+  }
+
+  async createSession(userId: string, title: string = DEFAULT_SESSION_TITLE) {
     const id = uuidv4();
     this.logger.log(`Creating new session: ${id} for user: ${userId}`);
     this.db
@@ -75,6 +142,7 @@ export class ChatHistoryService {
     role: string,
     content: any,
     citations?: any,
+    sentAttachments?: any,
   ) {
     this.logger.debug(
       `Adding message to session ${sessionId}. Role: ${role}, User: ${userId}`,
@@ -136,6 +204,7 @@ export class ChatHistoryService {
           role,
           content: stringContent,
           citations: citations || null,
+          sentAttachments: sentAttachments || null,
           createdAt: Date.now(),
         })
         .run();
@@ -190,6 +259,23 @@ export class ChatHistoryService {
     return true;
   }
 
+  async checkSession(
+    sessionId: string,
+    userId: string,
+  ): Promise<{ exists: boolean }> {
+    const session = this.db
+      .select({ id: chatSessions.id })
+      .from(chatSessions)
+      .where(
+        and(
+          eq(chatSessions.id, sessionId || ''),
+          eq(chatSessions.userId, userId || ''),
+        ),
+      )
+      .get();
+    return { exists: !!session };
+  }
+
   async getRecentMessages(
     sessionId: string,
     limit: number,
@@ -229,6 +315,7 @@ export class ChatHistoryService {
   async getSessionSummary(sessionId: string) {
     const session = this.db
       .select({
+        title: chatSessions.title,
         summary: chatSessions.summary,
         lastSummarizedMessageId: chatSessions.lastSummarizedMessageId,
       })
@@ -236,6 +323,15 @@ export class ChatHistoryService {
       .where(eq(chatSessions.id, sessionId))
       .get();
     return session;
+  }
+
+  async updateSessionTitle(sessionId: string, title: string): Promise<void> {
+    this.logger.log(`Auto-titling session ${sessionId}: "${title}"`);
+    this.db
+      .update(chatSessions)
+      .set({ title, updatedAt: Date.now() })
+      .where(eq(chatSessions.id, sessionId || ''))
+      .run();
   }
 
   async updateSessionSummary(

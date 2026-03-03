@@ -118,6 +118,15 @@ export class ChatCompletionsRequestDto {
   @ValidateNested({ each: true })
   @Type(() => FileRefDto)
   attachments?: FileRefDto[];
+
+  @ApiPropertyOptional({
+    description: 'Search mode for the search-flow service',
+    enum: ['auto', 'search', 'lookup', 'chat'],
+    default: 'auto',
+  })
+  @IsOptional()
+  @IsString()
+  mode?: string;
 }
 
 // Search-flow FileRef DTOs

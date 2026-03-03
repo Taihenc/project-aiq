@@ -10,6 +10,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ChatHistoryService } from './chat-history.service';
+import { DEFAULT_CONTEXT_LIMIT } from '../constants/chat.constants';
 import {
   ApiTags,
   ApiOperation,
@@ -31,12 +32,19 @@ export class ChatHistoryController {
   @Get()
   @ApiOperation({
     summary: 'Get chat history',
-    description: 'Returns all chat sessions for the authenticated user.',
+    description: 'Returns paginated chat sessions for the authenticated user.',
   })
-  @ApiResponse({ status: 200, description: 'List of sessions.' })
-  async getHistory(@Request() req) {
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Sessions per page (default: 20)' })
+  @ApiQuery({ name: 'cursor', required: false, type: String, description: 'Pagination cursor (updatedAt of last session)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of sessions.' })
+  async getHistory(
+    @Request() req,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ) {
     this.logger.debug(`GET /history hit for user: ${req.user.userId}`);
-    return this.historyService.getHistory(req.user.userId);
+    const limitNum = limit ? parseInt(limit) : undefined;
+    return this.historyService.getHistory(req.user.userId, limitNum, cursor);
   }
 
   @Get(':id/context')
@@ -54,23 +62,42 @@ export class ChatHistoryController {
     @Query('limit') limit: number,
     @Query('tokenLimit') tokenLimit: number,
   ) {
-    const limitNum = limit ? parseInt(limit.toString()) : 20;
+    const limitNum = limit ? parseInt(limit.toString()) : DEFAULT_CONTEXT_LIMIT;
     const tokenLimitNum = tokenLimit
       ? parseInt(tokenLimit.toString())
       : undefined;
     return this.historyService.getRecentMessages(id, limitNum, tokenLimitNum);
   }
 
+  @Get('check/:id')
+  @ApiOperation({
+    summary: 'Check session exists',
+    description: 'Lightweight check whether a session exists for the authenticated user.',
+  })
+  @ApiParam({ name: 'id', description: 'Session ID' })
+  @ApiResponse({ status: 200, description: 'Existence check result.' })
+  async checkSession(@Request() req, @Param('id') id: string) {
+    return this.historyService.checkSession(id, req.user.userId);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Get session details',
-    description: 'Returns a single session and its messages.',
+    description: 'Returns a session and its paginated messages.',
   })
   @ApiParam({ name: 'id', description: 'Session ID' })
-  @ApiResponse({ status: 200, description: 'Session data.' })
-  async getSession(@Request() req, @Param('id') id: string) {
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Messages per page (default: 30)' })
+  @ApiQuery({ name: 'before', required: false, type: String, description: 'Pagination cursor (createdAt of oldest loaded message)' })
+  @ApiResponse({ status: 200, description: 'Session data with paginated messages.' })
+  async getSession(
+    @Request() req,
+    @Param('id') id: string,
+    @Query('limit') limit?: string,
+    @Query('before') before?: string,
+  ) {
     this.logger.debug(`GET /history/${id} hit for user: ${req.user.userId}`);
-    return this.historyService.getSession(id, req.user.userId);
+    const limitNum = limit ? parseInt(limit) : undefined;
+    return this.historyService.getSession(id, req.user.userId, limitNum, before);
   }
 
   @Post()

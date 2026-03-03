@@ -27,7 +27,7 @@ export function SharePointExplorer() {
     setLoading(true)
     try {
       const data = await sharePointApi.listFiles(path)
-      const mapped: SharePointItem[] = data.items.map((item: any) => ({
+      const mapped: SharePointItem[] = data.items.map((item: { id: string; name: string; folder?: object }) => ({
         id: item.id,
         name: item.name,
         isFolder: !!item.folder,

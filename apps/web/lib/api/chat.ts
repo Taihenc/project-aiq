@@ -10,6 +10,7 @@ import type {
   ChatRequest,
   ChatResponse,
   FileRef,
+  SearchMode,
 } from '@/types/api';
 
 // Re-export types for backward compatibility
@@ -86,6 +87,7 @@ export async function streamChatCompletions(
     temperature?: number;
     maxTokens?: number;
     attachments?: FileRef[];
+    mode?: SearchMode;
   },
 ): Promise<ReadableStream<Uint8Array>> {
   const requestBody: ChatCompletionsRequest = {
@@ -97,6 +99,7 @@ export async function streamChatCompletions(
     max_tokens: options?.maxTokens,
     stream: true,
     attachments: options?.attachments,
+    mode: options?.mode,
   };
 
   const stream = await streamFetch('/chat/completions/stream', requestBody);

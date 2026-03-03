@@ -11,13 +11,13 @@ import { CitationsPanel } from '@/components/features/chat/citations-panel';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
-import { extractCitations } from '@/lib/utils/citations';
 import { useHistory } from '@/hooks/useHistory';
 import { useChatStore } from '@/lib/store/chat-store';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Cookies } from '@/lib/utils/cookies';
 import { NotFoundScreen } from '@/components/features/chat/not-found-screen';
 import { ThemeToggle } from '@/components/custom/theme-toggle';
+import { historyApi } from '@/lib/api/history';
 import type { FileRef, ChatHistoryItem } from '@/types';
 
 interface ChatLayoutProps {
@@ -39,11 +39,21 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   useEffect(() => {
     setCurrentChatId(initialChatId);
     useChatStore.getState().setCurrentChatId(initialChatId);
+    setAttachments([]); // Clear attachments when switching chats
   }, [initialChatId]);
 
-  const { history, isLoading: isLoadingHistory } = useHistory();
+  const { history } = useHistory();
 
-  const { messages, isLoading, sendMessage, sessionId } = useChatMessages({
+  const {
+    messages,
+    isLoading,
+    sendMessage,
+    sessionId,
+    hasOlderMessages,
+    loadOlderMessages,
+    isLoadingOlder,
+    sessionAvailableCitations,
+  } = useChatMessages({
     isDemoMode,
     initialMessages: [],
     chatId: currentChatId,
@@ -52,15 +62,42 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   // Authentication & Session Guard logic
   // ---------------------------------------------------------
 
-  // Decide what screen to show
-  const isHistoryEmpty = history.length === 0;
-  const isDeterminingAccess =
-    isAuthLoading || (initialChatId && isLoadingHistory && isHistoryEmpty);
+  // Lightweight session existence check — only used for the "not found" screen.
+  // Does NOT block the main UI; the transitional cache keeps the switch smooth.
+  const [sessionExists, setSessionExists] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!initialChatId) {
+      setSessionExists(null);
+      return;
+    }
+    if (isAuthLoading || !isAuthenticated) return;
 
-  // A chat is "not found" if we're authenticated but the chat ID is not in history.
-  const chatExistsInHistory = history.some((h) => h.id === initialChatId);
+    // Optimistic: if the chat is already in the loaded history, skip the API call
+    const knownInHistory = history.some((h) => h.id === initialChatId);
+    if (knownInHistory) {
+      setSessionExists(true);
+      return;
+    }
+
+    let cancelled = false;
+    historyApi
+      .checkSession(initialChatId)
+      .then((exists) => {
+        if (!cancelled) setSessionExists(exists);
+      })
+      .catch(() => {
+        if (!cancelled) setSessionExists(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialChatId, isAuthenticated, isAuthLoading, history]);
+
+  // Only show "not found" once we've confirmed the session doesn't exist.
+  // While the check is in-flight (sessionExists === null), render the main UI
+  // so the transitional message cache keeps the switch seamless.
   const showNotFound =
-    !isDeterminingAccess && !!initialChatId && !chatExistsInHistory;
+    !isAuthLoading && !!initialChatId && sessionExists === false;
 
   // Client-side guard: handles expired JWTs that bypass the middleware cookie check.
   useEffect(() => {
@@ -131,8 +168,8 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   }, []);
 
   const handleSendMessage = useCallback(
-    (message: string) => {
-      sendMessage(message, attachments);
+    (message: string, mode?: import('@/types/api').SearchMode) => {
+      sendMessage(message, attachments, mode);
       setAttachments([]);
     },
     [sendMessage, attachments],
@@ -146,11 +183,8 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     router.push(`/c/${id}`);
   };
 
-  // 1. Loading State Guard
-  if (
-    isAuthLoading ||
-    (initialChatId && isLoadingHistory && history.length === 0)
-  ) {
+  // 1. Loading State Guard — only for initial auth, NOT for chat switches
+  if (isAuthLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
         <div className="flex flex-col items-center gap-4">
@@ -178,7 +212,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
         onNewChat={handleNewChat}
       />
 
-      <SidebarInset className="relative flex h-screen flex-1 flex-col overflow-hidden bg-background">
+      <SidebarInset className="relative flex h-screen flex-1 flex-col overflow-hidden overscroll-none bg-background">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
         <ChatHeader
@@ -188,7 +222,10 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
         <div className="relative z-0 flex flex-1 min-h-0 flex-col px-6 pt-2 sm:px-10 lg:px-12">
           {showWelcomeScreen ? (
-            <ChatWelcome onSendMessage={sendMessage} isLoading={isLoading} />
+            <ChatWelcome
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+            />
           ) : (
             <ChatMessagesArea
               messages={messages}
@@ -198,6 +235,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
               onRemoveAttachment={handleRemoveAttachment}
               onRemoveChunk={handleRemoveChunk}
               attachments={attachments}
+              hasOlderMessages={hasOlderMessages}
+              isLoadingOlder={isLoadingOlder}
+              onLoadOlder={loadOlderMessages}
             />
           )}
           {!showWelcomeScreen && (
@@ -211,13 +251,16 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
             isLoading={isLoading}
             attachments={attachments}
             onRemoveAttachment={handleRemoveAttachment}
+            onRemoveChunk={handleRemoveChunk}
+            onAddAttachment={handleAddAttachment}
+            availableCitations={sessionAvailableCitations}
           />
         )}
 
         <CitationsPanel
           open={citationsPanelOpen}
           onOpenChange={setCitationsPanelOpen}
-          citations={extractCitations(messages)}
+          citations={sessionAvailableCitations}
         />
         <div className="fixed bottom-6 right-6 z-[100]">
           <ThemeToggle className="h-10 w-10 rounded-full border border-purple-light shadow-button bg-background hover:bg-surface-light" />

@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import httpx
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict, Any
 from qdrant_client.http import models as q_models
@@ -8,6 +9,7 @@ from qdrant_client.http import models as q_models
 from app.models.models import (
     DocumentUploadRequest,
     DocumentUploadResponse,
+    FileStatusResponse,
     SearchRequest,
     DocumentResponse,
     SearchResponse,
@@ -101,6 +103,23 @@ async def upload_documents(batch: DocumentUploadRequest):
 
         doc_ids = qdrant_service.upload_documents(documents)
 
+        # Optional direct confirmation callback to FSS
+        # Activated by setting FSS_CALLBACK_URL env var (e.g. http://fss:8007)
+        fss_callback_url = os.getenv("FSS_CALLBACK_URL", "")
+        if fss_callback_url and batch.file_id:
+            try:
+                async with httpx.AsyncClient() as http:
+                    resp = await http.patch(
+                        f"{fss_callback_url}/files/{batch.file_id}/status",
+                        json={"status": "INDEXED"},
+                        timeout=5.0,
+                    )
+                    if resp.status_code not in (200, 409):
+                        # 409 = transition guard already moved past INDEXING
+                        resp.raise_for_status()
+            except Exception as cb_exc:
+                print(f"[upload] FSS callback failed for file_id={batch.file_id}: {cb_exc}")
+
         return DocumentUploadResponse(
             ids=doc_ids,
             count=len(doc_ids),
@@ -154,3 +173,23 @@ async def delete_documents_by_file(file_name: str = Query(..., description="File
         return DocumentDeleteResponse(message=f"All chunks for '{file_name}' deleted successfully")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete documents for file: {str(e)}")
+
+
+@router.get("/file-status", response_model=FileStatusResponse)
+async def get_file_index_status(
+    file_name: str = Query(..., description="File name to check (matched on 'file' metadata field)"),
+):
+    """
+    Reconciliation probe: returns whether the file has any chunks stored in Qdrant
+    and how many.  Intended for the FSS reconciliation watchdog — not a replacement
+    for the canonical FSS status record.
+    """
+    try:
+        count = qdrant_service.count_documents_by_file(file_name)
+        return FileStatusResponse(
+            file_name=file_name,
+            indexed=count > 0,
+            chunk_count=count,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to query file status: {str(e)}")
