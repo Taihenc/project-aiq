@@ -614,6 +614,22 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     [messageTree],
   );
 
+  /**
+   * Navigate the active path so that it passes through `messageId`.
+   * Builds root→messageId, then extends to the latest leaf below it.
+   */
+  const navigateToMessage = useCallback(
+    (messageId: string) => {
+      if (!messageTree.has(messageId)) return;
+      const pathToNode = buildPathToTip(messageTree, messageId);
+      const pathDown = buildPathFromNodeToLatestLeaf(messageTree, messageId);
+      // pathToNode already ends at messageId; pathDown starts at messageId — merge
+      const merged = [...pathToNode, ...pathDown.slice(1)];
+      setActivePath(merged);
+    },
+    [messageTree],
+  );
+
   const clearMessages = () => {
     setMessageTree(new Map());
     setActivePath([]);
@@ -638,6 +654,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     editUserMessage,
     regenerateResponse,
     navigateBranch,
+    navigateToMessage,
     clearMessages,
     // kept for backward compat (tree loads everything at once)
     hasOlderMessages: false,

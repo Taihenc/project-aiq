@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/custom/sidebar';
 import { ChatHeader } from '@/components/features/chat/chat-header';
@@ -8,8 +8,18 @@ import { ChatWelcome } from '@/components/features/chat/chat-welcome';
 import { ChatMessagesArea } from '@/components/features/chat/chat-messages-area';
 import { ChatInputArea } from '@/components/features/chat/chat-input-area';
 import { CitationsPanel } from '@/components/features/chat/citations-panel';
+import { BranchMapPanel } from '@/components/features/chat/branch-map/branch-map-panel';
+import { BranchMapPopoverContent } from '@/components/features/chat/branch-map/branch-map-popover';
+import { BranchMapFullscreen } from '@/components/features/chat/branch-map/branch-map-fullscreen';
+import { BranchMapTrigger } from '@/components/features/chat/branch-map/branch-map-trigger';
+import {
+  Popover,
+  PopoverContent,
+  PopoverAnchor,
+} from '@/components/ui/popover';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { useChatMessages } from '@/hooks/useChatMessages';
+import { useBranchMap } from '@/hooks/useBranchMap';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { useHistory } from '@/hooks/useHistory';
 import { useChatStore } from '@/lib/store/chat-store';
@@ -31,6 +41,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
   const [attachments, setAttachments] = useState<FileRef[]>([]);
+  const branchMap = useBranchMap();
 
   const [currentChatId, setCurrentChatId] = useState<string | undefined>(
     initialChatId,
@@ -46,11 +57,14 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   const {
     messages,
+    messageTree,
+    activePath,
     isLoading,
     sendMessage,
     editUserMessage,
     regenerateResponse,
     navigateBranch,
+    navigateToMessage,
     sessionId,
     hasOlderMessages,
     loadOlderMessages,
@@ -184,9 +198,10 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   const handleEditMessage = useCallback(
     (messageId: string, newContent: string) => {
+      if (isLoading) return;
       editUserMessage(messageId, newContent);
     },
-    [editUserMessage],
+    [editUserMessage, isLoading],
   );
 
   const handleRegenerate = useCallback(
@@ -198,10 +213,32 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   const handleNavigateBranch = useCallback(
     (messageId: string, direction: 'prev' | 'next') => {
+      if (isLoading) return;
       navigateBranch(messageId, direction);
     },
-    [navigateBranch],
+    [navigateBranch, isLoading],
   );
+
+  const handleNavigateToMessage = useCallback(
+    (messageId: string) => {
+      if (isLoading) return;
+      navigateToMessage(messageId);
+    },
+    [navigateToMessage, isLoading],
+  );
+
+  // Count leaf nodes = number of distinct conversation paths
+  const branchCount = useMemo(() => {
+    const childIds = new Set<string>();
+    for (const m of messageTree.values()) {
+      if (m.parentId) childIds.add(m.parentId);
+    }
+    let leaves = 0;
+    for (const m of messageTree.values()) {
+      if (!childIds.has(m.id)) leaves++;
+    }
+    return Math.max(1, leaves);
+  }, [messageTree]);
 
   const handleChatSelect = (id: string) => {
     router.push(`/c/${id}`);
@@ -289,9 +326,66 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
           onOpenChange={setCitationsPanelOpen}
           citations={sessionAvailableCitations}
         />
-        <div className="fixed bottom-6 right-6 z-[100]">
+
+        {/* ── Bottom-right FAB stack ────────────────────────────────── */}
+        <div className="fixed bottom-6 right-6 z-100 flex flex-col items-center gap-2.5">
+          {messages.length > 0 && (
+            <Popover
+              open={branchMap.mode === 'popover'}
+              onOpenChange={(open) => !open && branchMap.close()}
+            >
+              <PopoverAnchor>
+                <BranchMapTrigger
+                  onClick={branchMap.toggle}
+                  isOpen={branchMap.isOpen}
+                  branchCount={branchCount}
+                />
+              </PopoverAnchor>
+              <PopoverContent
+                side="top"
+                align="end"
+                sideOffset={12}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="w-auto overflow-hidden rounded-2xl border-border bg-brand-card-purple p-0 shadow-[0_16px_40px_-12px_rgba(102,88,204,0.35)]"
+              >
+                <BranchMapPopoverContent
+                  messageTree={messageTree}
+                  activePath={activePath}
+                  branchCount={branchCount}
+                  onNavigate={handleNavigateToMessage}
+                  onDetach={branchMap.detach}
+                  onFullscreen={branchMap.enterFullscreen}
+                  onClose={branchMap.close}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
           <ThemeToggle className="h-10 w-10 rounded-full border border-purple-light shadow-button bg-background hover:bg-surface-light" />
         </div>
+
+        {/* ── Floating detached panel ───────────────────────────────── */}
+        {branchMap.mode === 'floating' && (
+          <BranchMapPanel
+            isOpen={true}
+            onClose={branchMap.close}
+            onCollapse={branchMap.collapse}
+            messageTree={messageTree}
+            activePath={activePath}
+            onNavigate={handleNavigateToMessage}
+          />
+        )}
+
+        {/* ── Fullscreen overlay ─────────────────────────────────────── */}
+        <BranchMapFullscreen
+          isOpen={branchMap.mode === 'fullscreen'}
+          messageTree={messageTree}
+          activePath={activePath}
+          branchCount={branchCount}
+          onNavigate={handleNavigateToMessage}
+          onClose={branchMap.close}
+          onCollapse={branchMap.collapse}
+          onDetach={branchMap.detach}
+        />
       </SidebarInset>
     </SidebarProvider>
   );
