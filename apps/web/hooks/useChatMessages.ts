@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UIMessage, UseChatMessagesOptions, BackendMessage, FileRef } from '@/types';
 import type { SearchMode } from '@/types/api';
+import type { Citation } from '@/lib/api/chat';
 import { PAGINATION } from '@/constants/pagination';
 import { CHAT_TEMPERATURE, CHAT_MAX_TOKENS } from '@/constants/chat';
 import { streamChatCompletions } from '@/lib/api/chat';
@@ -47,6 +48,9 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     return false;
   });
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+
+  // Available citations accumulated for this session (stored on the session row)
+  const [sessionAvailableCitations, setSessionAvailableCitations] = useState<Citation[]>([]);
 
   const setTransitionalMessages = useChatStore(
     (state) => state.setTransitionalMessages,
@@ -102,7 +106,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const loadMessages = async (id: string, showLoadingState = true) => {
     if (showLoadingState) setIsLoading(true);
     try {
-      const { messages: historyMessages, nextCursor, hasMore } =
+      const { session, messages: historyMessages, nextCursor, hasMore } =
         await historyApi.getSession(id, { limit: PAGINATION.MESSAGES_PAGE_SIZE });
       const uiMessages = (historyMessages as unknown as BackendMessage[]).map(
         parseBackendMessage,
@@ -110,6 +114,11 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       setMessages(uiMessages);
       setMessagesNextCursor(nextCursor);
       setHasOlderMessages(hasMore);
+      // Restore accumulated session citations (Drizzle mode:'json' returns parsed array)
+      const raw = session?.availableCitations;
+      setSessionAvailableCitations(
+        Array.isArray(raw) ? (raw as Citation[]) : [],
+      );
     } catch (error) {
       console.error('Failed to load messages:', error);
     } finally {
@@ -304,6 +313,12 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
 
               const isEmptyResponse = !finalContent || finalContent.trim() === '';
 
+              // Backend injects `available_citations` into the result event —
+              // the fully merged session set, computed server-side.
+              if (Array.isArray(event.available_citations) && event.available_citations.length > 0) {
+                setSessionAvailableCitations(event.available_citations as Citation[]);
+              }
+
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMessageId
@@ -397,5 +412,6 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     hasOlderMessages,
     loadOlderMessages,
     isLoadingOlder,
+    sessionAvailableCitations,
   };
 }

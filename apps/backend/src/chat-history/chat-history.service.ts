@@ -94,6 +94,29 @@ export class ChatHistoryService {
     return { session, messages, nextCursor, hasMore };
   }
 
+  /**
+   * Returns the accumulated available citations stored on the session row.
+   */
+  getSessionAvailableCitations(sessionId: string): any[] {
+    const row = this.db
+      .select({ availableCitations: chatSessions.availableCitations })
+      .from(chatSessions)
+      .where(eq(chatSessions.id, sessionId))
+      .get();
+    return Array.isArray(row?.availableCitations) ? row.availableCitations : [];
+  }
+
+  /**
+   * Overwrites the accumulated available citations on the session row.
+   */
+  updateSessionAvailableCitations(sessionId: string, citations: any[]): void {
+    this.db
+      .update(chatSessions)
+      .set({ availableCitations: citations })
+      .where(eq(chatSessions.id, sessionId))
+      .run();
+  }
+
   async createSession(userId: string, title: string = DEFAULT_SESSION_TITLE) {
     const id = uuidv4();
     this.logger.log(`Creating new session: ${id} for user: ${userId}`);

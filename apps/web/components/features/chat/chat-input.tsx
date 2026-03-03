@@ -156,27 +156,34 @@ export function ChatInput({
 
             {/* Search mode selector */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    'h-9 gap-1.5 rounded-full px-2.5 text-xs font-medium text-[var(--brand-link)] hover:bg-[var(--brand-new-chat-bg)]',
-                    mode !== 'auto' &&
-                      'bg-[var(--brand-link)]/10 hover:bg-[var(--brand-link)]/15',
-                  )}
-                >
-                  {(() => {
-                    const { icon: Icon, label } = MODE_CONFIG[mode];
-                    return (
-                      <>
-                        <Icon className="h-3.5 w-3.5 shrink-0 text-inherit" />
-                        <span>{label}</span>
-                        <ChevronDown className="h-3 w-3 opacity-50" />
-                      </>
-                    );
-                  })()}
-                </Button>
-              </DropdownMenuTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        'h-9 gap-1.5 rounded-full px-2.5 text-xs font-medium text-[var(--brand-link)] hover:bg-[var(--brand-new-chat-bg)]',
+                        mode !== 'auto' &&
+                          'bg-[var(--brand-link)]/10 hover:bg-[var(--brand-link)]/15',
+                      )}
+                    >
+                      {(() => {
+                        const { icon: Icon, label } = MODE_CONFIG[mode];
+                        return (
+                          <>
+                            <Icon className="h-3.5 w-3.5 shrink-0 text-inherit" />
+                            <span>{label}</span>
+                            <ChevronDown className="h-3 w-3 opacity-50" />
+                          </>
+                        );
+                      })()}
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Choose search strategy</p>
+                </TooltipContent>
+              </Tooltip>
               <DropdownMenuContent
                 side="top"
                 align="start"

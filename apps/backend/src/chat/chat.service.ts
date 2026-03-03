@@ -266,7 +266,6 @@ export class ChatService {
 
       // Enrich citations with content from embedding service
       if (parsed.sources_used && parsed.sources_used.length > 0) {
-        const rawCitations = [...parsed.sources_used];
         try {
           const enrichedResult = await this.enrichResultWithCitations({
             type: 'result',
@@ -279,13 +278,16 @@ export class ChatService {
             `Failed to enrich citations (non-stream): ${err.message}`,
           );
         }
-
       }
 
       const transformed = this.transformAiEngineToOpenAI(parsed, chatRequest);
 
       // 4. Post-Chat Actions
       if (sessionId) {
+        const mergedCitations =
+          parsed.sources_used.length > 0
+            ? this.computeMergedCitations(sessionId, parsed.sources_used)
+            : undefined;
         await this.handlePostChatActions(
           sessionId,
           userId,
@@ -295,6 +297,7 @@ export class ChatService {
           existingSummary,
           chatRequest.attachments,
           parsed.title,
+          mergedCitations,
         );
       }
 
@@ -348,6 +351,7 @@ export class ChatService {
             next: (response) => {
               const stream = response.data;
               let fullResult: any = null;
+              let precomputedCitations: any[] | undefined;
 
               let buffer = '';
               let processingPromise: Promise<void> = Promise.resolve();
@@ -379,9 +383,6 @@ export class ChatService {
                       if (json.type === 'result') {
                         this.logger.debug('Received final result from AI Engine stream');
                         this.logger.debug(`Raw result content: ${JSON.stringify(json.content, null, 2)}`);
-                        // Capture raw FileRef citations before enrichment for session storage
-                        const rawCitations: any[] =
-                          json.content?.citations || [];
 
                         // Enrich result with citation content before sending to frontend
                         try {
@@ -395,6 +396,19 @@ export class ChatService {
                           );
                         }
 
+                        // Compute merged citations server-side and inject into the
+                        // SSE event so the frontend can set state directly — no
+                        // merge logic needed in the browser.
+                        if (sessionId) {
+                          const enrichedCits: any[] = json.content?.citations || [];
+                          if (enrichedCits.length > 0) {
+                            precomputedCitations = this.computeMergedCitations(
+                              sessionId,
+                              enrichedCits,
+                            );
+                            json = { ...json, available_citations: precomputedCitations };
+                          }
+                        }
 
                         fullResult = json;
                       }
@@ -441,6 +455,7 @@ export class ChatService {
                     existingSummary,
                     chatRequest.attachments,
                     parsedResponse.title,
+                    precomputedCitations,
                   ).catch((err) =>
                     this.logger.error(
                       'Streaming post-chat actions failed',
@@ -540,6 +555,7 @@ export class ChatService {
     existingSummary: string,
     sentAttachments?: any[],
     responseTitle?: string,
+    availableCitations?: any[],
   ): Promise<void> {
     this.logger.debug(
       `Post-chat actions for session: ${sessionId}, user: ${userId}`,
@@ -551,6 +567,15 @@ export class ChatService {
 
     this.logger.verbose(`User query: ${userQueryContent.substring(0, 50)}...`);
     this.logger.verbose(`Assistant content length: ${assistantContent.length}`);
+
+    // Persist the pre-computed cumulative citations to the session row.
+    // All merging is done by computeMergedCitations before this point.
+    if (availableCitations && availableCitations.length > 0) {
+      this.chatHistoryService.updateSessionAvailableCitations(
+        sessionId,
+        availableCitations,
+      );
+    }
 
     // Save messages to history
     try {
@@ -599,6 +624,41 @@ export class ChatService {
         this.logger.error(`Summarization failed for ${sessionId}:`, err),
       );
     }
+  }
+
+  /**
+   * Reads the current accumulated citations from the session, merges `incoming`
+   * into them (deduplicating chunks by chunk_number), and returns the result.
+   * Does NOT write to the DB — callers are responsible for persisting.
+   */
+  private computeMergedCitations(sessionId: string, incoming: any[]): any[] {
+    const previous =
+      this.chatHistoryService.getSessionAvailableCitations(sessionId);
+    const byId = new Map<string, any>();
+    for (const c of previous) {
+      byId.set(c.id, { ...c, chunks: c.chunks ? [...c.chunks] : [] });
+    }
+    for (const c of incoming) {
+      if (!c?.id) continue;
+      const prev = byId.get(c.id);
+      if (!prev) {
+        byId.set(c.id, { ...c, chunks: c.chunks ? [...c.chunks] : [] });
+      } else {
+        if (c.chunks?.length) {
+          const seen = new Set(
+            (prev.chunks as any[]).map((ch: any) => ch.chunk_number),
+          );
+          const novel = c.chunks.filter(
+            (ch: any) => !seen.has(ch.chunk_number),
+          );
+          prev.chunks = [...prev.chunks, ...novel].sort(
+            (a: any, b: any) => a.chunk_number - b.chunk_number,
+          );
+        }
+        if (!prev.content && c.content) prev.content = c.content;
+      }
+    }
+    return Array.from(byId.values());
   }
 
   private async summarizeAndSaveSession(
@@ -849,6 +909,7 @@ export class ChatService {
               chunk_number: c.chunk_number,
               page_number: c.page_number,
               score: c.score,
+              content: c.content || '',
             })),
           });
           return;

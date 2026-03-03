@@ -8,6 +8,34 @@
       "when": 1772260488072,
       "tag": "0000_add_sent_attachments",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1741011000000,
+      "tag": "0001_add_available_citations",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1772497151875,
+      "tag": "0002_lean_stepford_cuckoos",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1772498835245,
+      "tag": "0003_rainy_drax",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1772500022602,
+      "tag": "0004_first_madelyne_pryor",
+      "breakpoints": true
     }
   ]
 }

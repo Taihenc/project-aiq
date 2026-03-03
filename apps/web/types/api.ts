@@ -139,6 +139,8 @@ export interface ChatSession {
   title: string;
   createdAt: number;
   updatedAt: number;
+  /** Accumulated available citations for the session (JSON-parsed by Drizzle) */
+  availableCitations?: unknown[] | null;
 }
 
 export interface BackendMessage {

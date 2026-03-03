@@ -11,7 +11,6 @@ import { CitationsPanel } from '@/components/features/chat/citations-panel';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
-import { extractCitations } from '@/lib/utils/citations';
 import { useHistory } from '@/hooks/useHistory';
 import { useChatStore } from '@/lib/store/chat-store';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -53,6 +52,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     hasOlderMessages,
     loadOlderMessages,
     isLoadingOlder,
+    sessionAvailableCitations,
   } = useChatMessages({
     isDemoMode,
     initialMessages: [],
@@ -253,14 +253,14 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
             onRemoveAttachment={handleRemoveAttachment}
             onRemoveChunk={handleRemoveChunk}
             onAddAttachment={handleAddAttachment}
-            availableCitations={extractCitations(messages)}
+            availableCitations={sessionAvailableCitations}
           />
         )}
 
         <CitationsPanel
           open={citationsPanelOpen}
           onOpenChange={setCitationsPanelOpen}
-          citations={extractCitations(messages)}
+          citations={sessionAvailableCitations}
         />
         <div className="fixed bottom-6 right-6 z-[100]">
           <ThemeToggle className="h-10 w-10 rounded-full border border-purple-light shadow-button bg-background hover:bg-surface-light" />
