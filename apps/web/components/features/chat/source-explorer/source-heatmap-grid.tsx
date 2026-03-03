@@ -2,8 +2,8 @@
 
 import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import {
-  Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
@@ -62,8 +62,10 @@ function HeatmapCell({
     : null;
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
+    // disableHoverableContent: tooltip closes as soon as mouse leaves the trigger,
+    // even if cursor moves onto the preview panel itself.
+    <TooltipProvider delayDuration={300} disableHoverableContent>
+      <TooltipPrimitive.Root>
         <TooltipTrigger asChild>
           <button
             onClick={onSelect}
@@ -89,7 +91,7 @@ function HeatmapCell({
         </TooltipTrigger>
         <TooltipContent
           side="top"
-          className="max-w-[240px] rounded-xl border-[var(--brand-source-border)] bg-card p-0 shadow-[0_8px_24px_-8px_rgba(102,88,204,0.3)]"
+          className="z-[300] max-w-[240px] rounded-xl border-[var(--brand-source-border)] bg-card p-0 shadow-[0_8px_24px_-8px_rgba(102,88,204,0.3)]"
         >
           <div className="px-3 py-2">
             <div className="mb-1.5 flex items-center gap-2">
@@ -140,7 +142,7 @@ function HeatmapCell({
             )}
           </div>
         </TooltipContent>
-      </Tooltip>
+      </TooltipPrimitive.Root>
     </TooltipProvider>
   );
 }

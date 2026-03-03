@@ -4,7 +4,7 @@ import type { ChunkMetadata } from '@/types/api';
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
-export type SourceExplorerMode = 'closed' | 'floating' | 'fullscreen';
+export type SourceExplorerMode = 'closed' | 'popover' | 'floating' | 'fullscreen';
 
 interface SourceExplorerStore {
   mode: SourceExplorerMode;
@@ -24,8 +24,11 @@ interface SourceExplorerStore {
   open: () => void;
   close: () => void;
   toggle: () => void;
+  /** Detach from popover → free-floating draggable panel */
+  detach: () => void;
   enterFullscreen: () => void;
-  exitFullscreen: () => void;
+  /** Collapse floating/fullscreen back to anchored popover */
+  collapse: () => void;
 
   /** Select a file and kick off lazy chunk load if not already cached */
   selectFile: (filePath: string) => Promise<void>;
@@ -45,15 +48,18 @@ export const useSourceExplorerStore = create<SourceExplorerStore>(
     chunksCache: {},
     loadingFiles: new Set(),
 
-    open: () => set({ mode: 'floating', isOpen: true }),
+    open: () => set({ mode: 'popover', isOpen: true }),
     close: () => set({ mode: 'closed', isOpen: false }),
     toggle: () => {
       const { mode } = get();
-      if (mode === 'closed') set({ mode: 'floating', isOpen: true });
+      if (mode === 'closed') set({ mode: 'popover', isOpen: true });
+      else if (mode === 'popover') set({ mode: 'closed', isOpen: false });
+      // floating / fullscreen — toggle just closes
       else set({ mode: 'closed', isOpen: false });
     },
+    detach: () => set({ mode: 'floating', isOpen: true }),
     enterFullscreen: () => set({ mode: 'fullscreen', isOpen: true }),
-    exitFullscreen: () => set({ mode: 'floating', isOpen: true }),
+    collapse: () => set({ mode: 'popover', isOpen: true }),
 
     selectFile: async (filePath: string) => {
       set({ selectedFilePath: filePath });
