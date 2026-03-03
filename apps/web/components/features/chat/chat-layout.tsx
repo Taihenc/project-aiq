@@ -13,6 +13,11 @@ import { BranchMapPopoverContent } from '@/components/features/chat/branch-map/b
 import { BranchMapFullscreen } from '@/components/features/chat/branch-map/branch-map-fullscreen';
 import { BranchMapTrigger } from '@/components/features/chat/branch-map/branch-map-trigger';
 import {
+  SourceExplorerPanel,
+  SourceExplorerFullscreen,
+  SourceExplorerTrigger,
+} from '@/components/features/chat/source-explorer';
+import {
   Popover,
   PopoverContent,
   PopoverAnchor,
@@ -330,6 +335,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
         {/* ── Bottom-right FAB stack ────────────────────────────────── */}
         <div className="fixed bottom-6 right-6 z-100 flex flex-col items-center gap-2.5">
+          <SourceExplorerTrigger />
           {messages.length > 0 && (
             <Popover
               open={branchMap.mode === 'popover'}
@@ -375,6 +381,22 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
             onNavigate={handleNavigateToMessage}
           />
         )}
+
+        {/* ── Source Explorer floating panel ────────────────────────── */}
+        <SourceExplorerPanel
+          attachments={attachments}
+          availableCitations={sessionAvailableCitations}
+          onAddAttachment={handleAddAttachment}
+          onRemoveChunk={handleRemoveChunk}
+        />
+
+        {/* ── Source Explorer fullscreen overlay ───────────────────────── */}
+        <SourceExplorerFullscreen
+          attachments={attachments}
+          availableCitations={sessionAvailableCitations}
+          onAddAttachment={handleAddAttachment}
+          onRemoveChunk={handleRemoveChunk}
+        />
 
         {/* ── Fullscreen overlay ─────────────────────────────────────── */}
         <BranchMapFullscreen

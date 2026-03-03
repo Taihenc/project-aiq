@@ -16,6 +16,7 @@ export interface StatusEvent {
 export class SharePointService implements OnModuleDestroy {
   private readonly webhookUrl: string;
   private readonly fileStorageUrl: string;
+  private readonly embeddingServiceUrl: string;
   private readonly statusEvents$ = new ReplaySubject<StatusEvent>(50, 60_000);
   private readonly sseTokens = new Map<string, number>();
   private readonly sseTokenCleanupInterval: NodeJS.Timeout;
@@ -25,8 +26,7 @@ export class SharePointService implements OnModuleDestroy {
     private readonly httpService: HttpService,
   ) {
     this.webhookUrl = this.configService.get<string>('sharepoint.webhookServiceUrl') || 'http://127.0.0.1:8000';
-    this.fileStorageUrl = this.configService.get<string>('sharepoint.fileStorageUrl') || 'http://127.0.0.1:8007';
-    this.sseTokenCleanupInterval = setInterval(() => this.purgeExpiredTokens(), 60_000);
+    this.fileStorageUrl = this.configService.get<string>('sharepoint.fileStorageUrl') || 'http://127.0.0.1:8007';    this.embeddingServiceUrl = this.configService.get<string>('aiService.embeddingServiceUrl') || 'http://127.0.0.1:8003';    this.sseTokenCleanupInterval = setInterval(() => this.purgeExpiredTokens(), 60_000);
   }
 
   onModuleDestroy(): void {
@@ -109,6 +109,83 @@ export class SharePointService implements OnModuleDestroy {
       return response.data;
     } catch (error: any) {
       this.handleError(error, 'Failed to delete file');
+    }
+  }
+
+  /** Returns a deduplicated list of every file that has been indexed in the embedding service. */
+  async getIndexedFiles(): Promise<{ file_path: string; name: string; ext: string }[]> {
+    try {
+      const docs = await this.fetchAllDocuments();
+
+      const seen = new Set<string>();
+      const files: { file_path: string; name: string; ext: string }[] = [];
+      for (const doc of docs) {
+        const filePath: string = doc.file_path ?? doc.metadata?.file_path ?? '';
+        if (!filePath || seen.has(filePath)) continue;
+        seen.add(filePath);
+        const name: string = doc.metadata?.file ?? filePath.split('/').pop() ?? filePath;
+        const ext: string = name.split('.').pop()?.toLowerCase() ?? '';
+        files.push({ file_path: filePath, name, ext });
+      }
+      return files;
+    } catch (error) {
+      this.handleError(error, 'Failed to list indexed files');
+      return [];
+    }
+  }
+
+  /**
+   * Paginate through GET /v1/documents (max 1000 per page) and return all records.
+   * @private
+   */
+  private async fetchAllDocuments(): Promise<any[]> {
+    const PAGE = 1000;
+    const all: any[] = [];
+    let offset = 0;
+    while (true) {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.embeddingServiceUrl}/v1/documents`, {
+          params: { limit: PAGE, offset },
+        }),
+      );
+      const page: any[] = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.documents ?? response.data?.items ?? []);
+      all.push(...page);
+      if (page.length < PAGE) break; // last page
+      offset += PAGE;
+    }
+    return all;
+  }
+
+  /**
+   * Fetch all chunks for a given file_path from the embedding service.
+   * Paginates through GET /v1/documents (max 1000 per page) and filters by file_path.
+   */
+  async getFileChunks(filePath: string): Promise<any[]> {
+    try {
+      const docs = await this.fetchAllDocuments();
+      return docs.filter(
+        (d) => d.file_path === filePath || d.metadata?.file_path === filePath,
+      );
+    } catch (error) {
+      this.handleError(error, 'Failed to fetch file chunks');
+      return [];
+    }
+  }
+
+  /** Returns indexed chunk count for a file. */
+  async getFileChunkCount(filePath: string): Promise<{ chunk_count: number; indexed: boolean }> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.embeddingServiceUrl}/v1/file-status`, {
+          params: { file_name: filePath },
+        }),
+      );
+      return response.data;
+    } catch (error) {
+      this.handleError(error, 'Failed to fetch file status');
+      return { chunk_count: 0, indexed: false };
     }
   }
 

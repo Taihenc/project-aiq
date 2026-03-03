@@ -26,6 +26,24 @@ export class SharePointController {
     return this.sharePointService.listFiles(path);
   }
 
+  /** Returns all unique files ingested into the embedding service. */
+  @Get('indexed-files')
+  async getIndexedFiles() {
+    return this.sharePointService.getIndexedFiles();
+  }
+
+  /** Fetch all indexed chunks for a specific file_path from the embedding service. */
+  @Get('file-chunks')
+  async getFileChunks(@Query('file_path') filePath: string) {
+    return this.sharePointService.getFileChunks(filePath);
+  }
+
+  /** Return indexed chunk count for a file. */
+  @Get('file-chunk-count')
+  async getFileChunkCount(@Query('file_path') filePath: string) {
+    return this.sharePointService.getFileChunkCount(filePath);
+  }
+
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
