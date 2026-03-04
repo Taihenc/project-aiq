@@ -33,6 +33,7 @@ import { useChatStore } from '@/lib/store/chat-store';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Cookies } from '@/lib/utils/cookies';
 import { NotFoundScreen } from '@/components/features/chat/not-found-screen';
+import { ChatLoadingScreen } from '@/components/features/chat/chat-loading-screen';
 import { ThemeToggle } from '@/components/custom/theme-toggle';
 import { historyApi } from '@/lib/api/history';
 import type { FileRef, ChatHistoryItem } from '@/types';
@@ -254,16 +255,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   // 1. Loading State Guard — only for initial auth, NOT for chat switches
   if (isAuthLoading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="size-8 border-4 border-[var(--brand-border-lighter)] border-t-[var(--brand-fg-light)] rounded-full animate-spin" />
-          <p className="text-sm font-medium text-brand-fg-light/60 animate-pulse">
-            Initializing AINGO Forge...
-          </p>
-        </div>
-      </div>
-    );
+    return <ChatLoadingScreen />;
   }
 
   // 2. Not Found Guard

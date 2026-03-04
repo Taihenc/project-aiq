@@ -145,6 +145,15 @@
   --color-brand-attached-hover-bg: var(--brand-attached-hover-bg);
   --color-brand-attached-text: var(--brand-attached-text);
   --color-brand-attached-text-hover: var(--brand-attached-text-hover);
+  --animate-ripple: ripple var(--duration,2s) ease calc(var(--i, 0)*.2s) infinite;
+  @keyframes ripple {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    }
+  50% {
+    transform: translate(-50%, -50%) scale(0.9);
+    }
+  }
 }
 
 :root {
