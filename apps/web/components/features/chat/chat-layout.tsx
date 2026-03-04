@@ -268,7 +268,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
   // 2. Not Found Guard
   if (showNotFound) {
-    return <NotFoundScreen message="This chat either doesn't exist." />;
+    return (
+      <NotFoundScreen message="This chat you are looking for doesn't exist." />
+    );
   }
 
   // 3. Main Interface
