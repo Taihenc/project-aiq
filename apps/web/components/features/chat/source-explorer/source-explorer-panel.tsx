@@ -16,6 +16,7 @@ import {
   GripHorizontal,
   RefreshCw,
   Loader2,
+  Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +32,7 @@ import { SourceHeatmapGrid, HeatmapQuickActions } from './source-heatmap-grid';
 import { ChunkContentReader } from './chunk-content-reader';
 import { FilePreviewPane } from './file-preview-pane';
 import { PayloadPreviewPane } from './source-explorer-body';
+import { GlobalSearchPane } from './global-search-pane';
 import type { Citation, ChunkMetadata, FileRef, SourceFile } from '@/types/api';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -124,6 +126,7 @@ export function SourceExplorerPanel({
   const [viewMode, setViewMode] = useState<'chunks' | 'preview'>('chunks');
   const [heatmapMode, setHeatmapMode] = useState<'read' | 'select'>('read');
   const [heatmapSearch, setHeatmapSearch] = useState('');
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -437,6 +440,28 @@ export function SourceExplorerPanel({
                 Source Explorer
               </span>
 
+              {/* Global search toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className={cn(
+                      'h-6 w-6 rounded-lg',
+                      globalSearchOpen
+                        ? 'bg-[var(--brand-surface-purple)] text-[var(--brand-fg-accent)]'
+                        : 'text-muted-foreground hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)]',
+                    )}
+                    onClick={() => setGlobalSearchOpen((v) => !v)}
+                  >
+                    <Search className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  Search all files
+                </TooltipContent>
+              </Tooltip>
+
               {selectedFilePath && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -508,258 +533,313 @@ export function SourceExplorerPanel({
                   transition={{ type: 'spring', stiffness: 380, damping: 34 }}
                   className="flex overflow-hidden"
                 >
-                  {/* File list sidebar */}
-                  <div className="flex w-[200px] shrink-0 flex-col border-r border-border">
-                    <div className="border-b border-border px-3 py-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                        Files
-                      </span>
-                    </div>
-                    <div className="custom-scrollbar flex-1 overflow-y-auto p-1.5">
-                      {fileListLoading ? (
-                        <div className="flex justify-center py-6">
-                          <Loader2 className="h-4 w-4 animate-spin text-[var(--brand-fg-accent)]" />
+                  {/* ── Global search overlay ── */}
+                  {globalSearchOpen ? (
+                    <GlobalSearchPane
+                      fileList={fileList}
+                      chunksCache={chunksCache}
+                      loadingFiles={loadingFiles}
+                      fileCountMap={fileCountMap}
+                      onSelectFile={(fp) => {
+                        selectFile(fp);
+                        setGlobalSearchOpen(false);
+                      }}
+                      onSelectChunk={(fp, chunk) => {
+                        selectFile(fp);
+                        setSelectedChunk(chunk);
+                        setGlobalSearchOpen(false);
+                      }}
+                      onLoadAllFiles={() => {
+                        fileList.forEach((f) => {
+                          if (!chunksCache[f.file_path])
+                            selectFile(f.file_path);
+                        });
+                      }}
+                      onClose={() => setGlobalSearchOpen(false)}
+                    />
+                  ) : (
+                    <>
+                      {/* File list sidebar */}
+                      <div className="flex w-[200px] shrink-0 flex-col border-r border-border">
+                        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            Files
+                          </span>
+                          <button
+                            onClick={() => setGlobalSearchOpen((v) => !v)}
+                            title="Search across all files"
+                            className={cn(
+                              'flex h-5 w-5 items-center justify-center rounded transition-colors',
+                              globalSearchOpen
+                                ? 'bg-[var(--brand-surface-purple)] text-[var(--brand-fg-accent)]'
+                                : 'text-muted-foreground/50 hover:bg-muted hover:text-foreground',
+                            )}
+                          >
+                            <Search className="h-3 w-3" />
+                          </button>
                         </div>
-                      ) : fileList.length === 0 ? (
-                        <p className="px-2 py-4 text-center text-[11px] text-muted-foreground">
-                          No files found
-                        </p>
-                      ) : (
-                        fileList.map((file) => {
-                          const counts = fileCountMap.get(file.file_path) ?? {
-                            citedCount: 0,
-                            attachedCount: 0,
-                          };
-                          return (
-                            <FileRow
-                              key={file.file_path}
-                              filePath={file.file_path}
-                              name={file.name}
-                              ext={file.ext}
-                              citedCount={counts.citedCount}
-                              attachedCount={counts.attachedCount}
-                              isSelected={selectedFilePath === file.file_path}
-                              onSelect={() => selectFile(file.file_path)}
-                            />
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Heatmap area — always flex-1, right panel slides in */}
-                  <div className="flex flex-1 flex-col overflow-hidden">
-                    {selectedFilePath ? (
-                      <>
-                        {/* File header: filename + quick actions + mode toggle */}
-                        <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5">
-                          {(() => {
-                            const file = fileList.find(
-                              (f) => f.file_path === selectedFilePath,
-                            );
-                            return (
-                              <>
-                                <FileExtBadge ext={file?.ext ?? ''} />
-                                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
-                                  {file?.name ??
-                                    selectedFilePath.split('/').pop()}
-                                </span>
-                              </>
-                            );
-                          })()}
-                          {viewMode === 'chunks' && heatmapMode === 'read' && (
-                            <HeatmapQuickActions
-                              hasCited={citedChunkNumbers.size > 0}
-                              hasAttached={attachedChunkNumbers.size > 0}
-                              onAttachAllCited={handleAttachAllCited}
-                              onAttachAll={handleAttachAll}
-                              onClearAll={handleClearAll}
-                              compact={!!selectedChunk}
-                            />
-                          )}
-                          {/* Chunks / Preview toggle */}
-                          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
-                            <button
-                              onClick={() => setViewMode('chunks')}
-                              className={cn(
-                                'flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors',
-                                viewMode === 'chunks'
-                                  ? 'bg-background text-foreground shadow-sm'
-                                  : 'text-muted-foreground hover:text-foreground',
-                              )}
-                            >
-                              <LayoutGrid className="h-2.5 w-2.5" />
-                              Chunks
-                            </button>
-                            <button
-                              onClick={handleSwitchToPreview}
-                              className={cn(
-                                'flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors',
-                                viewMode === 'preview'
-                                  ? 'bg-background text-foreground shadow-sm'
-                                  : 'text-muted-foreground hover:text-foreground',
-                              )}
-                            >
-                              <FileText className="h-2.5 w-2.5" />
-                              Preview
-                            </button>
-                          </div>
-                        </div>
-                        {/* Grid (chunks mode only) */}
-                        <div className="custom-scrollbar flex-1 overflow-y-auto p-4">
-                          <SourceHeatmapGrid
-                            chunks={selectedChunks}
-                            citedChunkNumbers={citedChunkNumbers}
-                            attachedChunkNumbers={attachedChunkNumbers}
-                            isLoading={isLoadingChunks}
-                            onSelectChunk={handleSelectChunk}
-                            selectedChunkNumber={selectedChunk?.chunk_number}
-                            onAttachPage={handleAttachPage}
-                            onDetachPage={handleDetachPage}
-                            onAttachChunk={handleAttachChunk}
-                            onDetachChunk={handleDetachChunk}
-                            onModeChange={handleHeatmapModeChange}
-                            onSearchChange={setHeatmapSearch}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex flex-1 items-center justify-center">
-                        <p className="text-sm text-muted-foreground">
-                          Select a file to explore chunks
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right panel: payload preview, file preview, or chunk reader — slides in */}
-                  <AnimatePresence initial={false}>
-                    {!!selectedFilePath &&
-                      (viewMode === 'preview' ||
-                        (viewMode === 'chunks' && heatmapMode === 'select') ||
-                        (viewMode === 'chunks' && !!selectedChunk)) && (
-                        <motion.div
-                          key={`rpanel-${selectedFilePath}`}
-                          initial={{ width: 0, opacity: 0 }}
-                          animate={{ width: 340, opacity: 1 }}
-                          exit={{ width: 0, opacity: 0 }}
-                          transition={{
-                            type: 'spring',
-                            stiffness: 380,
-                            damping: 36,
-                          }}
-                          style={{ overflow: 'hidden', flexShrink: 0 }}
-                        >
-                          {/* w-px separator avoids border-l 1px gap during animation */}
-                          <div className="flex h-full" style={{ width: 341 }}>
-                            <div className="w-px shrink-0 bg-border" />
-                            <div className="flex h-full flex-1 flex-col overflow-hidden">
-                              <AnimatePresence mode="wait" initial={false}>
-                                {viewMode === 'preview' ? (
-                                  <motion.div
-                                    key="file-preview"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.1 }}
-                                    className="flex h-full flex-col"
-                                  >
-                                    <FilePreviewPane
-                                      url={previewUrl}
-                                      isLoading={previewLoading}
-                                      error={previewError}
-                                      fileName={
-                                        fileList.find(
-                                          (f) =>
-                                            f.file_path === selectedFilePath,
-                                        )?.name ??
-                                        selectedFilePath.split('/').pop() ??
-                                        ''
-                                      }
-                                      ext={
-                                        fileList.find(
-                                          (f) =>
-                                            f.file_path === selectedFilePath,
-                                        )?.ext
-                                      }
-                                      onRetry={handleRetryPreview}
-                                      pages={availablePages}
-                                      chunksByPage={chunksByPage}
-                                      attachedChunkNumbers={
-                                        attachedChunkNumbers
-                                      }
-                                      onAttachPage={handleAttachPage}
-                                      onDetachPage={handleDetachPage}
-                                    />
-                                  </motion.div>
-                                ) : heatmapMode === 'select' ? (
-                                  <motion.div
-                                    key="payload-preview"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.1 }}
-                                    className="flex h-full flex-col"
-                                  >
-                                    <PayloadPreviewPane
-                                      attachedChunks={selectedChunks.filter(
-                                        (c) =>
-                                          attachedChunkNumbers.has(
-                                            c.chunk_number,
-                                          ),
-                                      )}
-                                      citedChunkNumbers={citedChunkNumbers}
-                                      onDetachChunk={handleDetachChunk}
-                                    />
-                                  </motion.div>
-                                ) : selectedChunk ? (
-                                  <motion.div
-                                    key="chunk-reader"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.1 }}
-                                    className="flex h-full flex-col"
-                                  >
-                                    <ChunkContentReader
-                                      chunk={selectedChunk}
-                                      allChunks={selectedChunks}
-                                      fileName={
-                                        fileList.find(
-                                          (f) =>
-                                            f.file_path === selectedFilePath,
-                                        )?.name ??
-                                        selectedFilePath.split('/').pop() ??
-                                        ''
-                                      }
-                                      fileExt={
-                                        fileList.find(
-                                          (f) =>
-                                            f.file_path === selectedFilePath,
-                                        )?.ext
-                                      }
-                                      isAttached={attachedChunkNumbers.has(
-                                        selectedChunk.chunk_number,
-                                      )}
-                                      isCited={citedChunkNumbers.has(
-                                        selectedChunk.chunk_number,
-                                      )}
-                                      onAttach={handleAttachSelected}
-                                      onDetach={handleDetachSelected}
-                                      onNavigate={setSelectedChunk}
-                                      onClose={() => setSelectedChunk(null)}
-                                      highlightQuery={
-                                        heatmapSearch || undefined
-                                      }
-                                    />
-                                  </motion.div>
-                                ) : null}
-                              </AnimatePresence>
+                        <div className="custom-scrollbar flex-1 overflow-y-auto p-1.5">
+                          {fileListLoading ? (
+                            <div className="flex justify-center py-6">
+                              <Loader2 className="h-4 w-4 animate-spin text-[var(--brand-fg-accent)]" />
                             </div>
+                          ) : fileList.length === 0 ? (
+                            <p className="px-2 py-4 text-center text-[11px] text-muted-foreground">
+                              No files found
+                            </p>
+                          ) : (
+                            fileList.map((file) => {
+                              const counts = fileCountMap.get(
+                                file.file_path,
+                              ) ?? {
+                                citedCount: 0,
+                                attachedCount: 0,
+                              };
+                              return (
+                                <FileRow
+                                  key={file.file_path}
+                                  filePath={file.file_path}
+                                  name={file.name}
+                                  ext={file.ext}
+                                  citedCount={counts.citedCount}
+                                  attachedCount={counts.attachedCount}
+                                  isSelected={
+                                    selectedFilePath === file.file_path
+                                  }
+                                  onSelect={() => selectFile(file.file_path)}
+                                />
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Heatmap area — always flex-1, right panel slides in */}
+                      <div className="flex flex-1 flex-col overflow-hidden">
+                        {selectedFilePath ? (
+                          <>
+                            {/* File header: filename + quick actions + mode toggle */}
+                            <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5">
+                              {(() => {
+                                const file = fileList.find(
+                                  (f) => f.file_path === selectedFilePath,
+                                );
+                                return (
+                                  <>
+                                    <FileExtBadge ext={file?.ext ?? ''} />
+                                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+                                      {file?.name ??
+                                        selectedFilePath.split('/').pop()}
+                                    </span>
+                                  </>
+                                );
+                              })()}
+                              {viewMode === 'chunks' &&
+                                heatmapMode === 'read' && (
+                                  <HeatmapQuickActions
+                                    hasCited={citedChunkNumbers.size > 0}
+                                    hasAttached={attachedChunkNumbers.size > 0}
+                                    onAttachAllCited={handleAttachAllCited}
+                                    onAttachAll={handleAttachAll}
+                                    onClearAll={handleClearAll}
+                                    compact={!!selectedChunk}
+                                  />
+                                )}
+                              {/* Chunks / Preview toggle */}
+                              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
+                                <button
+                                  onClick={() => setViewMode('chunks')}
+                                  className={cn(
+                                    'flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                                    viewMode === 'chunks'
+                                      ? 'bg-background text-foreground shadow-sm'
+                                      : 'text-muted-foreground hover:text-foreground',
+                                  )}
+                                >
+                                  <LayoutGrid className="h-2.5 w-2.5" />
+                                  Chunks
+                                </button>
+                                <button
+                                  onClick={handleSwitchToPreview}
+                                  className={cn(
+                                    'flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                                    viewMode === 'preview'
+                                      ? 'bg-background text-foreground shadow-sm'
+                                      : 'text-muted-foreground hover:text-foreground',
+                                  )}
+                                >
+                                  <FileText className="h-2.5 w-2.5" />
+                                  Preview
+                                </button>
+                              </div>
+                            </div>
+                            {/* Grid (chunks mode only) */}
+                            <div className="custom-scrollbar flex-1 overflow-y-auto p-4">
+                              <SourceHeatmapGrid
+                                chunks={selectedChunks}
+                                citedChunkNumbers={citedChunkNumbers}
+                                attachedChunkNumbers={attachedChunkNumbers}
+                                isLoading={isLoadingChunks}
+                                onSelectChunk={handleSelectChunk}
+                                selectedChunkNumber={
+                                  selectedChunk?.chunk_number
+                                }
+                                onAttachPage={handleAttachPage}
+                                onDetachPage={handleDetachPage}
+                                onAttachChunk={handleAttachChunk}
+                                onDetachChunk={handleDetachChunk}
+                                onModeChange={handleHeatmapModeChange}
+                                onSearchChange={setHeatmapSearch}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-1 items-center justify-center">
+                            <p className="text-sm text-muted-foreground">
+                              Select a file to explore chunks
+                            </p>
                           </div>
-                        </motion.div>
-                      )}
-                  </AnimatePresence>
+                        )}
+                      </div>
+
+                      {/* Right panel: payload preview, file preview, or chunk reader — slides in */}
+                      <AnimatePresence initial={false}>
+                        {!!selectedFilePath &&
+                          (viewMode === 'preview' ||
+                            (viewMode === 'chunks' &&
+                              heatmapMode === 'select') ||
+                            (viewMode === 'chunks' && !!selectedChunk)) && (
+                            <motion.div
+                              key={`rpanel-${selectedFilePath}`}
+                              initial={{ width: 0, opacity: 0 }}
+                              animate={{ width: 340, opacity: 1 }}
+                              exit={{ width: 0, opacity: 0 }}
+                              transition={{
+                                type: 'spring',
+                                stiffness: 380,
+                                damping: 36,
+                              }}
+                              style={{ overflow: 'hidden', flexShrink: 0 }}
+                            >
+                              {/* w-px separator avoids border-l 1px gap during animation */}
+                              <div
+                                className="flex h-full"
+                                style={{ width: 341 }}
+                              >
+                                <div className="w-px shrink-0 bg-border" />
+                                <div className="flex h-full flex-1 flex-col overflow-hidden">
+                                  <AnimatePresence mode="wait" initial={false}>
+                                    {viewMode === 'preview' ? (
+                                      <motion.div
+                                        key="file-preview"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.1 }}
+                                        className="flex h-full flex-col"
+                                      >
+                                        <FilePreviewPane
+                                          url={previewUrl}
+                                          isLoading={previewLoading}
+                                          error={previewError}
+                                          fileName={
+                                            fileList.find(
+                                              (f) =>
+                                                f.file_path ===
+                                                selectedFilePath,
+                                            )?.name ??
+                                            selectedFilePath.split('/').pop() ??
+                                            ''
+                                          }
+                                          ext={
+                                            fileList.find(
+                                              (f) =>
+                                                f.file_path ===
+                                                selectedFilePath,
+                                            )?.ext
+                                          }
+                                          onRetry={handleRetryPreview}
+                                          pages={availablePages}
+                                          chunksByPage={chunksByPage}
+                                          attachedChunkNumbers={
+                                            attachedChunkNumbers
+                                          }
+                                          onAttachPage={handleAttachPage}
+                                          onDetachPage={handleDetachPage}
+                                        />
+                                      </motion.div>
+                                    ) : heatmapMode === 'select' ? (
+                                      <motion.div
+                                        key="payload-preview"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.1 }}
+                                        className="flex h-full flex-col"
+                                      >
+                                        <PayloadPreviewPane
+                                          attachedChunks={selectedChunks.filter(
+                                            (c) =>
+                                              attachedChunkNumbers.has(
+                                                c.chunk_number,
+                                              ),
+                                          )}
+                                          citedChunkNumbers={citedChunkNumbers}
+                                          onDetachChunk={handleDetachChunk}
+                                        />
+                                      </motion.div>
+                                    ) : selectedChunk ? (
+                                      <motion.div
+                                        key="chunk-reader"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.1 }}
+                                        className="flex h-full flex-col"
+                                      >
+                                        <ChunkContentReader
+                                          chunk={selectedChunk}
+                                          allChunks={selectedChunks}
+                                          fileName={
+                                            fileList.find(
+                                              (f) =>
+                                                f.file_path ===
+                                                selectedFilePath,
+                                            )?.name ??
+                                            selectedFilePath.split('/').pop() ??
+                                            ''
+                                          }
+                                          fileExt={
+                                            fileList.find(
+                                              (f) =>
+                                                f.file_path ===
+                                                selectedFilePath,
+                                            )?.ext
+                                          }
+                                          isAttached={attachedChunkNumbers.has(
+                                            selectedChunk.chunk_number,
+                                          )}
+                                          isCited={citedChunkNumbers.has(
+                                            selectedChunk.chunk_number,
+                                          )}
+                                          onAttach={handleAttachSelected}
+                                          onDetach={handleDetachSelected}
+                                          onNavigate={setSelectedChunk}
+                                          onClose={() => setSelectedChunk(null)}
+                                          highlightQuery={
+                                            heatmapSearch || undefined
+                                          }
+                                        />
+                                      </motion.div>
+                                    ) : null}
+                                  </AnimatePresence>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                      </AnimatePresence>
+                    </>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

@@ -9,6 +9,7 @@ import {
   FileText,
   X,
   Package,
+  Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +23,8 @@ import { FileExtBadge } from '../attachment-pill';
 import { SourceHeatmapGrid, HeatmapQuickActions } from './source-heatmap-grid';
 import { ChunkContentReader } from './chunk-content-reader';
 import { FilePreviewPane } from './file-preview-pane';
+import { GlobalSearchPane } from './global-search-pane';
+import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
 import type { useSourceExplorerBody } from './useSourceExplorerBody';
 import type { ChunkMetadata } from '@/types/api';
 
@@ -211,11 +214,17 @@ interface SourceExplorerBodyViewProps extends BodyHook {
   sidebarWidth?: number;
   /** width of the content reader when open — px number or CSS string e.g. '50%' */
   readerWidth?: number | string;
+  /** Controlled global-search open state (popover / fullscreen use this) */
+  globalSearchOpen?: boolean;
+  /** Called whenever global search open state changes */
+  onGlobalSearchChange?: (v: boolean) => void;
 }
 
 export function SourceExplorerBodyView({
   sidebarWidth = 200,
   readerWidth = 380 as number | string,
+  globalSearchOpen: globalSearchOpenProp,
+  onGlobalSearchChange,
   // from hook
   fileList,
   fileListLoading,
@@ -285,6 +294,29 @@ export function SourceExplorerBodyView({
     [chunksByPage],
   );
 
+  // ── Global search ─────────────────────────────────────────────────
+  const {
+    chunksCache,
+    loadingFiles,
+    selectFile: storeSelectFile,
+  } = useSourceExplorerStore();
+  const [_gsOpen, _setGsOpen] = useState(false);
+  const globalSearchOpen = globalSearchOpenProp ?? _gsOpen;
+  const setGlobalSearchOpen = (
+    nextOrFn: boolean | ((p: boolean) => boolean),
+  ) => {
+    const next =
+      typeof nextOrFn === 'function' ? nextOrFn(globalSearchOpen) : nextOrFn;
+    _setGsOpen(next);
+    onGlobalSearchChange?.(next);
+  };
+
+  const handleLoadAllFiles = useCallback(() => {
+    fileList.forEach((f) => {
+      if (!chunksCache[f.file_path]) storeSelectFile(f.file_path);
+    });
+  }, [fileList, chunksCache, storeSelectFile]);
+
   // ── Preview state ────────────────────────────────────────────────
   const [viewMode, setViewMode] = useState<'chunks' | 'preview'>('chunks');
   const [heatmapMode, setHeatmapMode] = useState<'read' | 'select'>('read');
@@ -350,13 +382,28 @@ export function SourceExplorerBodyView({
     <div className="flex flex-1 overflow-hidden">
       {/* ── File list sidebar ─────────────────────────────────── */}
       <div
-        className="flex shrink-0 flex-col border-r border-border"
+        className={cn(
+          'flex shrink-0 flex-col border-r border-border',
+          globalSearchOpen && 'hidden',
+        )}
         style={{ width: sidebarWidth }}
       >
-        <div className="border-b border-border px-3 py-2">
+        <div className="flex items-center justify-between border-b border-border px-3 py-2">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Indexed Files
           </span>
+          <button
+            onClick={() => setGlobalSearchOpen((v) => !v)}
+            title="Search across all files (⌘F)"
+            className={cn(
+              'flex h-5 w-5 items-center justify-center rounded transition-colors',
+              globalSearchOpen
+                ? 'bg-[var(--brand-surface-purple)] text-[var(--brand-fg-accent)]'
+                : 'text-muted-foreground/50 hover:bg-muted hover:text-foreground',
+            )}
+          >
+            <Search className="h-3 w-3" />
+          </button>
         </div>
         <div className="custom-scrollbar flex-1 overflow-y-auto p-1.5">
           {fileListLoading ? (
@@ -390,8 +437,36 @@ export function SourceExplorerBodyView({
         </div>
       </div>
 
+      {/* ── Global search overlay ── */}
+      {globalSearchOpen && (
+        <div className="flex flex-1 overflow-hidden">
+          <GlobalSearchPane
+            fileList={fileList}
+            chunksCache={chunksCache}
+            loadingFiles={loadingFiles}
+            fileCountMap={fileCountMap}
+            onSelectFile={(fp) => {
+              handleFileSelect(fp);
+              setGlobalSearchOpen(false);
+            }}
+            onSelectChunk={(fp, chunk) => {
+              handleFileSelect(fp);
+              setSelectedChunk(chunk);
+              setGlobalSearchOpen(false);
+            }}
+            onLoadAllFiles={handleLoadAllFiles}
+            onClose={() => setGlobalSearchOpen(false)}
+          />
+        </div>
+      )}
+
       {/* ── Heatmap area (always flex-1, reader pushes from right) ── */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div
+        className={cn(
+          'flex flex-1 flex-col overflow-hidden',
+          globalSearchOpen && 'hidden',
+        )}
+      >
         {selectedFilePath ? (
           <>
             {/* File header */}
@@ -491,7 +566,7 @@ export function SourceExplorerBodyView({
 
       {/* ── Right panel: chunk reader OR file preview (slides in from right) ── */}
       <AnimatePresence initial={false}>
-        {isRightPanelOpen && (
+        {!globalSearchOpen && isRightPanelOpen && (
           <motion.div
             key={`panel-${selectedFilePath}`}
             initial={{ width: 0, opacity: 0 }}

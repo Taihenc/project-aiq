@@ -1,8 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
-import { LayoutGrid, X, PictureInPicture2, Maximize2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  LayoutGrid,
+  X,
+  PictureInPicture2,
+  Maximize2,
+  Search,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Tooltip,
   TooltipContent,
@@ -35,6 +42,7 @@ export function SourceExplorerPopoverContent({
   onRemoveChunk,
 }: SourceExplorerPopoverContentProps) {
   const { close, detach, enterFullscreen } = useSourceExplorerStore();
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
 
   const body = useSourceExplorerBody({
     attachments,
@@ -62,6 +70,27 @@ export function SourceExplorerPopoverContent({
         </span>
 
         <div className="flex items-center gap-1">
+          {/* Global search */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={cn(
+                  'h-6 w-6 rounded-lg',
+                  globalSearchOpen
+                    ? 'bg-[var(--brand-surface-purple)] text-[var(--brand-fg-accent)]'
+                    : 'text-muted-foreground hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)]',
+                )}
+                onClick={() => setGlobalSearchOpen((v) => !v)}
+              >
+                <Search className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              Search all files
+            </TooltipContent>
+          </Tooltip>
           {/* Detach → floating draggable panel */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -109,7 +138,13 @@ export function SourceExplorerPopoverContent({
       </div>
 
       {/* ── Body ─────────────────────────────────────────────── */}
-      <SourceExplorerBodyView {...body} sidebarWidth={180} readerWidth={340} />
+      <SourceExplorerBodyView
+        {...body}
+        sidebarWidth={180}
+        readerWidth={340}
+        globalSearchOpen={globalSearchOpen}
+        onGlobalSearchChange={setGlobalSearchOpen}
+      />
     </div>
   );
 }

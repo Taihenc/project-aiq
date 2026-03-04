@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutGrid, X, PictureInPicture2, Minimize2 } from 'lucide-react';
+import {
+  LayoutGrid,
+  X,
+  PictureInPicture2,
+  Minimize2,
+  Search,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +35,7 @@ export function SourceExplorerFullscreen({
   onRemoveChunk,
 }: SourceExplorerFullscreenProps) {
   const { mode, isOpen, close, collapse, detach } = useSourceExplorerStore();
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
 
   const body = useSourceExplorerBody({
     attachments,
@@ -68,6 +76,27 @@ export function SourceExplorerFullscreen({
                 Source Explorer
               </span>
               <div className="flex items-center gap-1">
+                {/* Global search */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className={cn(
+                        'h-7 w-7 rounded-lg',
+                        globalSearchOpen
+                          ? 'bg-[var(--brand-surface-purple)] text-[var(--brand-fg-accent)]'
+                          : 'text-muted-foreground hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)]',
+                      )}
+                      onClick={() => setGlobalSearchOpen((v) => !v)}
+                    >
+                      <Search className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    Search all files
+                  </TooltipContent>
+                </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -112,6 +141,8 @@ export function SourceExplorerFullscreen({
               {...body}
               sidebarWidth={260}
               readerWidth="50%"
+              globalSearchOpen={globalSearchOpen}
+              onGlobalSearchChange={setGlobalSearchOpen}
             />
           </motion.div>
         </>
