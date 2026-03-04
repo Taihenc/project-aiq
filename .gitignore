@@ -3,6 +3,10 @@ dist
 node_modules
 build
 
+# Local data volumes
+services/embedding-service/qdrant_data
+services/file-storage-service/minio_data
+
 # Turbo
 .turbo
 

@@ -144,6 +144,53 @@ export function useSourceExplorerBody({
     }
   }, [selectedFilePath, selectedChunks, attachedChunkNumbers, onRemoveChunk]);
 
+  const handleAttachPage = useCallback(
+    (page: number) => {
+      if (!selectedFilePath) return;
+      const pageChunks = selectedChunks.filter(
+        (c) => (c.page_number ?? 0) === page,
+      );
+      if (pageChunks.length > 0)
+        onAddAttachment({
+          file_path: selectedFilePath,
+          chunks: pageChunks,
+        } as FileRef);
+    },
+    [selectedFilePath, selectedChunks, onAddAttachment],
+  );
+
+  const handleDetachPage = useCallback(
+    (page: number) => {
+      if (!selectedFilePath) return;
+      const pageChunks = selectedChunks.filter(
+        (c) => (c.page_number ?? 0) === page,
+      );
+      for (const chunk of pageChunks)
+        onRemoveChunk(selectedFilePath, chunk.chunk_number);
+    },
+    [selectedFilePath, selectedChunks, onRemoveChunk],
+  );
+
+  const handleAttachChunk = useCallback(
+    (chunk: ChunkMetadata) => {
+      if (!selectedFilePath) return;
+      onAddAttachment({
+        file_path: selectedFilePath,
+        chunks: [chunk],
+        content: chunk.content,
+      } as FileRef);
+    },
+    [selectedFilePath, onAddAttachment],
+  );
+
+  const handleDetachChunk = useCallback(
+    (chunk: ChunkMetadata) => {
+      if (!selectedFilePath) return;
+      onRemoveChunk(selectedFilePath, chunk.chunk_number);
+    },
+    [selectedFilePath, onRemoveChunk],
+  );
+
   // ── Resolved file info for selected file ──────────────────────────────────
 
   const selectedFile = fileList.find((f) => f.file_path === selectedFilePath);
@@ -171,6 +218,10 @@ export function useSourceExplorerBody({
     handleAttachAllCited,
     handleAttachAll,
     handleClearAll,
+    handleAttachPage,
+    handleDetachPage,
+    handleAttachChunk,
+    handleDetachChunk,
     // Store passthrough
     selectFile,
     refreshFile,

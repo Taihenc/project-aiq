@@ -75,4 +75,27 @@ export const sharePointApi = {
     });
     return response.data;
   },
+
+  /**
+   * Get a short-lived presigned download URL for a file.
+   * `sourceId` is the file_path from SourceFile (matches the FSS source ID).
+   */
+  getFileDownloadUrl: async (
+    sourceId: string,
+  ): Promise<{ url: string; file_name: string }> => {
+    const response = await client.get(`/sharepoint/download/${encodeURIComponent(sourceId)}`);
+    return response.data as { url: string; file_name: string };
+  },
+
+  /**
+   * Fetch the file as a Blob via the NestJS proxy stream endpoint.
+   * Uses the authenticated axios client so Bearer auth headers are sent.
+   */
+  getFileBlob: async (sourceId: string): Promise<Blob> => {
+    const response = await client.get(
+      `/sharepoint/stream/${encodeURIComponent(sourceId)}`,
+      { responseType: 'blob' },
+    );
+    return response.data as Blob;
+  },
 };

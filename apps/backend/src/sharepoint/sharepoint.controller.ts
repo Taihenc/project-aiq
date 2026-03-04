@@ -11,9 +11,12 @@ import {
   Body,
   Sse,
   MessageEvent,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { SharePointService, StatusEvent } from './sharepoint.service';
 import { Public } from '../auth/decorators/public.decorator';
 
@@ -56,6 +59,26 @@ export class SharePointController {
   @Get('status/:sourceId')
   async getFileStatus(@Param('sourceId') sourceId: string) {
     return this.sharePointService.getFileStatus(sourceId);
+  }
+
+  /** Return a short-lived presigned download URL for a file, resolved via source ID. */
+  @Get('download/:sourceId')
+  async getFileDownloadUrl(@Param('sourceId') sourceId: string) {
+    return this.sharePointService.getFileDownloadUrl(sourceId);
+  }
+
+  /** Proxy-stream the actual file content with the correct MIME type. */
+  @Get('stream/:sourceId')
+  async streamFile(
+    @Param('sourceId') sourceId: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { data, mimeType, fileName } = await this.sharePointService.streamFile(sourceId);
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    });
+    return new StreamableFile(data);
   }
 
   @Post('ingest/:sourceId')

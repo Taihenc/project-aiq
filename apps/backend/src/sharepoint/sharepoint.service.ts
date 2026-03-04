@@ -174,6 +174,78 @@ export class SharePointService implements OnModuleDestroy {
     }
   }
 
+  /** Proxy the file bytes with the correct MIME type — used by GET stream/:sourceId. */
+  async streamFile(sourceId: string): Promise<{ data: import('stream').Readable; mimeType: string; fileName: string }> {
+    const { url, file_name } = await this.getFileDownloadUrl(sourceId);
+    const response = await firstValueFrom(
+      this.httpService.get<import('stream').Readable>(url, { responseType: 'stream' }),
+    );
+    const ext = file_name.split('.').pop()?.toLowerCase() ?? '';
+    const mimeMap: Record<string, string> = {
+      pdf: 'application/pdf',
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      webp: 'image/webp',
+    };
+    return {
+      data: response.data,
+      mimeType: mimeMap[ext] ?? 'application/octet-stream',
+      fileName: file_name,
+    };
+  }
+
+  /**
+   * Get a presigned download URL for a file.
+   * Resolution order:
+   *   1. Try FSS GET /files/source/{sourceId} (works for SharePoint files where source_id is set)
+   *   2. Fall back to FSS GET /files/by-name/{basename} (works for directly-uploaded files
+   *      where file_path from the embedding service is a temp path like /tmp/xxx/name.pdf)
+   */
+  async getFileDownloadUrl(sourceId: string): Promise<{ url: string; file_name: string }> {
+    try {
+      // Step 1: try resolved source_id
+      let fileId: string | undefined;
+      const statusRes = await firstValueFrom(
+        this.httpService.get(`${this.fileStorageUrl}/files/source/${sourceId}`),
+      ).catch((err) => {
+        if (err.response?.status === 404) return { data: null };
+        throw err;
+      });
+      fileId = statusRes.data?.file_id;
+
+      // Step 2: fall back to lookup by basename (handles temp-path file_paths)
+      if (!fileId) {
+        const basename = sourceId.split('/').filter(Boolean).pop() ?? sourceId;
+        const nameRes = await firstValueFrom(
+          this.httpService.get(`${this.fileStorageUrl}/files/by-name/${encodeURIComponent(basename)}`),
+        ).catch((err) => {
+          if (err.response?.status === 404) return { data: null };
+          throw err;
+        });
+        fileId = nameRes.data?.file_id;
+      }
+
+      if (!fileId) {
+        throw new HttpException('File not found in storage', HttpStatus.NOT_FOUND);
+      }
+
+      // Step 3: get presigned download URL
+      const dlRes = await firstValueFrom(
+        this.httpService.get(`${this.fileStorageUrl}/files/${fileId}/download`),
+      );
+      return {
+        url: dlRes.data.download_url as string,
+        file_name: dlRes.data.file_name as string,
+      };
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      this.handleError(error, 'Failed to get file download URL');
+      throw error; // handleError always throws; this satisfies the TS return-type check
+    }
+  }
+
   /** Returns indexed chunk count for a file. */
   async getFileChunkCount(filePath: string): Promise<{ chunk_count: number; indexed: boolean }> {
     try {

@@ -26,6 +26,14 @@ interface HeatmapGridProps {
   onSelectChunk: (chunk: ChunkMetadata) => void;
   /** Highlight this chunk number as "currently reading" */
   selectedChunkNumber?: number;
+  /** Attach all chunks on a page */
+  onAttachPage?: (page: number) => void;
+  /** Detach all chunks on a page */
+  onDetachPage?: (page: number) => void;
+  /** Attach a single chunk */
+  onAttachChunk?: (chunk: ChunkMetadata) => void;
+  /** Detach a single chunk */
+  onDetachChunk?: (chunk: ChunkMetadata) => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -51,99 +59,130 @@ function HeatmapCell({
   state,
   isSelected,
   onSelect,
+  onAttachChunk,
+  onDetachChunk,
 }: {
   chunk: ChunkMetadata;
   state: ReturnType<typeof cellState>;
   isSelected: boolean;
   onSelect: () => void;
+  onAttachChunk?: (chunk: ChunkMetadata) => void;
+  onDetachChunk?: (chunk: ChunkMetadata) => void;
 }) {
   const preview = chunk.content
     ? chunk.content.slice(0, 120) + (chunk.content.length > 120 ? '\u2026' : '')
     : null;
+  const isAttached = state === 'attached' || state === 'cited-attached';
+  const hasAttachControl = onAttachChunk || onDetachChunk;
 
   return (
-    // disableHoverableContent: tooltip closes as soon as mouse leaves the trigger,
-    // even if cursor moves onto the preview panel itself.
-    <TooltipProvider delayDuration={300} disableHoverableContent>
-      <TooltipPrimitive.Root>
-        <TooltipTrigger asChild>
-          <button
-            onClick={onSelect}
-            className={cn(
-              'relative flex h-6 w-8 items-center justify-center rounded text-[8px] font-bold',
-              'border transition-all duration-150 active:scale-90',
-              // Selected overlay: bright white ring on top of state color
-              isSelected &&
-                'ring-2 ring-white/90 ring-offset-1 ring-offset-transparent dark:ring-white/70',
-              state === 'cited-attached' &&
-                'border-emerald-400/70 bg-emerald-100 text-emerald-700 shadow-[0_0_0_2px_rgba(52,211,153,0.3)] dark:bg-emerald-900/50 dark:text-emerald-300',
-              state === 'cited' &&
-                'border-[var(--brand-btn-primary)]/50 bg-[var(--brand-surface-purple)] text-[var(--brand-fg-accent)] shadow-[0_0_6px_-2px_var(--brand-btn-primary)] hover:bg-[var(--brand-card-purple)]',
-              state === 'attached' &&
-                'border-emerald-400/60 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400',
-              state === 'none' &&
-                'border-border/40 bg-muted/40 text-muted-foreground/50 hover:border-border hover:bg-muted',
-              !isSelected && 'hover:scale-110',
-            )}
-          >
-            {chunk.chunk_number}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          className="z-[300] max-w-[240px] rounded-xl border-[var(--brand-source-border)] bg-card p-0 shadow-[0_8px_24px_-8px_rgba(102,88,204,0.3)]"
-        >
-          <div className="px-3 py-2">
-            <div className="mb-1.5 flex items-center gap-2">
-              <span
-                className={cn(
-                  'rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none',
-                  state === 'cited-attached' || state === 'cited'
-                    ? 'bg-[var(--brand-citation-bg)] text-[var(--brand-fg-accent)]'
-                    : 'bg-muted text-muted-foreground',
-                )}
-              >
-                #{chunk.chunk_number}
-              </span>
-              {chunk.page_number > 0 && (
-                <span className="text-[10px] text-muted-foreground">
-                  p.{chunk.page_number}
-                </span>
+    // group wrapper lets the attach badge respond to hover over the cell
+    <div className="group relative">
+      {/* disableHoverableContent: tooltip closes as soon as mouse leaves the trigger */}
+      <TooltipProvider delayDuration={300} disableHoverableContent>
+        <TooltipPrimitive.Root>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onSelect}
+              className={cn(
+                'relative flex h-9 w-11 items-center justify-center rounded-md text-[10px] font-bold',
+                'border transition-all duration-150 active:scale-90',
+                // Selected overlay: bright white ring on top of state color
+                isSelected &&
+                  'ring-2 ring-white/90 ring-offset-1 ring-offset-transparent dark:ring-white/70',
+                state === 'cited-attached' &&
+                  'border-emerald-400/70 bg-emerald-100 text-emerald-700 shadow-[0_0_0_2px_rgba(52,211,153,0.3)] dark:bg-emerald-900/50 dark:text-emerald-300',
+                state === 'cited' &&
+                  'border-[var(--brand-btn-primary)]/50 bg-[var(--brand-surface-purple)] text-[var(--brand-fg-accent)] shadow-[0_0_6px_-2px_var(--brand-btn-primary)] hover:bg-[var(--brand-card-purple)]',
+                state === 'attached' &&
+                  'border-emerald-400/60 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400',
+                state === 'none' &&
+                  'border-border/40 bg-muted/40 text-muted-foreground/50 hover:border-border hover:bg-muted',
+                !isSelected && 'hover:scale-110',
               )}
-              <span
-                className={cn(
-                  'ml-auto text-[9px] font-semibold uppercase tracking-wide',
-                  state === 'cited-attached'
-                    ? 'text-emerald-500'
-                    : state === 'cited'
-                      ? 'text-[var(--brand-fg-accent)]'
-                      : state === 'attached'
-                        ? 'text-emerald-500'
-                        : 'text-muted-foreground/50',
+            >
+              {chunk.chunk_number}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            className="z-[300] max-w-[240px] rounded-xl border-[var(--brand-source-border)] bg-card p-0 shadow-[0_8px_24px_-8px_rgba(102,88,204,0.3)]"
+          >
+            <div className="px-3 py-2">
+              <div className="mb-1.5 flex items-center gap-2">
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none',
+                    state === 'cited-attached' || state === 'cited'
+                      ? 'bg-[var(--brand-citation-bg)] text-[var(--brand-fg-accent)]'
+                      : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  #{chunk.chunk_number}
+                </span>
+                {chunk.page_number > 0 && (
+                  <span className="text-[10px] text-muted-foreground">
+                    p.{chunk.page_number}
+                  </span>
                 )}
-              >
-                {state === 'cited-attached'
-                  ? 'cited + attached'
-                  : state === 'cited'
-                    ? 'AI cited'
-                    : state === 'attached'
-                      ? 'attached'
-                      : 'click to read'}
-              </span>
+                <span
+                  className={cn(
+                    'ml-auto text-[9px] font-semibold uppercase tracking-wide',
+                    state === 'cited-attached'
+                      ? 'text-emerald-500'
+                      : state === 'cited'
+                        ? 'text-[var(--brand-fg-accent)]'
+                        : state === 'attached'
+                          ? 'text-emerald-500'
+                          : 'text-muted-foreground/50',
+                  )}
+                >
+                  {state === 'cited-attached'
+                    ? 'cited + attached'
+                    : state === 'cited'
+                      ? 'AI cited'
+                      : state === 'attached'
+                        ? 'attached'
+                        : 'click to read'}
+                </span>
+              </div>
+              {preview ? (
+                <p className="text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                  {preview}
+                </p>
+              ) : (
+                <p className="text-[11px] italic text-muted-foreground">
+                  No preview available
+                </p>
+              )}
             </div>
-            {preview ? (
-              <p className="text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap [overflow-wrap:anywhere]">
-                {preview}
-              </p>
-            ) : (
-              <p className="text-[11px] italic text-muted-foreground">
-                No preview available
-              </p>
-            )}
-          </div>
-        </TooltipContent>
-      </TooltipPrimitive.Root>
-    </TooltipProvider>
+          </TooltipContent>
+        </TooltipPrimitive.Root>
+      </TooltipProvider>
+      {/* Per-chunk attach/detach badge — floats above top-right on hover */}
+      {hasAttachControl && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            isAttached ? onDetachChunk?.(chunk) : onAttachChunk?.(chunk);
+          }}
+          title={isAttached ? 'Detach chunk' : 'Attach chunk'}
+          className={cn(
+            'absolute -right-1.5 -top-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full border',
+            'scale-75 opacity-0 transition-all duration-150 group-hover:scale-100 group-hover:opacity-100',
+            isAttached
+              ? 'border-emerald-400 bg-emerald-100 text-emerald-700 hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive dark:bg-emerald-900/80 dark:text-emerald-300'
+              : 'border-border bg-card text-muted-foreground hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-card',
+          )}
+        >
+          {isAttached ? (
+            <Minus className="h-2.5 w-2.5" />
+          ) : (
+            <Plus className="h-2.5 w-2.5" />
+          )}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -244,6 +283,10 @@ export function SourceHeatmapGrid({
   isLoading,
   onSelectChunk,
   selectedChunkNumber,
+  onAttachPage,
+  onDetachPage,
+  onAttachChunk,
+  onDetachChunk,
 }: HeatmapGridProps) {
   // Group chunks by page
   const pages = useMemo(() => {
@@ -296,7 +339,7 @@ export function SourceHeatmapGrid({
         totalCount={chunks.length}
       />
 
-      <div className="custom-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto">
+      <div className="custom-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto px-1 pb-2 pt-1">
         {pages.map(({ page, chunks: pageChunks }) => (
           <div key={page} className="flex flex-col gap-1.5">
             {/* Page label */}
@@ -305,12 +348,52 @@ export function SourceHeatmapGrid({
                 <span className="rounded-full border border-[var(--brand-citation-border)] bg-[var(--brand-citation-bg)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-[var(--brand-citation-text)]">
                   Page {page}
                 </span>
+                {/* Per-page attach toggle — kept next to label so it's clear which page it targets */}
+                {(onAttachPage || onDetachPage) &&
+                  (() => {
+                    const attached = pageChunks.filter((c) =>
+                      attachedChunkNumbers.has(c.chunk_number),
+                    ).length;
+                    const allAttached = attached === pageChunks.length;
+                    const isPartial = attached > 0 && !allAttached;
+                    return (
+                      <button
+                        onClick={() =>
+                          allAttached
+                            ? onDetachPage?.(page)
+                            : onAttachPage?.(page)
+                        }
+                        className={cn(
+                          'flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                          allAttached
+                            ? 'border-emerald-400/60 bg-emerald-50 text-emerald-600 hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive dark:bg-emerald-950/40 dark:text-emerald-400'
+                            : isPartial
+                              ? 'border-emerald-300/50 bg-emerald-50/60 text-emerald-600/70 hover:border-emerald-400/60 hover:bg-emerald-50 hover:text-emerald-600 dark:bg-emerald-950/20'
+                              : 'border-border/50 bg-muted/40 text-muted-foreground hover:border-emerald-400/60 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/30',
+                        )}
+                      >
+                        {allAttached ? (
+                          <Minus className="h-2.5 w-2.5" />
+                        ) : (
+                          <Plus className="h-2.5 w-2.5" />
+                        )}
+                        {allAttached
+                          ? 'Detach'
+                          : isPartial
+                            ? `${attached}/${pageChunks.length}`
+                            : 'Attach'}
+                      </button>
+                    );
+                  })()}
                 <div className="h-px flex-1 bg-border/30" />
               </div>
             )}
 
             {/* Chunk cells */}
-            <motion.div layout className="flex flex-wrap gap-1">
+            <motion.div
+              layout
+              className="flex flex-wrap gap-1 overflow-visible"
+            >
               <AnimatePresence initial={false}>
                 {pageChunks.map((chunk) => (
                   <motion.div
@@ -319,6 +402,7 @@ export function SourceHeatmapGrid({
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.12 }}
+                    style={{ overflow: 'visible' }}
                   >
                     <HeatmapCell
                       chunk={chunk}
@@ -329,6 +413,8 @@ export function SourceHeatmapGrid({
                       )}
                       isSelected={chunk.chunk_number === selectedChunkNumber}
                       onSelect={() => onSelectChunk(chunk)}
+                      onAttachChunk={onAttachChunk}
+                      onDetachChunk={onDetachChunk}
                     />
                   </motion.div>
                 ))}
