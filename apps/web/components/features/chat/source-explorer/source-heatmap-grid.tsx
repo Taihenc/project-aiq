@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import {
@@ -85,11 +85,12 @@ function HeatmapCell({
             <button
               onClick={onSelect}
               className={cn(
-                'relative flex h-9 w-11 items-center justify-center rounded-md text-[10px] font-bold',
+                'relative flex h-9 w-11 items-center justify-center rounded-md text-[10px] font-bold outline-none',
                 'border transition-all duration-150 active:scale-90',
-                // Selected overlay: bright white ring on top of state color
+                // Active-reading state: brand-color ring + glow pulse
                 isSelected &&
-                  'ring-2 ring-white/90 ring-offset-1 ring-offset-transparent dark:ring-white/70',
+                  'ring-2 ring-[var(--brand-btn-primary)] ring-offset-1 ring-offset-transparent shadow-[0_0_0_3px_rgba(111,88,235,0.22)] scale-110',
+                !isSelected && 'hover:scale-110',
                 state === 'cited-attached' &&
                   'border-emerald-400/70 bg-emerald-100 text-emerald-700 shadow-[0_0_0_2px_rgba(52,211,153,0.3)] dark:bg-emerald-900/50 dark:text-emerald-300',
                 state === 'cited' &&
@@ -98,7 +99,6 @@ function HeatmapCell({
                   'border-emerald-400/60 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400',
                 state === 'none' &&
                   'border-border/40 bg-muted/40 text-muted-foreground/50 hover:border-border hover:bg-muted',
-                !isSelected && 'hover:scale-110',
               )}
             >
               {chunk.chunk_number}
@@ -137,13 +137,15 @@ function HeatmapCell({
                           : 'text-muted-foreground/50',
                   )}
                 >
-                  {state === 'cited-attached'
-                    ? 'cited + attached'
-                    : state === 'cited'
-                      ? 'AI cited'
-                      : state === 'attached'
-                        ? 'attached'
-                        : 'click to read'}
+                  {isSelected
+                    ? 'reading now'
+                    : state === 'cited-attached'
+                      ? 'cited + attached'
+                      : state === 'cited'
+                        ? 'AI cited'
+                        : state === 'attached'
+                          ? 'attached'
+                          : 'click to read'}
                 </span>
               </div>
               {preview ? (
@@ -288,6 +290,47 @@ export function SourceHeatmapGrid({
   onAttachChunk,
   onDetachChunk,
 }: HeatmapGridProps) {
+  // Ref to the grid root — we walk up to the nearest scrollable ancestor
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  /** Walk up the DOM to find the nearest scrollable ancestor. */
+  const getScrollParent = useCallback((): HTMLElement | null => {
+    let node: HTMLElement | null = gridRef.current;
+    while (node) {
+      const { overflow, overflowY } = getComputedStyle(node);
+      if (
+        /auto|scroll/.test(overflow + overflowY) &&
+        node.scrollHeight > node.clientHeight
+      ) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }, []);
+
+  // Auto-scroll to keep the selected cell visible whenever it changes
+  useEffect(() => {
+    if (selectedChunkNumber == null || !gridRef.current) return;
+    const el = gridRef.current.querySelector<HTMLElement>(
+      `[data-chunk="${selectedChunkNumber}"]`,
+    );
+    if (!el) return;
+    // Find the scrollable ancestor (the parent div with overflow-y-auto)
+    const container = getScrollParent();
+    if (!container) {
+      // Fallback: just use browser default
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
+    // Only scroll if the element is outside the visible region
+    const cRect = container.getBoundingClientRect();
+    const eRect = el.getBoundingClientRect();
+    if (eRect.top < cRect.top || eRect.bottom > cRect.bottom) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedChunkNumber, getScrollParent]);
+
   // Group chunks by page
   const pages = useMemo(() => {
     const map = new Map<number, ChunkMetadata[]>();
@@ -332,14 +375,14 @@ export function SourceHeatmapGrid({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={gridRef} className="flex flex-col gap-3">
       <HeatmapLegend
         citedCount={citedCount}
         attachedCount={attachedCount}
         totalCount={chunks.length}
       />
 
-      <div className="custom-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto px-1 pb-2 pt-1">
+      <div className="flex flex-1 flex-col gap-4 px-1 pb-2 pt-1">
         {pages.map(({ page, chunks: pageChunks }) => (
           <div key={page} className="flex flex-col gap-1.5">
             {/* Page label */}
@@ -403,6 +446,7 @@ export function SourceHeatmapGrid({
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.12 }}
                     style={{ overflow: 'visible' }}
+                    data-chunk={chunk.chunk_number}
                   >
                     <HeatmapCell
                       chunk={chunk}
