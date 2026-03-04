@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
+import { GitFork } from 'lucide-react';
 import {
   ReactFlow,
   Background,
@@ -33,19 +34,7 @@ function EmptyState() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-surface-purple">
-        <svg
-          className="h-6 w-6 text-brand-fg-muted"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M6 3v12m0 0a3 3 0 1 0 6 0m-6 0a3 3 0 1 1 6 0m0 0v-4m0 4a3 3 0 1 0 6 0v-8"
-          />
-        </svg>
+        <GitFork className="h-6 w-6 text-brand-fg-muted" />
       </div>
       <p className="text-sm font-medium text-brand-fg-medium">
         No branches yet

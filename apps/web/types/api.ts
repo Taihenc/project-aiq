@@ -53,6 +53,20 @@ export interface FileRef {
   content?: string;
 }
 
+/** A file that has been ingested into the knowledge base */
+export interface SourceFile {
+  /** Canonical path / identifier — matches Citation.id and FileRef.file_path */
+  file_path: string;
+  /** Human-readable filename */
+  name: string;
+  /** File extension (pdf, docx, …) */
+  ext?: string;
+  /** Platform/source label (SharePoint, Upload, …) */
+  platform?: string;
+  /** Last modified ISO string */
+  updated_at?: string;
+}
+
 // Search mode for the search-flow service
 export type SearchMode = 'auto' | 'search' | 'lookup' | 'chat';
 

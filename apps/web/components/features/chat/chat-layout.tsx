@@ -13,6 +13,12 @@ import { BranchMapPopoverContent } from '@/components/features/chat/branch-map/b
 import { BranchMapFullscreen } from '@/components/features/chat/branch-map/branch-map-fullscreen';
 import { BranchMapTrigger } from '@/components/features/chat/branch-map/branch-map-trigger';
 import {
+  SourceExplorerPanel,
+  SourceExplorerFullscreen,
+  SourceExplorerPopoverContent,
+  SourceExplorerTrigger,
+} from '@/components/features/chat/source-explorer';
+import {
   Popover,
   PopoverContent,
   PopoverAnchor,
@@ -20,6 +26,7 @@ import {
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useBranchMap } from '@/hooks/useBranchMap';
+import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { useHistory } from '@/hooks/useHistory';
 import { useChatStore } from '@/lib/store/chat-store';
@@ -42,6 +49,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   const [citationsPanelOpen, setCitationsPanelOpen] = useState(false);
   const [attachments, setAttachments] = useState<FileRef[]>([]);
   const branchMap = useBranchMap();
+  const sourceExplorer = useSourceExplorerStore();
 
   const [currentChatId, setCurrentChatId] = useState<string | undefined>(
     initialChatId,
@@ -286,6 +294,11 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
             <ChatWelcome
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
+              attachments={attachments}
+              onRemoveAttachment={handleRemoveAttachment}
+              onRemoveChunk={handleRemoveChunk}
+              onAddAttachment={handleAddAttachment}
+              availableCitations={sessionAvailableCitations}
             />
           ) : (
             <ChatMessagesArea
@@ -330,6 +343,28 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
 
         {/* ── Bottom-right FAB stack ────────────────────────────────── */}
         <div className="fixed bottom-6 right-6 z-100 flex flex-col items-center gap-2.5">
+          <Popover
+            open={sourceExplorer.mode === 'popover'}
+            onOpenChange={(open) => !open && sourceExplorer.close()}
+          >
+            <PopoverAnchor>
+              <SourceExplorerTrigger />
+            </PopoverAnchor>
+            <PopoverContent
+              side="top"
+              align="end"
+              sideOffset={12}
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              className="w-auto min-w-[50rem] max-w-[50rem] overflow-hidden rounded-2xl border-border bg-card p-0 shadow-[0_16px_40px_-12px_rgba(102,88,204,0.35)]"
+            >
+              <SourceExplorerPopoverContent
+                attachments={attachments}
+                availableCitations={sessionAvailableCitations}
+                onAddAttachment={handleAddAttachment}
+                onRemoveChunk={handleRemoveChunk}
+              />
+            </PopoverContent>
+          </Popover>
           {messages.length > 0 && (
             <Popover
               open={branchMap.mode === 'popover'}
@@ -375,6 +410,22 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
             onNavigate={handleNavigateToMessage}
           />
         )}
+
+        {/* ── Source Explorer floating panel ────────────────────────── */}
+        <SourceExplorerPanel
+          attachments={attachments}
+          availableCitations={sessionAvailableCitations}
+          onAddAttachment={handleAddAttachment}
+          onRemoveChunk={handleRemoveChunk}
+        />
+
+        {/* ── Source Explorer fullscreen overlay ───────────────────────── */}
+        <SourceExplorerFullscreen
+          attachments={attachments}
+          availableCitations={sessionAvailableCitations}
+          onAddAttachment={handleAddAttachment}
+          onRemoveChunk={handleRemoveChunk}
+        />
 
         {/* ── Fullscreen overlay ─────────────────────────────────────── */}
         <BranchMapFullscreen
