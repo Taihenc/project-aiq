@@ -1,7 +1,12 @@
 'use client';
 
-import React, { useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence, useDragControls } from 'motion/react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import {
+  motion,
+  AnimatePresence,
+  useDragControls,
+  useMotionValue,
+} from 'motion/react';
 import { GitBranch, X, Minus, Minimize2, GripHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +46,21 @@ export function BranchMapPanel({
   const [minimized, setMinimized] = useState(false);
   const constraintsRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
+  const panelX = useMotionValue(0);
+  const panelY = useMotionValue(0);
+
+  // When expanding: clamp panelY so the full panel stays inside the viewport.
+  // Panel's effective top = (vh - 88 + panelY) - (DEFAULT_H + TITLE_H)
+  // We need that >= margin, so panelY >= margin + 88 + DEFAULT_H + TITLE_H - vh
+  useEffect(() => {
+    if (minimized) return;
+    const BOTTOM_CSS_PX = 88; // 5.5rem × 16
+    const TITLE_H = 44;
+    const margin = 12;
+    const minY =
+      margin + BOTTOM_CSS_PX + DEFAULT_H + TITLE_H - window.innerHeight;
+    if (panelY.get() < minY) panelY.set(minY);
+  }, [minimized, panelY]);
 
   const totalBranches = Array.from(messageTree.values()).reduce(
     (max, m) => Math.max(max, m.branchIndex ?? 0),
@@ -68,7 +88,7 @@ export function BranchMapPanel({
             drag
             dragControls={dragControls}
             dragListener={false}
-            dragConstraints={constraintsRef}
+            dragConstraints={minimized ? false : constraintsRef}
             dragMomentum={false}
             dragElastic={0}
             initial={{ scale: 0.88, opacity: 0, y: 16 }}
@@ -76,6 +96,8 @@ export function BranchMapPanel({
             exit={{ scale: 0.88, opacity: 0, y: 16 }}
             transition={{ type: 'spring', stiffness: 420, damping: 32 }}
             style={{
+              x: panelX,
+              y: panelY,
               width: DEFAULT_W,
               position: 'fixed',
               bottom: '5.5rem',
