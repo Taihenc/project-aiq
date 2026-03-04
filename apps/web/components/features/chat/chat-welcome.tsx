@@ -7,6 +7,11 @@ import type { ChatWelcomeProps } from '@/types';
 export const ChatWelcome: React.FC<ChatWelcomeProps> = ({
   onSendMessage,
   isLoading,
+  attachments,
+  onRemoveAttachment,
+  onRemoveChunk,
+  onAddAttachment,
+  availableCitations,
 }) => (
   <div className="flex flex-1 flex-col items-center justify-center">
     <div className="flex flex-col items-center gap-8">
@@ -31,7 +36,15 @@ export const ChatWelcome: React.FC<ChatWelcomeProps> = ({
       </div>
       <FeatureCards />
       <div className="w-full max-w-3xl">
-        <ChatInput onSendMessage={onSendMessage} disabled={isLoading} />
+        <ChatInput
+          onSendMessage={onSendMessage}
+          disabled={isLoading}
+          attachments={attachments}
+          onRemoveAttachment={onRemoveAttachment}
+          onRemoveChunk={onRemoveChunk}
+          onAddAttachment={onAddAttachment}
+          availableCitations={availableCitations}
+        />
       </div>
     </div>
   </div>

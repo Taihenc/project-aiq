@@ -294,6 +294,11 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
             <ChatWelcome
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
+              attachments={attachments}
+              onRemoveAttachment={handleRemoveAttachment}
+              onRemoveChunk={handleRemoveChunk}
+              onAddAttachment={handleAddAttachment}
+              availableCitations={sessionAvailableCitations}
             />
           ) : (
             <ChatMessagesArea

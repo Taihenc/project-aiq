@@ -87,6 +87,11 @@ export interface ChatHeaderProps {
 export interface ChatWelcomeProps {
   onSendMessage: (message: string, mode?: SearchMode) => void;
   isLoading: boolean;
+  attachments?: FileRef[];
+  onRemoveAttachment?: (index: number) => void;
+  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onAddAttachment?: (att: FileRef) => void;
+  availableCitations?: Citation[];
 }
 
 export interface CitationsPanelProps {
