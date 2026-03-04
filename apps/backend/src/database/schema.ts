@@ -21,7 +21,6 @@ export const chatSessions = sqliteTable('chat_sessions', {
   updatedAt: integer('updated_at').default(Date.now()),
   summary: text('summary'),
   lastSummarizedMessageId: text('last_summarized_message_id'),
-  availableCitations: text('available_citations', { mode: 'json' }), // JSON — accumulated Citation[] for the session citation picker
 });
 
 export const chatMessages = sqliteTable('chat_messages', {

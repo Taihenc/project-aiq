@@ -95,26 +95,50 @@ export class ChatHistoryService {
   }
 
   /**
-   * Returns the accumulated available citations stored on the session row.
+   * Computes available citations for a specific branch path by walking
+   * the active path from root to tip and merging per-message citations.
+   * This replaces the old session-level available_citations column.
    */
-  getSessionAvailableCitations(sessionId: string): any[] {
-    const row = this.db
-      .select({ availableCitations: chatSessions.availableCitations })
-      .from(chatSessions)
-      .where(eq(chatSessions.id, sessionId))
-      .get();
-    return Array.isArray(row?.availableCitations) ? row.availableCitations : [];
-  }
+  getPathAvailableCitations(sessionId: string, tipMessageId?: string): any[] {
+    const pathIds = this.getActivePath(sessionId, tipMessageId);
+    if (pathIds.length === 0) return [];
 
-  /**
-   * Overwrites the accumulated available citations on the session row.
-   */
-  updateSessionAvailableCitations(sessionId: string, citations: any[]): void {
-    this.db
-      .update(chatSessions)
-      .set({ availableCitations: citations })
-      .where(eq(chatSessions.id, sessionId))
-      .run();
+    // Fetch all messages on the path in one query
+    const allMessages = this.db
+      .select({ id: chatMessages.id, citations: chatMessages.citations })
+      .from(chatMessages)
+      .where(eq(chatMessages.sessionId, sessionId))
+      .all();
+
+    const pathIdSet = new Set(pathIds);
+    const pathMessages = allMessages.filter((m) => pathIdSet.has(m.id));
+
+    // Merge/deduplicate citations from all messages on the path
+    const byId = new Map<string, any>();
+    for (const msg of pathMessages) {
+      const citations = Array.isArray(msg.citations) ? msg.citations : [];
+      for (const c of citations) {
+        if (!c?.id) continue;
+        const prev = byId.get(c.id);
+        if (!prev) {
+          byId.set(c.id, { ...c, chunks: c.chunks ? [...c.chunks] : [] });
+        } else {
+          if (c.chunks?.length) {
+            const seen = new Set(
+              (prev.chunks as any[]).map((ch: any) => ch.chunk_number),
+            );
+            const novel = c.chunks.filter(
+              (ch: any) => !seen.has(ch.chunk_number),
+            );
+            prev.chunks = [...prev.chunks, ...novel].sort(
+              (a: any, b: any) => a.chunk_number - b.chunk_number,
+            );
+          }
+          if (!prev.content && c.content) prev.content = c.content;
+        }
+      }
+    }
+    return Array.from(byId.values());
   }
 
   async createSession(userId: string, title: string = DEFAULT_SESSION_TITLE) {

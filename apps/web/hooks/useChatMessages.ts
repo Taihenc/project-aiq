@@ -218,10 +218,20 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
   const [sessionId, setSessionId] = useState<string | undefined>(chatId);
   const sessionIdRef = useRef(sessionId);
 
-  // Available citations accumulated for this session
+  // Available citations for the current branch path
   const [sessionAvailableCitations, setSessionAvailableCitations] = useState<Citation[]>([]);
 
   const setTransitionalMessages = useChatStore((state) => state.setTransitionalMessages);
+
+  // Helper: fetch branch-scoped citations from the backend
+  const fetchBranchCitations = useCallback(async (sid: string, tipId?: string) => {
+    try {
+      const resp = await historyApi.getPathCitations(sid, tipId);
+      setSessionAvailableCitations(Array.isArray(resp.citations) ? resp.citations : []);
+    } catch (err) {
+      console.error('Failed to fetch branch citations:', err);
+    }
+  }, []);
 
   // Derived: flat messages array from active path (what components consume)
   const messages = useMemo(
@@ -243,12 +253,16 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         rawMessages.map((m) => [m.id, parseBackendMessageToUI(m)]),
       );
       setMessageTree(tree);
-      setActivePath(serverPath.length > 0 ? serverPath : buildDefaultActivePath(tree));
+      const resolvedPath = serverPath.length > 0 ? serverPath : buildDefaultActivePath(tree);
+      setActivePath(resolvedPath);
 
-      // Restore available citations: fetch session via legacy endpoint for session metadata
-      const sessionResp = await historyApi.getSession(id, { limit: 1 });
-      const raw = sessionResp.session?.availableCitations;
-      setSessionAvailableCitations(Array.isArray(raw) ? (raw as Citation[]) : []);
+      // Fetch branch-scoped citations for the active path tip
+      const tipId = resolvedPath[resolvedPath.length - 1];
+      if (tipId) {
+        await fetchBranchCitations(id, tipId);
+      } else {
+        setSessionAvailableCitations([]);
+      }
     } catch (error) {
       console.error('Failed to load messages:', error);
     } finally {
@@ -441,9 +455,8 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
                 finalContent = event.content;
               }
 
-              if (Array.isArray(event.available_citations) && event.available_citations.length > 0) {
-                setSessionAvailableCitations(event.available_citations as Citation[]);
-              }
+              // Note: citations_updated signal from backend is handled by
+              // loadMessages() which re-fetches branch citations after DB writes complete.
 
               setMessageTree((prev) => {
                 const next = new Map(prev);
@@ -609,9 +622,17 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       // Build new active path: path from root to parent + target sibling's subtree
       const pathToParent = parentId ? buildPathToTip(messageTree, parentId) : [];
       const pathDown = buildPathFromNodeToLatestLeaf(messageTree, targetSibling.id);
-      setActivePath([...pathToParent, ...pathDown]);
+      const newPath = [...pathToParent, ...pathDown];
+      setActivePath(newPath);
+
+      // Re-fetch citations for the new branch tip
+      const sid = sessionIdRef.current;
+      if (sid) {
+        const tipId = newPath[newPath.length - 1];
+        fetchBranchCitations(sid, tipId);
+      }
     },
-    [messageTree],
+    [messageTree, fetchBranchCitations],
   );
 
   /**
@@ -626,8 +647,15 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       // pathToNode already ends at messageId; pathDown starts at messageId — merge
       const merged = [...pathToNode, ...pathDown.slice(1)];
       setActivePath(merged);
+
+      // Re-fetch citations for the new branch tip
+      const sid = sessionIdRef.current;
+      if (sid) {
+        const tipId = merged[merged.length - 1];
+        fetchBranchCitations(sid, tipId);
+      }
     },
-    [messageTree],
+    [messageTree, fetchBranchCitations],
   );
 
   const clearMessages = () => {

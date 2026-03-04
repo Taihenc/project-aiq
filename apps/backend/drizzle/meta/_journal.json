@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1772260488072,
-      "tag": "0000_add_sent_attachments",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1741011000000,
-      "tag": "0001_add_available_citations",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1772497151875,
-      "tag": "0002_lean_stepford_cuckoos",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1772498835245,
-      "tag": "0003_rainy_drax",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1772500022602,
-      "tag": "0004_first_madelyne_pryor",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1772554305790,
-      "tag": "0005_lucky_whirlwind",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1772555609235,
-      "tag": "0006_true_pete_wisdom",
+      "when": 1772631555688,
+      "tag": "0000_baseline",
       "breakpoints": true
     }
   ]

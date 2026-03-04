@@ -88,6 +88,24 @@ export class ChatHistoryController {
     return { messages, activePath };
   }
 
+  @Get(':id/citations')
+  @ApiOperation({
+    summary: 'Get branch-scoped available citations',
+    description: 'Returns merged/deduplicated citations for a specific branch path. Walks the active path from root to the given tip and collects per-message citations.',
+  })
+  @ApiParam({ name: 'id', description: 'Session ID' })
+  @ApiQuery({ name: 'tip', required: false, type: String, description: 'Tip message ID to resolve citations for a specific branch' })
+  @ApiResponse({ status: 200, description: 'Merged citations for the branch.' })
+  async getPathCitations(
+    @Request() req,
+    @Param('id') id: string,
+    @Query('tip') tip?: string,
+  ) {
+    this.logger.debug(`GET /history/${id}/citations hit for user: ${req.user.userId}, tip: ${tip}`);
+    const citations = this.historyService.getPathAvailableCitations(id, tip);
+    return { citations };
+  }
+
   @Get('check/:id')
   @ApiOperation({
     summary: 'Check session exists',

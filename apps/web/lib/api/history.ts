@@ -1,9 +1,14 @@
 import { client } from './client';
 import type { ChatSession, PaginatedHistoryResponse, PaginatedMessagesResponse, BackendMessage } from '@/types';
+import type { Citation } from './chat';
 
 export interface MessageTreeResponse {
   messages: BackendMessage[];
   activePath: string[];
+}
+
+export interface PathCitationsResponse {
+  citations: Citation[];
 }
 
 export const historyApi = {
@@ -29,5 +34,9 @@ export const historyApi = {
   },
   deleteSession: async (id: string) => {
     await client.delete(`/history/${id}`);
-  }
+  },
+  getPathCitations: async (id: string, tip?: string): Promise<PathCitationsResponse> => {
+    const response = await client.get(`/history/${id}/citations`, { params: tip ? { tip } : undefined });
+    return response.data;
+  },
 };
