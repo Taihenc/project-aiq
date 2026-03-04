@@ -16,6 +16,21 @@ import { cn } from '@/lib/utils';
 import type { ChunkMetadata } from '@/types/api';
 import { FileExtBadge } from '../attachment-pill';
 
+// ─── Highlight helper ─────────────────────────────────────────────────────────
+
+function highlightSegments(
+  text: string,
+  query: string,
+): { text: string; match: boolean }[] {
+  if (!query) return [{ text, match: false }];
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+  const qLower = query.toLowerCase();
+  return parts
+    .filter((p) => p !== '')
+    .map((part) => ({ text: part, match: part.toLowerCase() === qLower }));
+}
+
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 export interface ChunkContentReaderProps {
@@ -31,6 +46,8 @@ export interface ChunkContentReaderProps {
   /** Navigate to a different chunk in the same file */
   onNavigate: (chunk: ChunkMetadata) => void;
   onClose: () => void;
+  /** If set, highlight this query string in the content body */
+  highlightQuery?: string;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -46,6 +63,7 @@ export function ChunkContentReader({
   onDetach,
   onNavigate,
   onClose,
+  highlightQuery,
 }: ChunkContentReaderProps) {
   const idx = allChunks.findIndex((c) => c.chunk_number === chunk.chunk_number);
   const prevChunk = idx > 0 ? allChunks[idx - 1] : null;
@@ -168,7 +186,21 @@ export function ChunkContentReader({
             {/* Thin left accent bar for reading feel */}
             <div className="relative pl-4 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:rounded-full before:bg-[var(--brand-border-light)]">
               <p className="whitespace-pre-wrap text-[13px] leading-[1.8] text-foreground/85 [overflow-wrap:anywhere] selection:bg-[var(--brand-surface-purple)]">
-                {chunk.content}
+                {highlightQuery
+                  ? highlightSegments(chunk.content, highlightQuery).map(
+                      (seg, i) =>
+                        seg.match ? (
+                          <mark
+                            key={i}
+                            className="rounded-sm bg-yellow-200/80 px-0.5 text-yellow-900 not-italic dark:bg-yellow-500/30 dark:text-yellow-200"
+                          >
+                            {seg.text}
+                          </mark>
+                        ) : (
+                          <span key={i}>{seg.text}</span>
+                        ),
+                    )
+                  : chunk.content}
               </p>
             </div>
           </div>

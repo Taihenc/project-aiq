@@ -46,6 +46,8 @@ interface HeatmapGridProps {
   onDetachChunk?: (chunk: ChunkMetadata) => void;
   /** Called when user switches between read/select mode */
   onModeChange?: (mode: 'read' | 'select') => void;
+  /** Called whenever the search query changes (so parents can highlight reader) */
+  onSearchChange?: (query: string) => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -289,7 +291,7 @@ function SearchResultsPane({
       </div>
 
       {/* Results list */}
-      <div className="custom-scrollbar flex max-h-64 flex-col gap-2 overflow-y-auto p-2.5">
+      <div className="custom-scrollbar flex flex-col gap-2 p-2.5">
         {matchingChunks.map((chunk) => {
           const isCited = citedChunkNumbers.has(chunk.chunk_number);
           const isAttached = attachedChunkNumbers.has(chunk.chunk_number);
@@ -542,6 +544,7 @@ export function SourceHeatmapGrid({
   onAttachChunk,
   onDetachChunk,
   onModeChange,
+  onSearchChange,
 }: HeatmapGridProps) {
   // Ref to the grid root — we walk up to the nearest scrollable ancestor
   const gridRef = useRef<HTMLDivElement>(null);
@@ -586,6 +589,11 @@ export function SourceHeatmapGrid({
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  // Bubble search query to parent so it can highlight the chunk reader
+  useEffect(() => {
+    onSearchChange?.(searchQuery);
+  }, [searchQuery, onSearchChange]);
 
   // ── Drag-to-select state ──────────────────────────────────────
   // Use refs for synchronous reads inside event handlers (avoids stale closures)

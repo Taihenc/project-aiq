@@ -123,6 +123,7 @@ export function SourceExplorerPanel({
   );
   const [viewMode, setViewMode] = useState<'chunks' | 'preview'>('chunks');
   const [heatmapMode, setHeatmapMode] = useState<'read' | 'select'>('read');
+  const [heatmapSearch, setHeatmapSearch] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -618,6 +619,7 @@ export function SourceExplorerPanel({
                             onAttachChunk={handleAttachChunk}
                             onDetachChunk={handleDetachChunk}
                             onModeChange={handleHeatmapModeChange}
+                            onSearchChange={setHeatmapSearch}
                           />
                         </div>
                       </>
@@ -746,6 +748,9 @@ export function SourceExplorerPanel({
                                       onDetach={handleDetachSelected}
                                       onNavigate={setSelectedChunk}
                                       onClose={() => setSelectedChunk(null)}
+                                      highlightQuery={
+                                        heatmapSearch || undefined
+                                      }
                                     />
                                   </motion.div>
                                 ) : null}
