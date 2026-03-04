@@ -4,6 +4,7 @@ import { useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import {
+  Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
@@ -166,7 +167,8 @@ function HeatmapCell({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            isAttached ? onDetachChunk?.(chunk) : onAttachChunk?.(chunk);
+            if (isAttached) onDetachChunk?.(chunk);
+            else onAttachChunk?.(chunk);
           }}
           title={isAttached ? 'Detach chunk' : 'Attach chunk'}
           className={cn(
@@ -238,13 +240,67 @@ export function HeatmapQuickActions({
   onAttachAllCited,
   onAttachAll,
   onClearAll,
+  compact = false,
 }: {
   hasCited: boolean;
   hasAttached: boolean;
   onAttachAllCited: () => void;
   onAttachAll: () => void;
   onClearAll: () => void;
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <TooltipProvider delayDuration={400}>
+        <div className="flex items-center gap-0.5">
+          {hasCited && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onAttachAllCited}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--brand-border-light)] bg-[var(--brand-surface-purple)] text-[var(--brand-fg-accent)] transition-colors hover:bg-[var(--brand-card-purple)]"
+                >
+                  <Check className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                Attach all cited
+              </TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onAttachAll}
+                className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-muted/60 text-foreground/70 transition-colors hover:bg-muted"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              Attach all
+            </TooltipContent>
+          </Tooltip>
+          {hasAttached && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onClearAll}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
+                >
+                  <Minus className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                Clear attached
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </TooltipProvider>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {hasCited && (

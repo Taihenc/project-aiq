@@ -88,8 +88,7 @@ function FileRow({
 
 // ─── Panel ───────────────────────────────────────────────────────────────────
 
-const PANEL_W = 680;
-const PANEL_W_WIDE = 980; // with content reader open
+const PANEL_W = '50rem'; // 745px
 const PANEL_H = 500;
 
 export function SourceExplorerPanel({
@@ -237,15 +236,23 @@ export function SourceExplorerPanel({
     onRemoveChunk(selectedFilePath, selectedChunk.chunk_number);
   }, [selectedFilePath, selectedChunk, onRemoveChunk]);
 
-  // Reset view + preview when file changes; revoke old blob URL
+  // Reset selectedChunk + preview data when file changes; revoke old blob URL
+  // viewMode is intentionally preserved so chunks/preview mode persists across file switches
   useEffect(() => {
     setSelectedChunk(null);
-    setViewMode('chunks');
     setPreviewUrl((prev) => {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
       return null;
     });
     setPreviewError(null);
+  }, [selectedFilePath]);
+
+  // When already in preview mode, auto-fetch the new file's preview on file switch
+  useEffect(() => {
+    if (viewMode === 'preview' && selectedFilePath) {
+      fetchPreview();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFilePath]);
 
   const fetchPreview = useCallback(async () => {
@@ -379,12 +386,9 @@ export function SourceExplorerPanel({
               bottom: '5.5rem',
               right: '1.5rem',
               zIndex: 201,
-              width:
-                viewMode === 'preview' || selectedChunk
-                  ? PANEL_W_WIDE
-                  : PANEL_W,
-              // CSS transition for smooth width change (framer-motion handles scale/opacity/y)
-              transition: 'width 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+              width: PANEL_W,
+              minWidth: PANEL_W,
+              maxWidth: PANEL_W,
             }}
             className="source-explorer-panel flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_16px_48px_-16px_rgba(102,88,204,0.35),0_2px_8px_-2px_rgba(0,0,0,0.12)]"
           >
@@ -539,6 +543,7 @@ export function SourceExplorerPanel({
                               onAttachAllCited={handleAttachAllCited}
                               onAttachAll={handleAttachAll}
                               onClearAll={handleClearAll}
+                              compact={!!selectedChunk}
                             />
                           )}
                           {/* Chunks / Preview toggle */}
@@ -602,7 +607,7 @@ export function SourceExplorerPanel({
                         <motion.div
                           key={`rpanel-${selectedFilePath}-${viewMode}`}
                           initial={{ width: 0, opacity: 0 }}
-                          animate={{ width: 440, opacity: 1 }}
+                          animate={{ width: 340, opacity: 1 }}
                           exit={{ width: 0, opacity: 0 }}
                           transition={{
                             type: 'spring',
@@ -612,7 +617,7 @@ export function SourceExplorerPanel({
                           style={{ overflow: 'hidden', flexShrink: 0 }}
                         >
                           {/* w-px separator avoids border-l 1px gap during animation */}
-                          <div className="flex h-full" style={{ width: 441 }}>
+                          <div className="flex h-full" style={{ width: 341 }}>
                             <div className="w-px shrink-0 bg-border" />
                             <div className="flex h-full flex-1 flex-col overflow-hidden">
                               {viewMode === 'preview' ? (

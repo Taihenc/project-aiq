@@ -355,7 +355,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
               align="end"
               sideOffset={12}
               onOpenAutoFocus={(e) => e.preventDefault()}
-              className="w-auto overflow-hidden rounded-2xl border-border bg-card p-0 shadow-[0_16px_40px_-12px_rgba(102,88,204,0.35)]"
+              className="w-auto min-w-[50rem] max-w-[50rem] overflow-hidden rounded-2xl border-border bg-card p-0 shadow-[0_16px_40px_-12px_rgba(102,88,204,0.35)]"
             >
               <SourceExplorerPopoverContent
                 attachments={attachments}

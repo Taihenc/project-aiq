@@ -146,14 +146,22 @@ export function SourceExplorerBodyView({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  // Reset view + preview cache when selected file changes; revoke any old blob URL
+  // Reset preview data when file changes; revoke old blob URL
+  // viewMode is intentionally preserved so chunks/preview mode persists across file switches
   useEffect(() => {
-    setViewMode('chunks');
     setPreviewUrl((prev) => {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
       return null;
     });
     setPreviewError(null);
+  }, [selectedFilePath]);
+
+  // When already in preview mode, auto-fetch the new file's preview on file switch
+  useEffect(() => {
+    if (viewMode === 'preview' && selectedFilePath) {
+      fetchPreview();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFilePath]);
 
   const fetchPreview = useCallback(async () => {
@@ -251,6 +259,7 @@ export function SourceExplorerBodyView({
                   onAttachAllCited={handleAttachAllCited}
                   onAttachAll={handleAttachAll}
                   onClearAll={handleClearAll}
+                  compact={isRightPanelOpen}
                 />
               )}
               <div className="flex items-center gap-1">
