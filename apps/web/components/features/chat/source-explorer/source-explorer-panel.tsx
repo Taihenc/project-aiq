@@ -25,6 +25,7 @@ import { FileExtBadge } from '../attachment-pill';
 import { SourceHeatmapGrid, HeatmapQuickActions } from './source-heatmap-grid';
 import { ChunkContentReader } from './chunk-content-reader';
 import { FilePreviewPane } from './file-preview-pane';
+import { PayloadPreviewPane } from './source-explorer-body';
 import type { Citation, ChunkMetadata, FileRef, SourceFile } from '@/types/api';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ function FileRow({
 
 // ─── Panel ───────────────────────────────────────────────────────────────────
 
-const PANEL_W = '50rem'; // 745px
+const PANEL_W = '65rem'; // 1040px
 const PANEL_H = 500;
 
 export function SourceExplorerPanel({
@@ -116,6 +117,7 @@ export function SourceExplorerPanel({
     null,
   );
   const [viewMode, setViewMode] = useState<'chunks' | 'preview'>('chunks');
+  const [heatmapMode, setHeatmapMode] = useState<'read' | 'select'>('read');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -219,6 +221,12 @@ export function SourceExplorerPanel({
     setSelectedChunk((prev) =>
       prev?.chunk_number === chunk.chunk_number ? null : chunk,
     );
+  }, []);
+
+  // Switch select/read mode — opening select mode closes the chunk reader
+  const handleHeatmapModeChange = useCallback((mode: 'read' | 'select') => {
+    setHeatmapMode(mode);
+    if (mode === 'select') setSelectedChunk(null);
   }, []);
 
   // Attach / detach for the currently-reading chunk
@@ -536,7 +544,7 @@ export function SourceExplorerPanel({
                               </>
                             );
                           })()}
-                          {viewMode === 'chunks' && (
+                          {viewMode === 'chunks' && heatmapMode === 'read' && (
                             <HeatmapQuickActions
                               hasCited={citedChunkNumbers.size > 0}
                               hasAttached={attachedChunkNumbers.size > 0}
@@ -587,6 +595,7 @@ export function SourceExplorerPanel({
                             onDetachPage={handleDetachPage}
                             onAttachChunk={handleAttachChunk}
                             onDetachChunk={handleDetachChunk}
+                            onModeChange={handleHeatmapModeChange}
                           />
                         </div>
                       </>
@@ -599,13 +608,14 @@ export function SourceExplorerPanel({
                     )}
                   </div>
 
-                  {/* Right panel: file preview OR chunk reader — slides in */}
+                  {/* Right panel: payload preview, file preview, or chunk reader — slides in */}
                   <AnimatePresence initial={false}>
-                    {(viewMode === 'preview' ||
-                      (viewMode === 'chunks' && !!selectedChunk)) &&
-                      selectedFilePath && (
+                    {!!selectedFilePath &&
+                      (viewMode === 'preview' ||
+                        (viewMode === 'chunks' && heatmapMode === 'select') ||
+                        (viewMode === 'chunks' && !!selectedChunk)) && (
                         <motion.div
-                          key={`rpanel-${selectedFilePath}-${viewMode}`}
+                          key={`rpanel-${selectedFilePath}`}
                           initial={{ width: 0, opacity: 0 }}
                           animate={{ width: 340, opacity: 1 }}
                           exit={{ width: 0, opacity: 0 }}
@@ -620,58 +630,104 @@ export function SourceExplorerPanel({
                           <div className="flex h-full" style={{ width: 341 }}>
                             <div className="w-px shrink-0 bg-border" />
                             <div className="flex h-full flex-1 flex-col overflow-hidden">
-                              {viewMode === 'preview' ? (
-                                <FilePreviewPane
-                                  url={previewUrl}
-                                  isLoading={previewLoading}
-                                  error={previewError}
-                                  fileName={
-                                    fileList.find(
-                                      (f) => f.file_path === selectedFilePath,
-                                    )?.name ??
-                                    selectedFilePath.split('/').pop() ??
-                                    ''
-                                  }
-                                  ext={
-                                    fileList.find(
-                                      (f) => f.file_path === selectedFilePath,
-                                    )?.ext
-                                  }
-                                  onRetry={handleRetryPreview}
-                                  pages={availablePages}
-                                  chunksByPage={chunksByPage}
-                                  attachedChunkNumbers={attachedChunkNumbers}
-                                  onAttachPage={handleAttachPage}
-                                  onDetachPage={handleDetachPage}
-                                />
-                              ) : selectedChunk ? (
-                                <ChunkContentReader
-                                  chunk={selectedChunk}
-                                  allChunks={selectedChunks}
-                                  fileName={
-                                    fileList.find(
-                                      (f) => f.file_path === selectedFilePath,
-                                    )?.name ??
-                                    selectedFilePath.split('/').pop() ??
-                                    ''
-                                  }
-                                  fileExt={
-                                    fileList.find(
-                                      (f) => f.file_path === selectedFilePath,
-                                    )?.ext
-                                  }
-                                  isAttached={attachedChunkNumbers.has(
-                                    selectedChunk.chunk_number,
-                                  )}
-                                  isCited={citedChunkNumbers.has(
-                                    selectedChunk.chunk_number,
-                                  )}
-                                  onAttach={handleAttachSelected}
-                                  onDetach={handleDetachSelected}
-                                  onNavigate={setSelectedChunk}
-                                  onClose={() => setSelectedChunk(null)}
-                                />
-                              ) : null}
+                              <AnimatePresence mode="wait" initial={false}>
+                                {viewMode === 'preview' ? (
+                                  <motion.div
+                                    key="file-preview"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.1 }}
+                                    className="flex h-full flex-col"
+                                  >
+                                    <FilePreviewPane
+                                      url={previewUrl}
+                                      isLoading={previewLoading}
+                                      error={previewError}
+                                      fileName={
+                                        fileList.find(
+                                          (f) =>
+                                            f.file_path === selectedFilePath,
+                                        )?.name ??
+                                        selectedFilePath.split('/').pop() ??
+                                        ''
+                                      }
+                                      ext={
+                                        fileList.find(
+                                          (f) =>
+                                            f.file_path === selectedFilePath,
+                                        )?.ext
+                                      }
+                                      onRetry={handleRetryPreview}
+                                      pages={availablePages}
+                                      chunksByPage={chunksByPage}
+                                      attachedChunkNumbers={
+                                        attachedChunkNumbers
+                                      }
+                                      onAttachPage={handleAttachPage}
+                                      onDetachPage={handleDetachPage}
+                                    />
+                                  </motion.div>
+                                ) : heatmapMode === 'select' ? (
+                                  <motion.div
+                                    key="payload-preview"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.1 }}
+                                    className="flex h-full flex-col"
+                                  >
+                                    <PayloadPreviewPane
+                                      attachedChunks={selectedChunks.filter(
+                                        (c) =>
+                                          attachedChunkNumbers.has(
+                                            c.chunk_number,
+                                          ),
+                                      )}
+                                      citedChunkNumbers={citedChunkNumbers}
+                                      onDetachChunk={handleDetachChunk}
+                                    />
+                                  </motion.div>
+                                ) : selectedChunk ? (
+                                  <motion.div
+                                    key="chunk-reader"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.1 }}
+                                    className="flex h-full flex-col"
+                                  >
+                                    <ChunkContentReader
+                                      chunk={selectedChunk}
+                                      allChunks={selectedChunks}
+                                      fileName={
+                                        fileList.find(
+                                          (f) =>
+                                            f.file_path === selectedFilePath,
+                                        )?.name ??
+                                        selectedFilePath.split('/').pop() ??
+                                        ''
+                                      }
+                                      fileExt={
+                                        fileList.find(
+                                          (f) =>
+                                            f.file_path === selectedFilePath,
+                                        )?.ext
+                                      }
+                                      isAttached={attachedChunkNumbers.has(
+                                        selectedChunk.chunk_number,
+                                      )}
+                                      isCited={citedChunkNumbers.has(
+                                        selectedChunk.chunk_number,
+                                      )}
+                                      onAttach={handleAttachSelected}
+                                      onDetach={handleDetachSelected}
+                                      onNavigate={setSelectedChunk}
+                                      onClose={() => setSelectedChunk(null)}
+                                    />
+                                  </motion.div>
+                                ) : null}
+                              </AnimatePresence>
                             </div>
                           </div>
                         </motion.div>
