@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { sharePointApi } from '@/lib/api/sharepoint';
 import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
+import { buildFileCountMap } from '@/lib/file-count-map';
 import type { Citation, ChunkMetadata, FileRef, SourceFile } from '@/types/api';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -85,18 +86,10 @@ export function useSourceExplorerBody({
   }, [attachments, selectedFilePath]);
 
   // Sidebar counters
-  const fileCountMap = useMemo(() => {
-    const out = new Map<string, { citedCount: number; attachedCount: number }>();
-    for (const c of availableCitations) {
-      const cur = out.get(c.id) ?? { citedCount: 0, attachedCount: 0 };
-      out.set(c.id, { ...cur, citedCount: c.chunks?.length ?? 0 });
-    }
-    for (const a of attachments) {
-      const cur = out.get(a.file_path) ?? { citedCount: 0, attachedCount: 0 };
-      out.set(a.file_path, { ...cur, attachedCount: a.chunks.length });
-    }
-    return out;
-  }, [availableCitations, attachments]);
+  const fileCountMap = useMemo(
+    () => buildFileCountMap(availableCitations, attachments),
+    [availableCitations, attachments],
+  );
 
   // ── Chunk reader handlers ─────────────────────────────────────────────────
 

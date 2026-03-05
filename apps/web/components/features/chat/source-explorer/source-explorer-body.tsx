@@ -25,58 +25,9 @@ import { ChunkContentReader } from './chunk-content-reader';
 import { FilePreviewPane } from './file-preview-pane';
 import { GlobalSearchPane } from './global-search-pane';
 import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
+import { FileRow } from './file-row';
 import type { useSourceExplorerBody } from './useSourceExplorerBody';
 import type { ChunkMetadata } from '@/types/api';
-
-// ─── FileRow ─────────────────────────────────────────────────────────────────
-
-export function FileRow({
-  filePath,
-  name,
-  ext,
-  citedCount,
-  attachedCount,
-  isSelected,
-  onSelect,
-}: {
-  filePath: string;
-  name: string;
-  ext?: string;
-  citedCount: number;
-  attachedCount: number;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  void filePath; // referenced externally, suppresses lint warning
-  return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        'flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-colors',
-        isSelected
-          ? 'bg-[var(--brand-surface-purple)] text-[var(--brand-fg-accent)]'
-          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-      )}
-    >
-      <FileExtBadge ext={ext ?? ''} />
-      <span className="min-w-0 flex-1 truncate text-xs font-medium leading-tight">
-        {name}
-      </span>
-      <div className="flex shrink-0 items-center gap-1">
-        {citedCount > 0 && (
-          <span className="rounded-full bg-[var(--brand-citation-bg)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--brand-fg-accent)]">
-            {citedCount}
-          </span>
-        )}
-        {attachedCount > 0 && (
-          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
-            {attachedCount}
-          </span>
-        )}
-      </div>
-    </button>
-  );
-}
 
 // ─── Payload preview pane ────────────────────────────────────────────────────
 

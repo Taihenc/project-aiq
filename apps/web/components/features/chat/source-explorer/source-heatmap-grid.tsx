@@ -21,6 +21,10 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { highlightSegments } from '@/lib/highlight';
+import { extractExcerpt } from '@/lib/excerpt';
+import { cellState, type ChunkState } from '@/lib/chunk-state';
+import { getScrollParent } from '@/lib/dom';
 import type { ChunkMetadata } from '@/types/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -51,22 +55,6 @@ interface HeatmapGridProps {
   onSearchChange?: (query: string) => void;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function cellState(
-  chunk: ChunkMetadata,
-  cited: Set<number>,
-  attached: Set<number>,
-): 'cited-attached' | 'cited' | 'attached' | 'none' {
-  const n = chunk.chunk_number;
-  const isCited = cited.has(n);
-  const isAttached = attached.has(n);
-  if (isCited && isAttached) return 'cited-attached';
-  if (isCited) return 'cited';
-  if (isAttached) return 'attached';
-  return 'none';
-}
-
 // ─── Single Cell ─────────────────────────────────────────────────────────────
 
 function HeatmapCell({
@@ -82,7 +70,7 @@ function HeatmapCell({
   isDimmed,
 }: {
   chunk: ChunkMetadata;
-  state: ReturnType<typeof cellState>;
+  state: ChunkState;
   isSelected: boolean;
   onSelect: () => void;
   selectionMode: 'read' | 'select';
@@ -246,21 +234,6 @@ function HeatmapCell({
   );
 }
 
-// ─── Highlight helper ───────────────────────────────────────────────────────
-
-function highlightSegments(
-  text: string,
-  query: string,
-): { text: string; match: boolean }[] {
-  if (!query) return [{ text, match: false }];
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
-  const qLower = query.toLowerCase();
-  return parts
-    .filter((p) => p !== '')
-    .map((part) => ({ text: part, match: part.toLowerCase() === qLower }));
-}
-
 // ─── Individual collapsible search result card ────────────────────────────────
 
 function SearchResultCard({
@@ -280,21 +253,7 @@ function SearchResultCard({
 }) {
   const [expanded, setExpanded] = useState(true);
   const content = chunk.content ?? '';
-  const qLower = query.toLowerCase();
-  const idx = content.toLowerCase().indexOf(qLower);
-  let excerpt = content;
-  if (content.length > 260) {
-    if (idx !== -1) {
-      const start = Math.max(0, idx - 80);
-      const end = Math.min(content.length, idx + qLower.length + 180);
-      excerpt =
-        (start > 0 ? '\u2026' : '') +
-        content.slice(start, end) +
-        (end < content.length ? '\u2026' : '');
-    } else {
-      excerpt = content.slice(0, 260) + '\u2026';
-    }
-  }
+  const excerpt = extractExcerpt(content, query);
   const segments = highlightSegments(excerpt, query);
 
   return (
@@ -771,22 +730,6 @@ export function SourceHeatmapGrid({
     }));
   }, []);
 
-  /** Walk up the DOM to find the nearest scrollable ancestor. */
-  const getScrollParent = useCallback((): HTMLElement | null => {
-    let node: HTMLElement | null = gridRef.current;
-    while (node) {
-      const { overflow, overflowY } = getComputedStyle(node);
-      if (
-        /auto|scroll/.test(overflow + overflowY) &&
-        node.scrollHeight > node.clientHeight
-      ) {
-        return node;
-      }
-      node = node.parentElement;
-    }
-    return null;
-  }, []);
-
   // Auto-scroll to keep the selected cell visible whenever it changes
   useEffect(() => {
     if (selectedChunkNumber == null || !gridRef.current) return;
@@ -794,7 +737,7 @@ export function SourceHeatmapGrid({
       `[data-chunk="${selectedChunkNumber}"]`,
     );
     if (!el) return;
-    const container = getScrollParent();
+    const container = getScrollParent(gridRef.current);
     if (!container) {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
@@ -804,7 +747,7 @@ export function SourceHeatmapGrid({
     if (eRect.top < cRect.top || eRect.bottom > cRect.bottom) {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-  }, [selectedChunkNumber, getScrollParent]);
+  }, [selectedChunkNumber]);
 
   // Group chunks by page
   const pages = useMemo(() => {
@@ -1084,7 +1027,7 @@ export function SourceHeatmapGrid({
                       <HeatmapCell
                         chunk={chunk}
                         state={cellState(
-                          chunk,
+                          chunk.chunk_number,
                           citedChunkNumbers,
                           attachedChunkNumbers,
                         )}

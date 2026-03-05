@@ -6,6 +6,9 @@ import { Search, X, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FileExtBadge } from '../attachment-pill';
 import type { ChunkMetadata, SourceFile } from '@/types/api';
+import { highlightSegments } from '@/lib/highlight';
+import { extractExcerpt } from '@/lib/excerpt';
+import { HighlightText } from './highlight-text';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -19,49 +22,6 @@ export interface GlobalSearchPaneProps {
   /** Trigger background loading of all uncached files */
   onLoadAllFiles: () => void;
   onClose: () => void;
-}
-
-// ─── Highlight helper ─────────────────────────────────────────────────────────
-
-function highlightSegments(
-  text: string,
-  query: string,
-): { text: string; match: boolean }[] {
-  if (!query) return [{ text, match: false }];
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
-  const qLower = query.toLowerCase();
-  return parts
-    .filter((p) => p !== '')
-    .map((part) => ({ text: part, match: part.toLowerCase() === qLower }));
-}
-
-function HighlightText({
-  text,
-  query,
-  className,
-}: {
-  text: string;
-  query: string;
-  className?: string;
-}) {
-  const segments = highlightSegments(text, query);
-  return (
-    <span className={className}>
-      {segments.map((seg, i) =>
-        seg.match ? (
-          <mark
-            key={i}
-            className="rounded-sm bg-yellow-200/80 px-0.5 text-yellow-900 not-italic dark:bg-yellow-500/30 dark:text-yellow-200"
-          >
-            {seg.text}
-          </mark>
-        ) : (
-          <span key={i}>{seg.text}</span>
-        ),
-      )}
-    </span>
-  );
 }
 
 // ─── Individual chunk result card ─────────────────────────────────────────────
@@ -80,21 +40,7 @@ function ChunkResultCard({
   onClick: () => void;
 }) {
   const content = chunk.content ?? '';
-  const qLower = query.toLowerCase();
-  const idx = content.toLowerCase().indexOf(qLower);
-  let excerpt = content;
-  if (content.length > 260) {
-    if (idx !== -1) {
-      const start = Math.max(0, idx - 80);
-      const end = Math.min(content.length, idx + qLower.length + 180);
-      excerpt =
-        (start > 0 ? '…' : '') +
-        content.slice(start, end) +
-        (end < content.length ? '…' : '');
-    } else {
-      excerpt = content.slice(0, 260) + '…';
-    }
-  }
+  const excerpt = extractExcerpt(content, query);
 
   return (
     <button

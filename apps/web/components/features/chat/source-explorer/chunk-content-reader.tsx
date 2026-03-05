@@ -15,21 +15,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ChunkMetadata } from '@/types/api';
 import { FileExtBadge } from '../attachment-pill';
-
-// ─── Highlight helper ─────────────────────────────────────────────────────────
-
-function highlightSegments(
-  text: string,
-  query: string,
-): { text: string; match: boolean }[] {
-  if (!query) return [{ text, match: false }];
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
-  const qLower = query.toLowerCase();
-  return parts
-    .filter((p) => p !== '')
-    .map((part) => ({ text: part, match: part.toLowerCase() === qLower }));
-}
+import { highlightSegments } from '@/lib/highlight';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 

@@ -18,6 +18,7 @@ import {
 import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
 import { useSourceExplorerBody } from './useSourceExplorerBody';
 import { SourceExplorerBodyView } from './source-explorer-body';
+import { POPOVER_H } from './constants';
 import type { Citation, FileRef } from '@/types/api';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -28,10 +29,6 @@ interface SourceExplorerPopoverContentProps {
   onAddAttachment: (att: FileRef) => void;
   onRemoveChunk: (filePath: string, chunkNumber: number) => void;
 }
-
-// ─── Dimensions ──────────────────────────────────────────────────────────────
-
-const POPOVER_H = 480;
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
