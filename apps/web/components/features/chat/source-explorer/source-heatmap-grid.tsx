@@ -18,6 +18,7 @@ import {
   Layers,
   Search,
   X,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChunkMetadata } from '@/types/api';
@@ -260,6 +261,138 @@ function highlightSegments(
     .map((part) => ({ text: part, match: part.toLowerCase() === qLower }));
 }
 
+// ─── Individual collapsible search result card ────────────────────────────────
+
+function SearchResultCard({
+  chunk,
+  query,
+  isCited,
+  isAttached,
+  isSelected,
+  onSelectChunk,
+}: {
+  chunk: ChunkMetadata;
+  query: string;
+  isCited: boolean;
+  isAttached: boolean;
+  isSelected: boolean;
+  onSelectChunk: (chunk: ChunkMetadata) => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const content = chunk.content ?? '';
+  const qLower = query.toLowerCase();
+  const idx = content.toLowerCase().indexOf(qLower);
+  let excerpt = content;
+  if (content.length > 260) {
+    if (idx !== -1) {
+      const start = Math.max(0, idx - 80);
+      const end = Math.min(content.length, idx + qLower.length + 180);
+      excerpt =
+        (start > 0 ? '\u2026' : '') +
+        content.slice(start, end) +
+        (end < content.length ? '\u2026' : '');
+    } else {
+      excerpt = content.slice(0, 260) + '\u2026';
+    }
+  }
+  const segments = highlightSegments(excerpt, query);
+
+  return (
+    <div
+      className={cn(
+        'overflow-hidden rounded-lg border transition-colors',
+        isSelected
+          ? 'border-[var(--brand-btn-primary)]/50 bg-[var(--brand-surface-purple)] shadow-sm'
+          : isCited
+            ? 'border-[var(--brand-btn-primary)]/20 bg-[var(--brand-surface-purple)]/40'
+            : isAttached
+              ? 'border-emerald-400/25 bg-emerald-50/40 dark:bg-emerald-950/15'
+              : 'border-border/40 bg-muted/20',
+      )}
+    >
+      {/* Header row */}
+      <div className="flex w-full items-center gap-1.5 pr-2.5 pt-1.5 pb-1">
+        {/* Chevron — only toggles collapse, does NOT open reader */}
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="flex shrink-0 items-center justify-center rounded p-1.5 text-muted-foreground/50 transition-colors hover:bg-muted/60 hover:text-muted-foreground"
+        >
+          <motion.span
+            animate={{ rotate: expanded ? 90 : 0 }}
+            transition={{ duration: 0.16, ease: 'easeInOut' }}
+            className="flex items-center justify-center"
+          >
+            <ChevronRight className="h-3 w-3" />
+          </motion.span>
+        </button>
+
+        {/* Rest of header — opens chunk reader */}
+        <button
+          onClick={() => onSelectChunk(chunk)}
+          className="flex flex-1 items-center gap-1.5 text-left hover:opacity-80 transition-opacity"
+        >
+          <span
+            className={cn(
+              'flex h-5 min-w-[1.75rem] shrink-0 items-center justify-center rounded text-[10px] font-bold',
+              isCited
+                ? 'bg-[var(--brand-citation-bg)] text-[var(--brand-fg-accent)]'
+                : isAttached
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
+                  : 'bg-muted text-muted-foreground',
+            )}
+          >
+            {chunk.chunk_number}
+          </span>
+          {chunk.page_number > 0 && (
+            <span className="text-[9px] text-muted-foreground/70">
+              p.{chunk.page_number}
+            </span>
+          )}
+          {isCited && (
+            <span className="rounded-full bg-[var(--brand-citation-bg)] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[var(--brand-fg-accent)]">
+              cited
+            </span>
+          )}
+          {isAttached && (
+            <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold leading-none text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+              attached
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Collapsible content */}
+      <AnimatePresence initial={false}>
+        {expanded && content && (
+          <motion.div
+            key="body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <p className="px-2.5 pb-2.5 text-[11px] leading-relaxed text-foreground/75 [overflow-wrap:anywhere]">
+              {segments.map((seg, i) =>
+                seg.match ? (
+                  <mark
+                    key={i}
+                    className="rounded-sm bg-yellow-200/80 px-0.5 text-yellow-900 not-italic dark:bg-yellow-500/30 dark:text-yellow-200"
+                  >
+                    {seg.text}
+                  </mark>
+                ) : (
+                  <span key={i}>{seg.text}</span>
+                ),
+              )}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Search results pane ─────────────────────────────────────────────────────
 
 function SearchResultsPane({
@@ -277,10 +410,22 @@ function SearchResultsPane({
   citedChunkNumbers: Set<number>;
   attachedChunkNumbers: Set<number>;
 }) {
+  const [expanded, setExpanded] = useState(true);
+
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-[var(--brand-source-border)] bg-card/60">
-      {/* Header */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-3 py-2">
+      {/* Header — clickable to collapse */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full shrink-0 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/30"
+      >
+        <motion.span
+          animate={{ rotate: expanded ? 90 : 0 }}
+          transition={{ duration: 0.18, ease: 'easeInOut' }}
+          className="flex shrink-0 items-center justify-center"
+        >
+          <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
+        </motion.span>
         <Search className="h-3 w-3 shrink-0 text-muted-foreground/60" />
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
           Matches
@@ -288,102 +433,35 @@ function SearchResultsPane({
         <span className="rounded-full bg-[var(--brand-citation-bg)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--brand-fg-accent)]">
           {matchingChunks.length}
         </span>
-      </div>
+      </button>
 
-      {/* Results list */}
-      <div className="custom-scrollbar flex flex-col gap-2 p-2.5">
-        {matchingChunks.map((chunk) => {
-          const isCited = citedChunkNumbers.has(chunk.chunk_number);
-          const isAttached = attachedChunkNumbers.has(chunk.chunk_number);
-          const isSelected = chunk.chunk_number === selectedChunkNumber;
-          const content = chunk.content ?? '';
-
-          // Build a context window centred on the first match
-          const qLower = query.toLowerCase();
-          const idx = content.toLowerCase().indexOf(qLower);
-          let excerpt = content;
-          if (content.length > 260) {
-            if (idx !== -1) {
-              const start = Math.max(0, idx - 80);
-              const end = Math.min(content.length, idx + qLower.length + 180);
-              excerpt =
-                (start > 0 ? '\u2026' : '') +
-                content.slice(start, end) +
-                (end < content.length ? '\u2026' : '');
-            } else {
-              excerpt = content.slice(0, 260) + '\u2026';
-            }
-          }
-
-          const segments = highlightSegments(excerpt, query);
-
-          return (
-            <button
-              key={chunk.chunk_number}
-              onClick={() => onSelectChunk(chunk)}
-              className={cn(
-                'relative w-full overflow-hidden rounded-lg border text-left transition-colors',
-                isSelected
-                  ? 'border-[var(--brand-btn-primary)]/50 bg-[var(--brand-surface-purple)] shadow-sm'
-                  : isCited
-                    ? 'border-[var(--brand-btn-primary)]/20 bg-[var(--brand-surface-purple)]/40 hover:bg-[var(--brand-surface-purple)]/70'
-                    : isAttached
-                      ? 'border-emerald-400/25 bg-emerald-50/40 hover:bg-emerald-50/70 dark:bg-emerald-950/15 dark:hover:bg-emerald-950/30'
-                      : 'border-border/40 bg-muted/20 hover:bg-muted/50',
-              )}
-            >
-              {/* Card header */}
-              <div className="flex items-center gap-1.5 px-2.5 pb-1 pt-2">
-                <span
-                  className={cn(
-                    'flex h-5 min-w-[1.75rem] shrink-0 items-center justify-center rounded text-[10px] font-bold',
-                    isCited
-                      ? 'bg-[var(--brand-citation-bg)] text-[var(--brand-fg-accent)]'
-                      : isAttached
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
-                        : 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  {chunk.chunk_number}
-                </span>
-                {chunk.page_number > 0 && (
-                  <span className="text-[9px] text-muted-foreground/70">
-                    p.{chunk.page_number}
-                  </span>
-                )}
-                {isCited && (
-                  <span className="rounded-full bg-[var(--brand-citation-bg)] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[var(--brand-fg-accent)]">
-                    cited
-                  </span>
-                )}
-                {isAttached && (
-                  <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold leading-none text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
-                    attached
-                  </span>
-                )}
-              </div>
-
-              {/* Content with highlights */}
-              {content && (
-                <p className="px-2.5 pb-2.5 text-[11px] leading-relaxed text-foreground/75 [overflow-wrap:anywhere]">
-                  {segments.map((seg, i) =>
-                    seg.match ? (
-                      <mark
-                        key={i}
-                        className="rounded-sm bg-yellow-200/80 px-0.5 text-yellow-900 not-italic dark:bg-yellow-500/30 dark:text-yellow-200"
-                      >
-                        {seg.text}
-                      </mark>
-                    ) : (
-                      <span key={i}>{seg.text}</span>
-                    ),
-                  )}
-                </p>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* Results list — animated expand/collapse */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="results"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div className="custom-scrollbar flex flex-col gap-2 border-t border-border/60 p-2.5">
+              {matchingChunks.map((chunk) => (
+                <SearchResultCard
+                  key={chunk.chunk_number}
+                  chunk={chunk}
+                  query={query}
+                  isCited={citedChunkNumbers.has(chunk.chunk_number)}
+                  isAttached={attachedChunkNumbers.has(chunk.chunk_number)}
+                  isSelected={chunk.chunk_number === selectedChunkNumber}
+                  onSelectChunk={onSelectChunk}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

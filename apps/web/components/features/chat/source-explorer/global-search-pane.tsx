@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, X, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Search, X, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FileExtBadge } from '../attachment-pill';
 import type { ChunkMetadata, SourceFile } from '@/types/api';
@@ -186,11 +187,13 @@ function FileGroup({
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors"
       >
-        {expanded ? (
-          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/60" />
-        ) : (
-          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/60" />
-        )}
+        <motion.span
+          animate={{ rotate: expanded ? 90 : 0 }}
+          transition={{ duration: 0.18, ease: 'easeInOut' }}
+          className="flex shrink-0 items-center justify-center"
+        >
+          <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
+        </motion.span>
         <FileExtBadge ext={file.ext ?? ''} />
         <span className="min-w-0 flex-1 truncate text-left">
           <HighlightText
@@ -226,30 +229,40 @@ function FileGroup({
         </div>
       </button>
 
-      {/* Chunk cards */}
-      {expanded && (
-        <div className="flex flex-col gap-1.5 border-t border-border/40 p-2">
-          {matchingChunks.map((chunk) => {
-            const fileCounts = fileCountMap.get(file.file_path) ?? {
-              citedCount: 0,
-              attachedCount: 0,
-            };
-            // We approximate isCited/isAttached at file level since we don't have per-chunk set here.
-            // Callers (body/panel) pass overall counts; for individual chunk status we just use defaults.
-            void fileCounts;
-            return (
-              <ChunkResultCard
-                key={chunk.chunk_number}
-                chunk={chunk}
-                query={query}
-                isCited={false}
-                isAttached={false}
-                onClick={() => onSelectChunk(file.file_path, chunk)}
-              />
-            );
-          })}
-        </div>
-      )}
+      {/* Chunk cards — animated expand/collapse */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="chunks"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div className="flex flex-col gap-1.5 border-t border-border/40 p-2">
+              {matchingChunks.map((chunk) => {
+                const fileCounts = fileCountMap.get(file.file_path) ?? {
+                  citedCount: 0,
+                  attachedCount: 0,
+                };
+                // We approximate isCited/isAttached at file level since we don't have per-chunk set here.
+                void fileCounts;
+                return (
+                  <ChunkResultCard
+                    key={chunk.chunk_number}
+                    chunk={chunk}
+                    query={query}
+                    isCited={false}
+                    isAttached={false}
+                    onClick={() => onSelectChunk(file.file_path, chunk)}
+                  />
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

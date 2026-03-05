@@ -299,6 +299,7 @@ export function SourceExplorerBodyView({
     chunksCache,
     loadingFiles,
     selectFile: storeSelectFile,
+    openAtChunk,
     pendingChunkTarget,
     clearPendingChunkTarget,
   } = useSourceExplorerStore();
@@ -473,8 +474,7 @@ export function SourceExplorerBodyView({
               setGlobalSearchOpen(false);
             }}
             onSelectChunk={(fp, chunk) => {
-              handleFileSelect(fp);
-              setSelectedChunk(chunk);
+              void openAtChunk(fp, chunk.chunk_number);
               setGlobalSearchOpen(false);
             }}
             onLoadAllFiles={handleLoadAllFiles}

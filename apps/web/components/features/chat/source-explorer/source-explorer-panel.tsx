@@ -115,6 +115,7 @@ export function SourceExplorerPanel({
     enterFullscreen,
     selectFile,
     refreshFile,
+    openAtChunk,
     pendingChunkTarget,
     clearPendingChunkTarget,
   } = useSourceExplorerStore();
@@ -573,8 +574,7 @@ export function SourceExplorerPanel({
                         setGlobalSearchOpen(false);
                       }}
                       onSelectChunk={(fp, chunk) => {
-                        selectFile(fp);
-                        setSelectedChunk(chunk);
+                        void openAtChunk(fp, chunk.chunk_number);
                         setGlobalSearchOpen(false);
                       }}
                       onLoadAllFiles={() => {
