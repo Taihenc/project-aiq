@@ -370,7 +370,7 @@ export function CitationPicker({
         <div className="flex items-center justify-between border-b border-[var(--brand-source-border)] px-4 pt-3.5 pb-3">
           <div className="flex items-center gap-2">
             <FileText className="h-3.5 w-3.5 text-[var(--brand-link)]" />
-            <span className="text-sm font-semibold text-[var(--brand-source-text)]">
+            <span className="text-xs font-semibold text-[var(--brand-source-text)]">
               Attach from sources
             </span>
           </div>
@@ -388,7 +388,7 @@ export function CitationPicker({
         </div>
 
         {/* Search */}
-        <div className="border-b border-[var(--brand-source-border)] px-3 py-2">
+        <div className="px-3 pb-2 pt-3">
           <div className="flex items-center gap-2 rounded-lg bg-[var(--brand-new-chat-bg)] px-3 py-1.5">
             <Search className="h-3.5 w-3.5 shrink-0 text-[var(--brand-source-time)]" />
             <input

@@ -98,11 +98,9 @@ export function ExcludeFilesPicker({
         className="w-[340px] rounded-2xl border-(--brand-source-border) bg-card/98 dark:bg-card p-0 shadow-[0_20px_60px_-20px_rgba(244,63,94,0.18),0_20px_60px_-20px_rgba(102,88,204,0.18)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.6)] overflow-hidden"
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between border-b border-(--brand-source-border) px-4 pb-3 pt-4">
+        <div className="flex items-center justify-between border-b border-(--brand-source-border) px-4 pb-3 pt-3.5">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950/40">
-              <Ban className="h-3 w-3 text-rose-500" />
-            </div>
+            <EyeOff className="h-3.5 w-3.5 text-rose-500" />
             <span className="text-xs font-semibold text-(--brand-source-text)">
               Exclude from search
             </span>

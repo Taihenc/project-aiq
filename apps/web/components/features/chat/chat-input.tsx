@@ -22,7 +22,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -210,12 +209,14 @@ export function ChatInput({
                 side="top"
                 align="start"
                 sideOffset={12}
-                className="min-w-[260px] rounded-2xl border-[var(--brand-source-border)] bg-card/98 dark:bg-card p-1.5 shadow-[0_20px_60px_-20px_rgba(102,88,204,0.35)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.6)]"
+                className="min-w-[260px] rounded-2xl border-[var(--brand-source-border)] bg-card/98 dark:bg-card p-1.5 overflow-hidden shadow-[0_20px_60px_-20px_rgba(102,88,204,0.35)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.6)]"
               >
-                <DropdownMenuLabel className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--brand-source-time)]">
-                  Search Mode
+                <DropdownMenuLabel className="flex items-center gap-2 -mx-1.5 -mt-1.5 border-b border-[var(--brand-source-border)] px-4 pb-3 pt-3.5 mb-1">
+                  <Sparkles className="h-3.5 w-3.5 text-[var(--brand-link)]" />
+                  <span className="text-xs font-semibold text-[var(--brand-source-text)]">
+                    Search Mode
+                  </span>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator className="mx-1 mb-1 bg-[var(--brand-source-border)]" />
                 {(
                   Object.entries(MODE_CONFIG) as [
                     SearchMode,
