@@ -23,7 +23,11 @@ import {
   PopoverContent,
   PopoverAnchor,
 } from '@/components/ui/popover';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useBranchMap } from '@/hooks/useBranchMap';
 import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
@@ -289,10 +293,16 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
       <SidebarInset className="relative flex h-screen flex-1 flex-col overflow-hidden overscroll-none bg-background">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,104,255,0.08)_0%,transparent_55%)]" />
 
-        <ChatHeader
-          onViewSources={() => setCitationsPanelOpen(true)}
-          title={currentTitle}
-        />
+        {showWelcomeScreen ? (
+          <div className="relative z-10 px-6 pt-4 sm:px-10 lg:px-12">
+            <SidebarTrigger className="border-purple-light text-primary-light shadow-button hover:bg-surface-light rounded-pill border bg-background h-9 w-9 sm:h-10 sm:w-10" />
+          </div>
+        ) : (
+          <ChatHeader
+            onViewSources={() => setCitationsPanelOpen(true)}
+            title={currentTitle}
+          />
+        )}
 
         <div className="relative z-0 flex flex-1 min-h-0 flex-col px-6 pt-2 sm:px-10 lg:px-12">
           {showWelcomeScreen ? (
