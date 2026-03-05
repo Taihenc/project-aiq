@@ -1,0 +1,68 @@
+{
+  "entries": [
+    {
+      "question": "what is life span of sandbox environment?",
+      "expected_answer": "Sandbox environment has a lifespan of 30 days. After 30 days, the environment and all associated data will be automatically deleted.",
+      "expected_tool_calls": [
+        "search_documents"
+      ],
+      "objective": "Identify the specific duration (30 days) and the consequence of expiration (automatic deletion)."
+    },
+    {
+      "question": "สภาพแวดล้อมแบบ Sandbox (Sandbox environment) มีอายุการใช้งานนานเท่าใด?",
+      "expected_answer": "Sandbox มีอายุการใช้งานสูงสุด 30 วัน หลังจากนั้นสภาพแวดล้อมและข้อมูลจะถูกลบออกโดยอัตโนมัติ",
+      "expected_tool_calls": [
+        "search_documents"
+      ],
+      "objective": "ยืนยันตัวเลข 30 วัน และระบุว่าข้อมูลจะถูกลบอัตโนมัติเมื่อครบกำหนด"
+    },
+    {
+      "question": "เทคนิคอย่างไรเกี่ยวกับการจัดการ Session Inactivity และรหัสผ่าน (Passwords) เพื่อป้องกันการเข้าถึงโดยไม่ได้รับอนุญาตมีอะไรบ้าง?",
+      "expected_answer": "ระบบต้องมีการตัด Session เมื่อไม่มีการใช้งาน (Inactivity Timeout) และรหัสผ่านต้องมีการตั้งความซับซ้อน (Complexity) รวมถึงการเข้ารหัส (Encryption) และการเปลี่ยนรหัสผ่านตามรอบ",
+      "expected_tool_calls": [
+        "search_documents"
+      ],
+      "objective": "ต้องระบุเรื่อง Session Timeout และมาตรการความปลอดภัยของรหัสผ่าน (Complexity/Encryption) ให้ครบถ้วน"
+    },
+    {
+      "question": "การพัฒนา microservice ที่ใช้ใน group มีข้อกำหนดสำคัญอะไรบ้าง หากไม่ได้ใช้ API Gateway?",
+      "expected_answer": "หากไม่ได้ใช้ API Gateway, microservice ต้องจัดการเรื่อง Authentication, Authorization, Logging และ Rate Limiting ด้วยตัวเองในระดับ Service",
+      "expected_tool_calls": [
+        "search_documents"
+      ],
+      "objective": "ระบุหน้าที่รับผิดชอบของ Microservice เมื่อขาด API Gateway (Auth/Log/Rate limit)"
+    },
+    {
+      "question": "มาตราฐานการการเก็บรักษา Audit Logs มีอะไรบ้าง?",
+      "expected_answer": "Audit Logs ต้องเก็บรักษาไว้อย่างน้อย 1 ปี (หรือตามกฎหมายกำหนด) และต้องมีการป้องกันการแก้ไข (Tamper-proof) รวมถึงเก็บข้อมูลการ Logon ทั้งที่สำเร็จและล้มเหลว",
+      "expected_tool_calls": [
+        "search_documents"
+      ],
+      "objective": "ระบุระยะเวลาเก็บรักษา (1 ปี) และความปลอดภัยของ Log (Tamper-proof/Logon status)"
+    },
+    {
+      "question": "เข้าถึง server แบบ Cloud Portal และการเข้าถึงแบบ Remote (เช่น RDP/SSH) แตกต่างกันอย่างไรบ้าง?",
+      "expected_answer": "Cloud Portal เข้าถึงผ่าน Web Interface เพื่อจัดการ Infrastructure ส่วน Remote Access (RDP/SSH) เข้าถึงระดับ OS ของ Server โดยตรง ทั้งคู่ต้องใช้ MFA และมีการจำกัดสิทธิ์",
+      "expected_tool_calls": [
+        "search_documents"
+      ],
+      "objective": "อธิบายความแตกต่างเชิงฟังก์ชันการใช้งาน และย้ำเรื่องมาตรการความปลอดภัย (MFA/RBAC)"
+    },
+    {
+      "question": "การจัดการ Key โดยเฉพาะระบบที่เกี่ยวข้องกับ PCI DSS เมื่อเกี่ยวข้องกับกฎอะไรบ้าง?",
+      "expected_answer": "ต้องปฏิบัติตามมาตรฐานการจัดการ Key (Key Management Policy), มีการเปลี่ยน Key ตามรอบ (Rotation), จัดเก็บใน HSM (ถ้ามี) และจำกัดผู้เข้าถึงตามหลัก Principle of Least Privilege",
+      "expected_tool_calls": [
+        "search_documents"
+      ],
+      "objective": "ระบุมาตรฐาน PCI DSS และเทคนิคการจัดการ Key (Rotation/HSM/Least Privilege)"
+    },
+    {
+      "question": "ในกรณีที่เกิดเหตุเกี่ยวกับความปลอดภัยของผู้ให้บริการ Cloud ต้องรายงานต่อใครกับ scbx group?",
+      "expected_answer": "ต้องรายงานต่อทีม Information Security (CISO) ของ SCBX Group และทีม Incident Response ทันทีที่พบเหตุ",
+      "expected_tool_calls": [
+        "search_documents"
+      ],
+      "objective": "ระบุหน่วยงานที่ต้องรับรายงาน (CISO/Security Team) และความรวดเร็วในการรายงาน (Immediately)"
+    }
+  ]
+}
