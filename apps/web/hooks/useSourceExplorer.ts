@@ -66,9 +66,15 @@ export const useSourceExplorerStore = create<SourceExplorerStore>(
     open: () => set({ mode: 'popover', isOpen: true }),
     openAtChunk: async (filePath: string, chunkNumber: number) => {
       const requestId = get().lastChunkOpenRequestId + 1;
+      const currentMode = get().mode;
+      // Preserve floating/fullscreen mode; only default to popover when closed.
+      const nextMode =
+        currentMode === 'floating' || currentMode === 'fullscreen'
+          ? currentMode
+          : 'popover';
       // Make open + file selection + pending target one atomic state update.
       set({
-        mode: 'popover',
+        mode: nextMode,
         isOpen: true,
         selectedFilePath: filePath,
         pendingChunkTarget: { filePath, chunkNumber, requestId },
