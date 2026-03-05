@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -124,51 +125,52 @@ export function AssistantChatBubble({
             />
           )}
 
-          {citations.length > 0 && (
-            <div
-              className="grid transition-[grid-template-rows,opacity] duration-500 ease-out"
-              style={{
-                gridTemplateRows: showCitations ? '1fr' : '0fr',
-                opacity: showCitations ? 1 : 0,
-              }}
-            >
-              <div className="overflow-hidden">
-                <div className="flex flex-col gap-2 pt-1">
-                  <div className="flex items-center gap-2">
-                    <Badge className="rounded-pill border border-[var(--brand-citation-border)] bg-[var(--brand-citation-bg)] px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--brand-citation-text)]">
-                      Citations
-                    </Badge>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    {citations.map((citation, index) => (
-                      <div
-                        key={citation.id || `citation-${index}`}
-                        className="transition-all duration-300 ease-out"
-                        style={{
-                          opacity: showCitations ? 1 : 0,
-                          transform: showCitations
-                            ? 'translateY(0)'
-                            : 'translateY(8px)',
-                          transitionDelay: showCitations
-                            ? `${200 + index * 100}ms`
-                            : '0ms',
-                        }}
-                      >
-                        <SourceCard
-                          source={citation}
-                          onAddAttachment={onAddAttachment}
-                          onRemoveAttachment={onRemoveAttachment}
-                          onRemoveChunk={onRemoveChunk}
-                          attachments={attachments}
-                        />
-                      </div>
-                    ))}
-                  </div>
+          <AnimatePresence>
+            {showCitations && citations.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="flex flex-col gap-2 pt-1"
+              >
+                <div className="flex items-center gap-2">
+                  <Badge className="rounded-pill border border-[var(--brand-citation-border)] bg-[var(--brand-citation-bg)] px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--brand-citation-text)]">
+                    Citations
+                  </Badge>
                 </div>
-              </div>
-            </div>
-          )}
+
+                {/* perspective container so rotateX has depth */}
+                <div
+                  className="flex flex-col gap-2"
+                  style={{ perspective: '900px' }}
+                >
+                  {citations.map((citation, index) => (
+                    <motion.div
+                      key={citation.id || `citation-${index}`}
+                      initial={{ opacity: 0, y: 22, rotateX: 7, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+                      transition={{
+                        delay: index * 0.07,
+                        type: 'spring',
+                        stiffness: 280,
+                        damping: 26,
+                      }}
+                      style={{ transformOrigin: 'top center' }}
+                    >
+                      <SourceCard
+                        source={citation}
+                        onAddAttachment={onAddAttachment}
+                        onRemoveAttachment={onRemoveAttachment}
+                        onRemoveChunk={onRemoveChunk}
+                        attachments={attachments}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Regenerate + branch nav row — only visible when fully settled */}

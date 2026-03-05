@@ -12,6 +12,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Tooltip,
   TooltipContent,
@@ -74,6 +75,8 @@ export function ChatInput({
   const [message, setMessage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [mode, setMode] = useState<SearchMode>('auto');
+  const [isSending, setIsSending] = useState(false);
+  const [sendPulse, setSendPulse] = useState(false);
   const {
     excludedPaths,
     remove: removeExcluded,
@@ -91,13 +94,24 @@ export function ChatInput({
   };
 
   const handleSubmit = () => {
-    if (message.trim() && !disabled) {
+    if (message.trim() && !disabled && !isSending) {
       const filter: SearchFilter | undefined =
         excludedPaths.length > 0 ? { exclude: excludedPaths } : undefined;
+
+      // Trigger launch + ring animations
+      setIsSending(true);
+      setSendPulse(true);
+
+      // Fire the actual send immediately — animation is cosmetic overlay
       onSendMessage?.(message, mode, filter);
-      setMessage('');
       clearExcludedPaths();
       textAreaRef.current?.blur();
+
+      // Clear text after the launch animation settles
+      setTimeout(() => {
+        setMessage('');
+        setIsSending(false);
+      }, 160);
     }
   };
 
@@ -139,24 +153,37 @@ export function ChatInput({
               ))}
             </div>
           )}
-          {/* Upper part - textarea */}
-          <textarea
-            ref={textAreaRef}
-            placeholder="Ask anything..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={handleBlur}
-            disabled={disabled}
-            style={{
-              height: isExpanded ? '72px' : '24px',
-            }}
-            className={cn(
-              'w-full resize-none border-0 bg-transparent px-2 text-sm text-primary-dark placeholder:text-muted-purple focus:outline-none focus:ring-0 transition-all duration-300 ease-in-out',
-              !isExpanded && 'overflow-hidden',
-            )}
-          />
+          {/* Upper part - textarea (wrapped for launch animation) */}
+          <motion.div
+            animate={
+              isSending
+                ? { scale: 0.95, y: -10, opacity: 0 }
+                : { scale: 1, y: 0, opacity: 1 }
+            }
+            transition={
+              isSending
+                ? { duration: 0.14, ease: [0.4, 0, 0.6, 1] }
+                : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
+            }
+          >
+            <textarea
+              ref={textAreaRef}
+              placeholder="Ask anything..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setIsFocused(true)}
+              onBlur={handleBlur}
+              disabled={disabled || isSending}
+              style={{
+                height: isExpanded ? '72px' : '24px',
+              }}
+              className={cn(
+                'w-full resize-none border-0 bg-transparent px-2 text-sm text-primary-dark placeholder:text-muted-purple focus:outline-none focus:ring-0 transition-all duration-300 ease-in-out',
+                !isExpanded && 'overflow-hidden',
+              )}
+            />
+          </motion.div>
 
           {/* Lower part - tools icons */}
           <div className="flex items-center gap-1">
@@ -285,19 +312,34 @@ export function ChatInput({
           </div>
         </div>
 
-        {/* Right part - send button */}
+        {/* Right part - send button with ring burst */}
         <div className="flex items-center">
-          <Button
-            size="icon-sm"
-            className={cn(
-              'animate-mesh-gradient rounded-pill text-white shadow-[0_20px_50px_-28px_rgba(111,93,235,1)] transition-all duration-300 ease-in-out hover:scale-105',
-              isExpanded ? 'h-12 w-12' : 'h-10 w-10',
-            )}
-            onClick={handleSubmit}
-            disabled={!message.trim() || disabled}
-          >
-            <ArrowUp className="size-5" />
-          </Button>
+          <div className="relative">
+            {/* Ring burst — expands and fades on send */}
+            <AnimatePresence>
+              {sendPulse && (
+                <motion.span
+                  className="pointer-events-none absolute inset-0 rounded-full bg-brand-fg-light"
+                  initial={{ scale: 0.8, opacity: 0.55 }}
+                  animate={{ scale: 2.6, opacity: 0 }}
+                  exit={{}}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  onAnimationComplete={() => setSendPulse(false)}
+                />
+              )}
+            </AnimatePresence>
+            <Button
+              size="icon-sm"
+              className={cn(
+                'animate-mesh-gradient rounded-pill text-white shadow-[0_20px_50px_-28px_rgba(111,93,235,1)] transition-all duration-300 ease-in-out hover:scale-105',
+                isExpanded ? 'h-12 w-12' : 'h-10 w-10',
+              )}
+              onClick={handleSubmit}
+              disabled={!message.trim() || disabled || isSending}
+            >
+              <ArrowUp className="size-5" />
+            </Button>
+          </div>
         </div>
       </div>
 
