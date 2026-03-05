@@ -6,8 +6,8 @@ import { Search, X, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FileExtBadge } from '../attachment-pill';
 import type { ChunkMetadata, SourceFile } from '@/types/api';
-import { highlightSegments } from '@/lib/highlight';
-import { extractExcerpt } from '@/lib/excerpt';
+import { highlightSegments } from '@/lib/utils/highlight';
+import { extractExcerpt } from '@/lib/utils/excerpt';
 import { HighlightText } from './highlight-text';
 
 // ─── Props ────────────────────────────────────────────────────────────────────

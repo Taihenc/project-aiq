@@ -21,10 +21,10 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { highlightSegments } from '@/lib/highlight';
-import { extractExcerpt } from '@/lib/excerpt';
-import { cellState, type ChunkState } from '@/lib/chunk-state';
-import { getScrollParent } from '@/lib/dom';
+import { highlightSegments } from '@/lib/utils/highlight';
+import { extractExcerpt } from '@/lib/utils/excerpt';
+import { cellState, type ChunkState } from '@/lib/source-explorer/chunk-state';
+import { getScrollParent } from '@/lib/utils/dom';
 import type { ChunkMetadata } from '@/types/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────

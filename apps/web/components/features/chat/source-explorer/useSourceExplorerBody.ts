@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { sharePointApi } from '@/lib/api/sharepoint';
 import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
-import { buildFileCountMap } from '@/lib/file-count-map';
+import { buildFileCountMap } from '@/lib/source-explorer/file-count-map';
 import type { Citation, ChunkMetadata, FileRef, SourceFile } from '@/types/api';
 
 // ─── Props ────────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { highlightSegments } from '@/lib/highlight';
+import { highlightSegments } from '@/lib/utils/highlight';
 
 export function HighlightText({
   text,

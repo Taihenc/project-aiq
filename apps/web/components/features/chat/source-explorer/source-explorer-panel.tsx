@@ -35,7 +35,7 @@ import { PayloadPreviewPane } from './source-explorer-body';
 import { GlobalSearchPane } from './global-search-pane';
 import { FileRow } from './file-row';
 import { PANEL_W, PANEL_H } from './constants';
-import { buildFileCountMap } from '@/lib/file-count-map';
+import { buildFileCountMap } from '@/lib/source-explorer/file-count-map';
 import type { Citation, ChunkMetadata, FileRef, SourceFile } from '@/types/api';
 
 // ─── Props ───────────────────────────────────────────────────────────────────

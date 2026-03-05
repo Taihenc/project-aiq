@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ChunkMetadata } from '@/types/api';
 import { FileExtBadge } from '../attachment-pill';
-import { highlightSegments } from '@/lib/highlight';
+import { highlightSegments } from '@/lib/utils/highlight';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
