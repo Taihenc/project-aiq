@@ -11,6 +11,7 @@ import type {
   ChatResponse,
   FileRef,
   SearchMode,
+  SearchFilter,
 } from '@/types/api';
 
 // Re-export types for backward compatibility
@@ -88,6 +89,7 @@ export async function streamChatCompletions(
     maxTokens?: number;
     attachments?: FileRef[];
     mode?: SearchMode;
+    filter?: SearchFilter;
     parentMessageId?: string;
   },
 ): Promise<ReadableStream<Uint8Array>> {
@@ -101,6 +103,7 @@ export async function streamChatCompletions(
     stream: true,
     attachments: options?.attachments,
     mode: options?.mode,
+    filter: options?.filter,
     parent_message_id: options?.parentMessageId,
   };
 

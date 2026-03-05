@@ -70,6 +70,12 @@ export interface SourceFile {
 // Search mode for the search-flow service
 export type SearchMode = 'auto' | 'search' | 'lookup' | 'chat';
 
+// Filter for MCP search_documents — mirrors the backend Filter Pydantic model
+export interface SearchFilter {
+  /** Document file paths to exclude from search results */
+  exclude?: string[];
+}
+
 // OpenAI-compatible chat completions request
 export interface ChatCompletionsRequest {
   messages: APIMessage[];
@@ -90,6 +96,8 @@ export interface ChatCompletionsRequest {
   attachments?: FileRef[];
   /** Search mode forwarded to search-flow service */
   mode?: SearchMode;
+  /** Filter applied at the MCP/Qdrant layer (e.g. file-path exclusions) */
+  filter?: SearchFilter;
   /**
    * ID of the parent message when branching.
    * Set to the message BEFORE the edited/regenerated point so the new messages

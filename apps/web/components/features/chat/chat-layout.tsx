@@ -36,6 +36,7 @@ import { NotFoundScreen } from '@/components/features/chat/not-found-screen';
 import { ChatLoadingScreen } from '@/components/features/chat/chat-loading-screen';
 import { ThemeToggle } from '@/components/custom/theme-toggle';
 import { historyApi } from '@/lib/api/history';
+import { useExcludeStore } from '@/hooks/useExcludeStore';
 import type { FileRef, ChatHistoryItem } from '@/types';
 
 interface ChatLayoutProps {
@@ -51,6 +52,7 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   const [attachments, setAttachments] = useState<FileRef[]>([]);
   const branchMap = useBranchMap();
   const sourceExplorer = useSourceExplorerStore();
+  const { remove: removeExcluded } = useExcludeStore();
 
   const [currentChatId, setCurrentChatId] = useState<string | undefined>(
     initialChatId,
@@ -147,27 +149,32 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   const messagesEndRef = useAutoScroll([messages, isLoading], shouldAutoScroll);
   const showWelcomeScreen = !currentChatId && messages.length === 0;
 
-  const handleAddAttachment = useCallback((attachment: FileRef) => {
-    setAttachments((prev) => {
-      const existing = prev.find((a) => a.file_path === attachment.file_path);
-      if (existing) {
-        // Merge new chunks, dedupe by chunk_number
-        const existingNums = new Set(
-          existing.chunks.map((c) => c.chunk_number),
-        );
-        const newChunks = attachment.chunks.filter(
-          (c) => !existingNums.has(c.chunk_number),
-        );
-        if (newChunks.length === 0) return prev;
-        return prev.map((a) =>
-          a.file_path === attachment.file_path
-            ? { ...a, chunks: [...a.chunks, ...newChunks] }
-            : a,
-        );
-      }
-      return [...prev, attachment];
-    });
-  }, []);
+  const handleAddAttachment = useCallback(
+    (attachment: FileRef) => {
+      // If this file is in the exclude list, remove it (can't be both attached and excluded)
+      removeExcluded(attachment.file_path);
+      setAttachments((prev) => {
+        const existing = prev.find((a) => a.file_path === attachment.file_path);
+        if (existing) {
+          // Merge new chunks, dedupe by chunk_number
+          const existingNums = new Set(
+            existing.chunks.map((c) => c.chunk_number),
+          );
+          const newChunks = attachment.chunks.filter(
+            (c) => !existingNums.has(c.chunk_number),
+          );
+          if (newChunks.length === 0) return prev;
+          return prev.map((a) =>
+            a.file_path === attachment.file_path
+              ? { ...a, chunks: [...a.chunks, ...newChunks] }
+              : a,
+          );
+        }
+        return [...prev, attachment];
+      });
+    },
+    [removeExcluded],
+  );
 
   const handleRemoveChunk = useCallback(
     (filePath: string, chunkNumber: number) => {
@@ -194,8 +201,12 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   }, []);
 
   const handleSendMessage = useCallback(
-    (message: string, mode?: import('@/types/api').SearchMode) => {
-      sendMessage(message, attachments, mode);
+    (
+      message: string,
+      mode?: import('@/types/api').SearchMode,
+      filter?: import('@/types/api').SearchFilter,
+    ) => {
+      sendMessage(message, attachments, mode, filter);
       setAttachments([]);
     },
     [sendMessage, attachments],

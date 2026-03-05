@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Loader2,
   Search,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,6 +37,7 @@ import { GlobalSearchPane } from './global-search-pane';
 import { FileRow } from './file-row';
 import { PANEL_W, PANEL_H } from './constants';
 import { buildFileCountMap } from '@/lib/source-explorer/file-count-map';
+import { useExcludeStore } from '@/hooks/useExcludeStore';
 import type { Citation, ChunkMetadata, FileRef, SourceFile } from '@/types/api';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -69,6 +71,12 @@ export function SourceExplorerPanel({
     pendingChunkTarget,
     clearPendingChunkTarget,
   } = useSourceExplorerStore();
+
+  const {
+    excludedPaths,
+    toggle: toggleExclude,
+    clearAll: clearAllExcluded,
+  } = useExcludeStore();
 
   const [minimized, setMinimized] = useState(false);
   const [fileList, setFileList] = useState<SourceFile[]>([]);
@@ -542,6 +550,7 @@ export function SourceExplorerPanel({
                             <Search className="h-3 w-3" />
                           </button>
                         </div>
+                        {/* ── Active files — scrollable ── */}
                         <div className="custom-scrollbar flex-1 overflow-y-auto p-1.5">
                           {fileListLoading ? (
                             <div className="flex justify-center py-6">
@@ -552,30 +561,96 @@ export function SourceExplorerPanel({
                               No files found
                             </p>
                           ) : (
-                            fileList.map((file) => {
-                              const counts = fileCountMap.get(
-                                file.file_path,
-                              ) ?? {
-                                citedCount: 0,
-                                attachedCount: 0,
-                              };
-                              return (
-                                <FileRow
-                                  key={file.file_path}
-                                  filePath={file.file_path}
-                                  name={file.name}
-                                  ext={file.ext}
-                                  citedCount={counts.citedCount}
-                                  attachedCount={counts.attachedCount}
-                                  isSelected={
-                                    selectedFilePath === file.file_path
-                                  }
-                                  onSelect={() => selectFile(file.file_path)}
-                                />
-                              );
-                            })
+                            fileList
+                              .filter(
+                                (f) => !excludedPaths.includes(f.file_path),
+                              )
+                              .map((file) => {
+                                const counts = fileCountMap.get(
+                                  file.file_path,
+                                ) ?? { citedCount: 0, attachedCount: 0 };
+                                return (
+                                  <FileRow
+                                    key={file.file_path}
+                                    filePath={file.file_path}
+                                    name={file.name}
+                                    ext={file.ext}
+                                    citedCount={counts.citedCount}
+                                    attachedCount={counts.attachedCount}
+                                    isSelected={
+                                      selectedFilePath === file.file_path
+                                    }
+                                    onSelect={() => selectFile(file.file_path)}
+                                    isExcluded={false}
+                                    onToggleExclude={() =>
+                                      toggleExclude(file.file_path)
+                                    }
+                                  />
+                                );
+                              })
                           )}
                         </div>
+                        {/* ── Excluded files — pinned to bottom of container ── */}
+                        {fileList.some((f) =>
+                          excludedPaths.includes(f.file_path),
+                        ) && (
+                          <div className="shrink-0 px-1.5 pb-1.5">
+                            <div className="overflow-hidden rounded-xl border border-rose-200/70 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/20">
+                              <div className="flex items-center gap-1.5 border-b border-rose-200/70 px-2.5 py-1.5 dark:border-rose-900/40">
+                                <EyeOff className="h-3 w-3 shrink-0 text-rose-400" />
+                                <span className="flex-1 text-[10px] font-semibold uppercase tracking-widest text-rose-400/80">
+                                  Excluded
+                                </span>
+                                <span className="rounded-full bg-rose-100 px-1.5 py-0 text-[9px] font-bold text-rose-500 dark:bg-rose-950/60 dark:text-rose-400">
+                                  {
+                                    fileList.filter((f) =>
+                                      excludedPaths.includes(f.file_path),
+                                    ).length
+                                  }
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={clearAllExcluded}
+                                  title="Clear all exclusions"
+                                  className="rounded p-0.5 text-rose-400/60 transition-colors hover:bg-rose-100 hover:text-rose-500 dark:hover:bg-rose-950/40"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                              <div className="custom-scrollbar max-h-[160px] overflow-y-auto p-1">
+                                {fileList
+                                  .filter((f) =>
+                                    excludedPaths.includes(f.file_path),
+                                  )
+                                  .map((file) => {
+                                    const counts = fileCountMap.get(
+                                      file.file_path,
+                                    ) ?? { citedCount: 0, attachedCount: 0 };
+                                    return (
+                                      <FileRow
+                                        key={file.file_path}
+                                        filePath={file.file_path}
+                                        name={file.name}
+                                        ext={file.ext}
+                                        citedCount={counts.citedCount}
+                                        attachedCount={counts.attachedCount}
+                                        isSelected={
+                                          selectedFilePath === file.file_path
+                                        }
+                                        onSelect={() =>
+                                          selectFile(file.file_path)
+                                        }
+                                        isExcluded={true}
+                                        onToggleExclude={() =>
+                                          toggleExclude(file.file_path)
+                                        }
+                                      />
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Heatmap area — always flex-1, right panel slides in */}

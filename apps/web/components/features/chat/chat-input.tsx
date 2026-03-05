@@ -27,9 +27,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { ChatInputProps } from '@/types';
-import type { SearchMode } from '@/types/api';
+import type { SearchMode, SearchFilter } from '@/types/api';
 import { AttachmentPill } from './attachment-pill';
 import { CitationPicker } from './citation-picker';
+import { ExcludeFilesPicker } from './exclude-files-picker';
+import { useExcludeStore } from '@/hooks/useExcludeStore';
 
 // ── Mode config ──────────────────────────────────────────────────────────────
 
@@ -73,6 +75,11 @@ export function ChatInput({
   const [message, setMessage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [mode, setMode] = useState<SearchMode>('auto');
+  const {
+    excludedPaths,
+    remove: removeExcluded,
+    clearAll: clearExcludedPaths,
+  } = useExcludeStore();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -86,10 +93,19 @@ export function ChatInput({
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
-      onSendMessage?.(message, mode);
+      const filter: SearchFilter | undefined =
+        excludedPaths.length > 0 ? { exclude: excludedPaths } : undefined;
+      onSendMessage?.(message, mode, filter);
       setMessage('');
+      clearExcludedPaths();
       textAreaRef.current?.blur();
     }
+  };
+
+  // When a file is attached, auto-remove it from the exclude list
+  const handleAddAttachment = (attachment: import('@/types/api').FileRef) => {
+    removeExcluded(attachment.file_path);
+    onAddAttachment?.(attachment);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -149,9 +165,15 @@ export function ChatInput({
             <CitationPicker
               availableCitations={availableCitations}
               attachments={attachments}
-              onAddAttachment={onAddAttachment}
+              onAddAttachment={handleAddAttachment}
               onRemoveAttachment={onRemoveAttachment}
               onRemoveChunk={onRemoveChunk}
+            />
+
+            {/* Exclude files from search */}
+            <ExcludeFilesPicker
+              availableCitations={availableCitations}
+              attachments={attachments}
             />
 
             {/* Search mode selector */}

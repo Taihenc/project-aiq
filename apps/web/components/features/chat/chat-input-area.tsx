@@ -1,7 +1,7 @@
 import { ChatInput } from '@/components/features/chat/chat-input';
 import React from 'react';
 import type { ChatInputAreaProps } from '@/types';
-import type { SearchMode } from '@/types/api';
+import type { SearchMode, SearchFilter } from '@/types/api';
 
 export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   onSendMessage,
@@ -16,9 +16,11 @@ export const ChatInputArea: React.FC<ChatInputAreaProps> = ({
     <div className="pointer-events-none absolute inset-x-0 -top-3 h-3 bg-gradient-to-b from-transparent via-background/20 to-background/65" />
     <div className="relative z-10 mx-auto max-w-3xl">
       <ChatInput
-        onSendMessage={(message: string, mode?: SearchMode) =>
-          onSendMessage(message, mode)
-        }
+        onSendMessage={(
+          message: string,
+          mode?: SearchMode,
+          filter?: SearchFilter,
+        ) => onSendMessage(message, mode, filter)}
         disabled={isLoading}
         attachments={attachments}
         onRemoveAttachment={onRemoveAttachment}

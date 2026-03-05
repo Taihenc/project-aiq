@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UIMessage, UseChatMessagesOptions, BackendMessage, FileRef } from '@/types';
-import type { SearchMode } from '@/types/api';
+import type { SearchMode, SearchFilter } from '@/types/api';
 import type { Citation } from '@/lib/api/chat';
 import { PAGINATION } from '@/constants/pagination';
 import { CHAT_TEMPERATURE, CHAT_MAX_TOKENS } from '@/constants/chat';
@@ -311,6 +311,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
     attachments?: FileRef[],
     mode?: SearchMode,
     parentMessageId?: string | null,
+    filter?: SearchFilter,
   ) => {
     // Optimistic user message
     const tempUserId = `__temp_user_${Date.now()}`;
@@ -382,6 +383,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
         maxTokens: CHAT_MAX_TOKENS,
         attachments,
         mode,
+        filter,
         parentMessageId: effectiveParent ?? undefined,
       });
 
@@ -541,8 +543,8 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
 
   /** Send a new message at the end of the current active path */
   const sendMessage = useCallback(
-    (content: string, attachments?: FileRef[], mode?: SearchMode) => {
-      return sendMessageInternal(content, attachments, mode, undefined);
+    (content: string, attachments?: FileRef[], mode?: SearchMode, filter?: SearchFilter) => {
+      return sendMessageInternal(content, attachments, mode, undefined, filter);
     },
     [sendMessageInternal],
   );
