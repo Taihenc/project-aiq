@@ -23,13 +23,11 @@ async def greet(name: str) -> str:
 
 
 @mcp.tool()
-async def search_documents(query: str) -> str:
+async def search_documents(query: str, filter: Optional[Filter] = None) -> str:
     """Search for similar documents using semantic search."""
     search_request: SearchRequest = SearchRequest(
         query=query,
-        # filter=Filter(
-        #     exclude=exclude
-        # )
+        filter=filter
     ) 
     response = await service_tools.search_documents(search_request)
     return formatter_service.format_search_response(response)
