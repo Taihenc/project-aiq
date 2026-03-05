@@ -1,9 +1,10 @@
 # app/mcp/tools.py
-from typing import Optional
+from typing import Optional, List
 from fastmcp import FastMCP
 from app.services.service_tools import service_tools
 from app.services.qdrant.qdrant_service import qdrant_service
 from app.models.models import (
+    Filter,
     SearchRequest,
     PageRetrievalRequest,
     ChunkContextRequest,
@@ -22,11 +23,12 @@ async def greet(name: str) -> str:
 
 
 @mcp.tool()
-async def search_documents(query: str) -> str:
+async def search_documents(query: str, filter: Optional[Filter] = None) -> str:
     """Search for similar documents using semantic search."""
     search_request: SearchRequest = SearchRequest(
-        query=query
-    )
+        query=query,
+        filter=filter
+    ) 
     response = await service_tools.search_documents(search_request)
     return formatter_service.format_search_response(response)
 
