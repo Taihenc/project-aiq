@@ -194,12 +194,14 @@ export function ChatInput({
               onAddAttachment={handleAddAttachment}
               onRemoveAttachment={onRemoveAttachment}
               onRemoveChunk={onRemoveChunk}
+              disabled={disabled || isSending}
             />
 
             {/* Exclude files from search */}
             <ExcludeFilesPicker
               availableCitations={availableCitations}
               attachments={attachments}
+              disabled={disabled || isSending}
             />
 
             {/* Search mode selector */}
@@ -209,10 +211,13 @@ export function ChatInput({
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
+                      disabled={disabled || isSending}
                       className={cn(
                         'h-9 gap-1.5 rounded-full px-2.5 text-xs font-medium text-[var(--brand-link)] hover:bg-[var(--brand-new-chat-bg)]',
                         mode !== 'auto' &&
                           'bg-[var(--brand-link)]/10 hover:bg-[var(--brand-link)]/15',
+                        (disabled || isSending) &&
+                          'opacity-40 cursor-not-allowed',
                       )}
                     >
                       {(() => {
@@ -300,7 +305,11 @@ export function ChatInput({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="rounded-pill h-9 w-9 text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]"
+                  disabled={disabled || isSending}
+                  className={cn(
+                    'rounded-pill h-9 w-9 text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]',
+                    (disabled || isSending) && 'opacity-40 cursor-not-allowed',
+                  )}
                 >
                   <Globe className="h-4 w-4" />
                 </Button>

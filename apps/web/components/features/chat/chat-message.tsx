@@ -24,6 +24,7 @@ export function ChatMessage({
   onEditMessage,
   onRegenerate,
   availableCitations,
+  isLoading,
 }: ChatMessageProps) {
   if (role === 'user') {
     return (
@@ -37,6 +38,7 @@ export function ChatMessage({
           onNavigateBranch={onNavigateBranch}
           onEditMessage={onEditMessage}
           availableCitations={availableCitations}
+          isLoading={isLoading}
         />
       </div>
     );

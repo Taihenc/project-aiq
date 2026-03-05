@@ -253,12 +253,14 @@ export function CitationPicker({
   onAddAttachment,
   onRemoveAttachment,
   onRemoveChunk,
+  disabled = false,
 }: {
   availableCitations: Citation[];
   attachments: FileRef[];
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
   onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  disabled?: boolean;
 }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
@@ -336,9 +338,10 @@ export function CitationPicker({
                   open
                     ? 'bg-[var(--brand-link)]/10 text-[var(--brand-link)]'
                     : 'text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]',
-                  !hasAnyCitations && 'opacity-40 cursor-not-allowed',
+                  (!hasAnyCitations || disabled) &&
+                    'opacity-40 cursor-not-allowed',
                 )}
-                disabled={!hasAnyCitations}
+                disabled={!hasAnyCitations || disabled}
                 aria-label="Attach from sources"
               >
                 <Paperclip className="h-4 w-4" />

@@ -26,11 +26,13 @@ interface ExcludeFilesPickerProps {
   availableCitations?: Citation[];
   /** Files currently attached — these cannot also be excluded */
   attachments?: FileRef[];
+  disabled?: boolean;
 }
 
 export function ExcludeFilesPicker({
   availableCitations = [],
   attachments = [],
+  disabled = false,
 }: ExcludeFilesPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -69,10 +71,12 @@ export function ExcludeFilesPicker({
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
+                disabled={disabled}
                 className={cn(
                   'h-9 gap-1.5 rounded-full px-2.5 text-xs font-medium text-brand-link hover:bg-brand-new-chat-bg',
                   count > 0 &&
                     'bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-950/50',
+                  disabled && 'opacity-40 cursor-not-allowed',
                 )}
               >
                 <EyeOff className="h-3.5 w-3.5 shrink-0" />

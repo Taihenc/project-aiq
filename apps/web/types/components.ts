@@ -39,6 +39,8 @@ export interface ChatMessageProps {
   onEditMessage?: (messageId: string, newContent: string, attachments?: FileRef[]) => void;
   /** Called when user requests a regenerate for an assistant message */
   onRegenerate?: (assistantMessageId: string) => void;
+  /** True while waiting for the assistant response */
+  isLoading?: boolean;
 }
 
 export interface ChatInputProps {

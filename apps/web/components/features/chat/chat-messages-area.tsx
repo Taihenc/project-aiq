@@ -132,6 +132,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
             onEditMessage={onEditMessage}
             onRegenerate={onRegenerate}
             availableCitations={availableCitations}
+            isLoading={isLoading}
           />
         ))}
         {isLoading && !hasThinkingAssistantMessage && (
