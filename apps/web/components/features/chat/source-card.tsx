@@ -8,7 +8,8 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, Plus, Check } from 'lucide-react';
+import { ChevronDown, Plus, Check, LayoutGrid } from 'lucide-react';
+import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { Citation, ChunkMetadata, FileRef } from '@/types';
@@ -28,6 +29,11 @@ export function SourceCard({
   attachments?: FileRef[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const {
+    open: openExplorer,
+    openAtChunk,
+    selectFile,
+  } = useSourceExplorerStore();
 
   const filePath = source.id;
   const chunks: ChunkMetadata[] = source.chunks ?? [];
@@ -108,31 +114,54 @@ export function SourceCard({
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         {/* ── Header row ── */}
         <div
-          className="flex items-center"
+          className="group/source flex items-center"
           style={isOpen ? { marginBottom: '1rem' } : undefined}
         >
+          {/*
+           * ── File-type badge / Explorer shortcut ──────────────────────────
+           * At rest: shows the file-extension badge.
+           * On card hover: morphs into the "Open chunk heatmap" icon button.
+           * The two layers cross-fade + scale so the transition feels physical.
+           */}
+          <div
+            className="relative ml-4 shrink-0 cursor-pointer select-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              openExplorer();
+              selectFile(filePath);
+            }}
+            title="Open in Source Explorer"
+          >
+            {/* file-ext badge — fades out on hover */}
+            <div className="pointer-events-none transition-all duration-200 ease-out group-hover/source:opacity-0 group-hover/source:scale-90">
+              <FileExtBadge ext={ext} size="md" />
+            </div>
+
+            {/* heatmap icon — fades in on hover */}
+            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-[var(--brand-source-attach-bg)] opacity-0 scale-90 ring-1 ring-inset ring-[var(--brand-link)]/20 transition-all duration-200 ease-out group-hover/source:opacity-100 group-hover/source:scale-100 hover:bg-[var(--brand-link)]/10">
+              <LayoutGrid className="h-[1.05rem] w-[1.05rem] text-[var(--brand-link)]" />
+            </div>
+          </div>
+
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
-              className="group rounded-card flex flex-1 items-center justify-between bg-transparent hover:bg-transparent px-4 py-3 text-[var(--brand-source-text)] transition-all duration-200"
+              className="group rounded-card flex flex-1 items-center justify-between bg-transparent hover:bg-transparent pl-3 pr-4 py-3 text-[var(--brand-source-text)] transition-all duration-200"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <FileExtBadge ext={ext} size="md" />
-                <div className="flex flex-col items-start min-w-0">
-                  <span className="truncate text-sm font-medium text-[var(--brand-source-text)] leading-tight">
-                    {source.title}
+              <div className="flex flex-col items-start min-w-0">
+                <span className="truncate text-sm font-medium text-[var(--brand-source-text)] leading-tight">
+                  {source.title}
+                </span>
+                <span className="text-[11px] text-[var(--brand-source-time)]">
+                  {source.platform}
+                  {chunks.length > 0 &&
+                    ` · ${chunks.length} chunk${chunks.length !== 1 ? 's' : ''}`}
+                </span>
+                {isAnyAttached && (
+                  <span className="mt-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    {attachedCount}/{chunks.length} attached
                   </span>
-                  <span className="text-[11px] text-[var(--brand-source-time)]">
-                    {source.platform}
-                    {chunks.length > 0 &&
-                      ` · ${chunks.length} chunk${chunks.length !== 1 ? 's' : ''}`}
-                  </span>
-                  {isAnyAttached && (
-                    <span className="mt-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      {attachedCount}/{chunks.length} attached
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-[var(--brand-source-icon)] transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </Button>
@@ -223,31 +252,46 @@ export function SourceCard({
                           {chunk.content ?? 'No content available.'}
                         </p>
 
-                        {/* Per-chunk attach button */}
-                        {onAddAttachment && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => handleToggleChunk(chunk)}
-                            className={cn(
-                              'mt-0.5 h-6 w-6 shrink-0 rounded-full opacity-0 transition-opacity group-hover/chunk:opacity-100',
-                              attached
-                                ? 'text-brand-attached-text hover:bg-brand-attached-hover-bg opacity-100'
-                                : 'text-[var(--brand-source-icon)] hover:bg-[var(--brand-source-attach-bg)] hover:text-[var(--brand-link)]',
-                            )}
-                            title={
-                              attached
-                                ? 'Remove this chunk'
-                                : 'Attach this chunk'
-                            }
+                        {/* Per-chunk actions */}
+                        <div className="flex shrink-0 items-start gap-0.5 mt-0.5">
+                          {/* Open chunk in explorer */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openAtChunk(filePath, chunk.chunk_number);
+                            }}
+                            className="flex h-6 w-6 items-center justify-center rounded-full opacity-0 transition-opacity group-hover/chunk:opacity-100 text-[var(--brand-source-icon)] hover:bg-[var(--brand-source-attach-bg)] hover:text-[var(--brand-link)]"
+                            title="Open in Source Explorer"
                           >
-                            {attached ? (
-                              <Check className="h-3 w-3" />
-                            ) : (
-                              <Plus className="h-3 w-3" />
-                            )}
-                          </Button>
-                        )}
+                            <LayoutGrid className="h-3 w-3" />
+                          </button>
+
+                          {/* Attach / detach */}
+                          {onAddAttachment && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handleToggleChunk(chunk)}
+                              className={cn(
+                                'h-6 w-6 shrink-0 rounded-full opacity-0 transition-opacity group-hover/chunk:opacity-100',
+                                attached
+                                  ? 'text-brand-attached-text hover:bg-brand-attached-hover-bg opacity-100'
+                                  : 'text-[var(--brand-source-icon)] hover:bg-[var(--brand-source-attach-bg)] hover:text-[var(--brand-link)]',
+                              )}
+                              title={
+                                attached
+                                  ? 'Remove this chunk'
+                                  : 'Attach this chunk'
+                              }
+                            >
+                              {attached ? (
+                                <Check className="h-3 w-3" />
+                              ) : (
+                                <Plus className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

@@ -25,7 +25,7 @@ export function useSourceExplorerBody({
   onAddAttachment,
   onRemoveChunk,
 }: SourceExplorerBodyProps) {
-  const { selectedFilePath, chunksCache, loadingFiles, selectFile, refreshFile } =
+  const { selectedFilePath, chunksCache, loadingFiles, selectFile, refreshFile, pendingChunkTarget } =
     useSourceExplorerStore();
 
   const [fileList, setFileList] = useState<SourceFile[]>([]);
@@ -48,9 +48,14 @@ export function useSourceExplorerBody({
     }
   }, [selectedFilePath, selectFile]);
 
-  // Clear selected chunk when file changes
+  // Clear selected chunk when file changes.
+  // pendingChunkTarget is captured at render time (subscribed value), not via
+  // getState(), so the closure sees the pre-clear value even if a child effect
+  // already called clearPendingChunkTarget() before this effect runs.
   useEffect(() => {
+    if (pendingChunkTarget !== null) return;
     setSelectedChunk(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFilePath]);
 
   // Derived: sorted chunks for selected file

@@ -299,6 +299,8 @@ export function SourceExplorerBodyView({
     chunksCache,
     loadingFiles,
     selectFile: storeSelectFile,
+    pendingChunkTarget,
+    clearPendingChunkTarget,
   } = useSourceExplorerStore();
   const [_gsOpen, _setGsOpen] = useState(false);
   const globalSearchOpen = globalSearchOpenProp ?? _gsOpen;
@@ -324,6 +326,27 @@ export function SourceExplorerBodyView({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Auto-navigate to a pending chunk when chunks are loaded (triggered from SourceCard)
+  useEffect(() => {
+    if (!pendingChunkTarget || selectedChunks.length === 0) return;
+    if (pendingChunkTarget.filePath !== selectedFilePath) return;
+    const target = selectedChunks.find(
+      (c) => c.chunk_number === pendingChunkTarget.chunkNumber,
+    );
+    if (!target) return;
+    setViewMode('chunks');
+    setHeatmapMode('read');
+    setSelectedChunk(target);
+    clearPendingChunkTarget();
+  }, [
+    pendingChunkTarget,
+    selectedFilePath,
+    selectedChunks,
+    clearPendingChunkTarget,
+    setHeatmapMode,
+    setSelectedChunk,
+  ]);
 
   // Reset preview data when file changes; revoke old blob URL
   // viewMode is intentionally preserved so chunks/preview mode persists across file switches

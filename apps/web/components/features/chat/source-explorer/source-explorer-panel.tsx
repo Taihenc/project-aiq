@@ -115,6 +115,8 @@ export function SourceExplorerPanel({
     enterFullscreen,
     selectFile,
     refreshFile,
+    pendingChunkTarget,
+    clearPendingChunkTarget,
   } = useSourceExplorerStore();
 
   const [minimized, setMinimized] = useState(false);
@@ -268,10 +270,36 @@ export function SourceExplorerPanel({
     onRemoveChunk(selectedFilePath, selectedChunk.chunk_number);
   }, [selectedFilePath, selectedChunk, onRemoveChunk]);
 
+  // Auto-navigate to a pending chunk when chunks are loaded (triggered from SourceCard)
+  useEffect(() => {
+    if (!isOpen || mode !== 'floating') return;
+    if (!pendingChunkTarget || selectedChunks.length === 0) return;
+    if (pendingChunkTarget.filePath !== selectedFilePath) return;
+    const target = selectedChunks.find(
+      (c) => c.chunk_number === pendingChunkTarget.chunkNumber,
+    );
+    if (!target) return;
+    setViewMode('chunks');
+    setHeatmapMode('read');
+    setSelectedChunk(target);
+    clearPendingChunkTarget();
+  }, [
+    isOpen,
+    mode,
+    pendingChunkTarget,
+    selectedFilePath,
+    selectedChunks,
+    clearPendingChunkTarget,
+  ]);
+
   // Reset selectedChunk + preview data when file changes; revoke old blob URL
   // viewMode is intentionally preserved so chunks/preview mode persists across file switches
+  // pendingChunkTarget is the render-time subscribed value (not getState()), so the
+  // closure captures the pre-clear value even if the pending-chunk effect cleared it first.
   useEffect(() => {
-    setSelectedChunk(null);
+    if (pendingChunkTarget === null) {
+      setSelectedChunk(null);
+    }
     setPreviewUrl((prev) => {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
       return null;

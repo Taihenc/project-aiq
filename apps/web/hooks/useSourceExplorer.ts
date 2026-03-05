@@ -6,6 +6,12 @@ import type { ChunkMetadata } from '@/types/api';
 
 export type SourceExplorerMode = 'closed' | 'popover' | 'floating' | 'fullscreen';
 
+interface PendingChunkTarget {
+  filePath: string;
+  chunkNumber: number;
+  requestId: number;
+}
+
 interface SourceExplorerStore {
   mode: SourceExplorerMode;
   isOpen: boolean;
@@ -22,6 +28,8 @@ interface SourceExplorerStore {
   // ── Actions ──────────────────────────────────────────────────
 
   open: () => void;
+  /** Open explorer and focus a specific chunk in a file */
+  openAtChunk: (filePath: string, chunkNumber: number) => Promise<void>;
   close: () => void;
   toggle: () => void;
   /** Detach from popover → free-floating draggable panel */
@@ -38,6 +46,11 @@ interface SourceExplorerStore {
 
   /** Clear state when switching chat sessions */
   reset: () => void;
+
+  /** Pending chunk target to auto-navigate once file chunks are available */
+  pendingChunkTarget: PendingChunkTarget | null;
+  clearPendingChunkTarget: () => void;
+  lastChunkOpenRequestId: number;
 }
 
 export const useSourceExplorerStore = create<SourceExplorerStore>(
@@ -47,8 +60,50 @@ export const useSourceExplorerStore = create<SourceExplorerStore>(
     selectedFilePath: null,
     chunksCache: {},
     loadingFiles: new Set(),
+    pendingChunkTarget: null,
+    lastChunkOpenRequestId: 0,
 
     open: () => set({ mode: 'popover', isOpen: true }),
+    openAtChunk: async (filePath: string, chunkNumber: number) => {
+      const requestId = get().lastChunkOpenRequestId + 1;
+      // Make open + file selection + pending target one atomic state update.
+      set({
+        mode: 'popover',
+        isOpen: true,
+        selectedFilePath: filePath,
+        pendingChunkTarget: { filePath, chunkNumber, requestId },
+        lastChunkOpenRequestId: requestId,
+      });
+
+      const { chunksCache, loadingFiles } = get();
+      if (chunksCache[filePath] !== undefined || loadingFiles.has(filePath)) {
+        return;
+      }
+
+      const next = new Set(loadingFiles);
+      next.add(filePath);
+      set({ loadingFiles: next });
+
+      try {
+        const chunks = await sharePointApi.getFileChunks(filePath);
+        const { chunksCache: current, loadingFiles: loading } = get();
+        const nextLoading = new Set(loading);
+        nextLoading.delete(filePath);
+        set({
+          chunksCache: { ...current, [filePath]: chunks },
+          loadingFiles: nextLoading,
+        });
+      } catch {
+        const { loadingFiles: loading, chunksCache: current } = get();
+        const nextLoading = new Set(loading);
+        nextLoading.delete(filePath);
+        set({
+          // Store empty array so we don't retry forever.
+          chunksCache: { ...current, [filePath]: [] },
+          loadingFiles: nextLoading,
+        });
+      }
+    },
     close: () => set({ mode: 'closed', isOpen: false }),
     toggle: () => {
       const { mode } = get();
@@ -120,11 +175,15 @@ export const useSourceExplorerStore = create<SourceExplorerStore>(
       }
     },
 
+    clearPendingChunkTarget: () => set({ pendingChunkTarget: null }),
+
     reset: () =>
       set({
         selectedFilePath: null,
         chunksCache: {},
         loadingFiles: new Set(),
+        pendingChunkTarget: null,
+        lastChunkOpenRequestId: 0,
       }),
   }),
 );
