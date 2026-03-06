@@ -263,6 +263,28 @@ export class SharePointService implements OnModuleDestroy {
 
   // ── SSE / Webhook ───────────────────────────────────────────────
 
+  /**
+   * Return distinct metadata values for all filterable dimensions from the embedding service.
+   * Proxies GET {embeddingServiceUrl}/v1/filter-options.
+   */
+  async getFilterOptions(): Promise<{
+    department: string[];
+    team: string[];
+    project: string[];
+    tags: string[];
+    file_type: string[];
+  }> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.embeddingServiceUrl}/v1/filter-options`),
+      );
+      return response.data;
+    } catch (error) {
+      this.handleError(error, 'Failed to fetch filter options');
+      return { department: [], team: [], project: [], tags: [], file_type: [] };
+    }
+  }
+
   /** Returns an Observable that emits SSE MessageEvent frames. */
   getStatusStream(): Observable<MessageEvent> {
     return this.statusEvents$.asObservable().pipe(

@@ -47,6 +47,12 @@ export class SharePointController {
     return this.sharePointService.getFileChunkCount(filePath);
   }
 
+  /** Return distinct metadata values for all filter dimensions (department, team, project, tags, file_type). */
+  @Get('filter-options')
+  async getFilterOptions() {
+    return this.sharePointService.getFilterOptions();
+  }
+
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(

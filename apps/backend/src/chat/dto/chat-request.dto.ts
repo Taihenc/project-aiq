@@ -37,6 +37,44 @@ export class MessageDto {
   tool_call_id?: string;
 }
 
+export class SearchFilterDto {
+  @ApiPropertyOptional({
+    description: 'File paths to exclude from search results',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  exclude?: string[];
+}
+
+// Search-flow FileRef DTOs
+export class ChunkMetadataDto {
+  @IsNumber()
+  chunk_number!: number;
+
+  @IsNumber()
+  page_number!: number;
+
+  @IsOptional()
+  @IsNumber()
+  score?: number;
+
+  @IsOptional()
+  @IsString()
+  content?: string;
+}
+
+export class FileRefDto {
+  @IsString()
+  file_path!: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChunkMetadataDto)
+  chunks!: ChunkMetadataDto[];
+}
+
 // OpenAI-compatible chat completions request
 export class ChatCompletionsRequestDto {
   @ApiProperty({
@@ -150,44 +188,6 @@ export class ChatCompletionsRequestDto {
   @ValidateNested()
   @Type(() => SearchFilterDto)
   filter?: SearchFilterDto;
-}
-
-export class SearchFilterDto {
-  @ApiPropertyOptional({
-    description: 'File paths to exclude from search results',
-    type: [String],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  exclude?: string[];
-}
-
-// Search-flow FileRef DTOs
-export class ChunkMetadataDto {
-  @IsNumber()
-  chunk_number!: number;
-
-  @IsNumber()
-  page_number!: number;
-
-  @IsOptional()
-  @IsNumber()
-  score?: number;
-
-  @IsOptional()
-  @IsString()
-  content?: string;
-}
-
-export class FileRefDto {
-  @IsString()
-  file_path!: string;
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ChunkMetadataDto)
-  chunks!: ChunkMetadataDto[];
 }
 
 // Legacy DTOs for backward compatibility with AI service

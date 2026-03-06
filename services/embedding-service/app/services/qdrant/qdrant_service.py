@@ -13,6 +13,7 @@ from app.config import settings
 from app.services.embedding.embedding_service import embedding_service
 from app.models.models import (
     Filter as ModelFilter,
+    FilterOptionsResponse,
     Page,
     Chunk,
 )
@@ -292,6 +293,48 @@ class QdrantService:
         except Exception:
             logger.exception("Error counting documents for file '%s'", file_name)
             return 0
+
+    def get_filter_options(self) -> FilterOptionsResponse:
+        """
+        Scroll every point in the collection and extract the distinct values for
+        every filterable metadata dimension (department, team, project, tags, file_type).
+        Returned lists are sorted case-insensitively for predictable UI ordering.
+        """
+        self._ensure_collection()
+
+        departments: set = set()
+        teams: set = set()
+        projects: set = set()
+        tags: set = set()
+        file_types: set = set()
+
+        next_offset = None
+        while True:
+            points, next_offset = self.client.scroll(
+                collection_name=self.collection_name,
+                offset=next_offset,
+                limit=1000,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for point in points:
+                p = point.payload or {}
+                if p.get("department"): departments.add(p["department"])
+                if p.get("team"): teams.add(p["team"])
+                if p.get("project"): projects.add(p["project"])
+                if p.get("file_type"): file_types.add(p["file_type"])
+                for tag in (p.get("tags") or []):
+                    if tag: tags.add(tag)
+            if next_offset is None:
+                break
+
+        return FilterOptionsResponse(
+            department=sorted(departments, key=str.lower),
+            team=sorted(teams, key=str.lower),
+            project=sorted(projects, key=str.lower),
+            tags=sorted(tags, key=str.lower),
+            file_type=sorted(file_types, key=str.lower),
+        )
 
     def get_collection_info(self) -> Dict[str, Any]:
         self._ensure_collection()

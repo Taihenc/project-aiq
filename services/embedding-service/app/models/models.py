@@ -66,6 +66,15 @@ class Filter(BaseModel):
     tags: Optional[List[str]] = Field(default=[],description="Tags filter",nullable=True)
 
 
+class FilterOptionsResponse(BaseModel):
+    """Unique metadata values present in the Qdrant collection — used to populate filter pickers."""
+    department: List[str] = Field(default_factory=list, description="Distinct department values")
+    team: List[str] = Field(default_factory=list, description="Distinct team values")
+    project: List[str] = Field(default_factory=list, description="Distinct project values")
+    tags: List[str] = Field(default_factory=list, description="Distinct tag values (flattened across all chunks)")
+    file_type: List[str] = Field(default_factory=list, description="Distinct file_type values")
+
+
 class FileStatusResponse(BaseModel):
     """Response from GET /v1/file-status — used by reconciliation watchdog."""
     file_name: str
