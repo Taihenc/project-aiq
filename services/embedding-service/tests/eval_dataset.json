@@ -1,0 +1,327 @@
+{
+    "description": "Synthetic ground-truth dataset for embedding retrieval evaluation. Replace with real documents and queries for production eval.",
+    "documents": [
+        {
+            "id": "eval-doc-001",
+            "text": "The company's annual revenue grew by 15% in 2024, reaching $2.3 billion. The growth was primarily driven by the cloud services division, which saw a 32% increase in subscription revenue.",
+            "metadata": {
+                "order": 0,
+                "file": "annual_report_2024.pdf",
+                "file_path": "/docs/annual_report_2024.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    1
+                ],
+                "department": "Finance",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "finance",
+                    "annual-report"
+                ]
+            }
+        },
+        {
+            "id": "eval-doc-002",
+            "text": "Employee onboarding process: New hires must complete security training within the first week. All employees receive access to the company VPN and internal tools after completing the IT orientation module.",
+            "metadata": {
+                "order": 1,
+                "file": "hr_handbook.pdf",
+                "file_path": "/docs/hr_handbook.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    5
+                ],
+                "department": "HR",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "hr",
+                    "onboarding"
+                ]
+            }
+        },
+        {
+            "id": "eval-doc-003",
+            "text": "Kubernetes cluster scaling policy: Auto-scaling is triggered when CPU utilization exceeds 70% for more than 5 minutes. Maximum pod count is set to 50 per deployment. HPA (Horizontal Pod Autoscaler) monitors resource usage metrics.",
+            "metadata": {
+                "order": 2,
+                "file": "infra_guide.pdf",
+                "file_path": "/docs/infra_guide.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    12
+                ],
+                "department": "Platform Engineering",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "infrastructure",
+                    "kubernetes"
+                ]
+            }
+        },
+        {
+            "id": "eval-doc-004",
+            "text": "Data retention policy: All customer data must be retained for a minimum of 7 years to comply with PDPA regulations. Personal data can be anonymized after the retention period. Data deletion requests must be processed within 30 days.",
+            "metadata": {
+                "order": 3,
+                "file": "compliance_guide.pdf",
+                "file_path": "/docs/compliance_guide.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    3
+                ],
+                "department": "Legal",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "compliance",
+                    "pdpa"
+                ]
+            }
+        },
+        {
+            "id": "eval-doc-005",
+            "text": "The RAG pipeline uses cosine similarity for initial retrieval (top-k=10), followed by cross-encoder reranking (top-n=5). The embedding model is BGE-M3 with 1024 dimensions. Qdrant serves as the vector database.",
+            "metadata": {
+                "order": 4,
+                "file": "architecture_doc.pdf",
+                "file_path": "/docs/architecture_doc.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    8
+                ],
+                "department": "AI",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "architecture",
+                    "rag"
+                ]
+            }
+        },
+        {
+            "id": "eval-doc-006",
+            "text": "Leave policy: Employees are entitled to 15 days of annual leave, 30 days of sick leave, and 10 days of personal leave per year. Leave requests must be submitted at least 3 business days in advance through the HR portal.",
+            "metadata": {
+                "order": 5,
+                "file": "hr_handbook.pdf",
+                "file_path": "/docs/hr_handbook.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    10
+                ],
+                "department": "HR",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "hr",
+                    "leave"
+                ]
+            }
+        },
+        {
+            "id": "eval-doc-007",
+            "text": "API rate limiting: All public endpoints are rate-limited to 100 requests per minute per API key. Internal service-to-service calls are exempt from rate limiting. Exceeded limits return HTTP 429 with a Retry-After header.",
+            "metadata": {
+                "order": 6,
+                "file": "api_guidelines.pdf",
+                "file_path": "/docs/api_guidelines.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    4
+                ],
+                "department": "Platform Engineering",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "api",
+                    "rate-limiting"
+                ]
+            }
+        },
+        {
+            "id": "eval-doc-008",
+            "text": "Quarterly OKR review process: Each team presents their objectives and key results to the leadership committee. Teams must achieve at least 70% completion rate. Missed objectives are escalated for resource reallocation.",
+            "metadata": {
+                "order": 7,
+                "file": "management_guide.pdf",
+                "file_path": "/docs/management_guide.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    2
+                ],
+                "department": "Management",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "management",
+                    "okr"
+                ]
+            }
+        },
+        {
+            "id": "eval-doc-009",
+            "text": "The CI/CD pipeline runs on GitHub Actions. Every pull request triggers unit tests, linting, and security scans. Deployment to production requires approval from at least two reviewers and passes all automated checks.",
+            "metadata": {
+                "order": 8,
+                "file": "devops_handbook.pdf",
+                "file_path": "/docs/devops_handbook.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    7
+                ],
+                "department": "Platform Engineering",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "devops",
+                    "cicd"
+                ]
+            }
+        },
+        {
+            "id": "eval-doc-010",
+            "text": "Budget allocation for Q1 2025: Cloud infrastructure $450K, Software licenses $120K, Headcount (3 new engineers) $180K, Training and conferences $30K. Total approved budget: $780K.",
+            "metadata": {
+                "order": 9,
+                "file": "budget_q1_2025.pdf",
+                "file_path": "/docs/budget_q1_2025.pdf",
+                "file_type": "pdf",
+                "pages": [
+                    1
+                ],
+                "department": "Finance",
+                "project": "Aingo",
+                "team": "AiQ",
+                "tags": [
+                    "finance",
+                    "budget"
+                ]
+            }
+        }
+    ],
+    "queries": [
+        {
+            "id": "q1",
+            "query": "What was the company's annual revenue in 2024?",
+            "relevant_doc_ids": [
+                "eval-doc-001"
+            ],
+            "category": "finance"
+        },
+        {
+            "id": "q2",
+            "query": "How does the employee onboarding process work?",
+            "relevant_doc_ids": [
+                "eval-doc-002"
+            ],
+            "category": "hr"
+        },
+        {
+            "id": "q3",
+            "query": "When does Kubernetes auto-scaling trigger?",
+            "relevant_doc_ids": [
+                "eval-doc-003"
+            ],
+            "category": "infrastructure"
+        },
+        {
+            "id": "q4",
+            "query": "What is the data retention period for PDPA compliance?",
+            "relevant_doc_ids": [
+                "eval-doc-004"
+            ],
+            "category": "compliance"
+        },
+        {
+            "id": "q5",
+            "query": "What embedding model and vector database does the RAG pipeline use?",
+            "relevant_doc_ids": [
+                "eval-doc-005"
+            ],
+            "category": "architecture"
+        },
+        {
+            "id": "q6",
+            "query": "How many days of annual leave do employees get?",
+            "relevant_doc_ids": [
+                "eval-doc-006"
+            ],
+            "category": "hr"
+        },
+        {
+            "id": "q7",
+            "query": "What is the API rate limit per minute?",
+            "relevant_doc_ids": [
+                "eval-doc-007"
+            ],
+            "category": "api"
+        },
+        {
+            "id": "q8",
+            "query": "How are OKRs reviewed each quarter?",
+            "relevant_doc_ids": [
+                "eval-doc-008"
+            ],
+            "category": "management"
+        },
+        {
+            "id": "q9",
+            "query": "What CI/CD checks are required before production deployment?",
+            "relevant_doc_ids": [
+                "eval-doc-009"
+            ],
+            "category": "devops"
+        },
+        {
+            "id": "q10",
+            "query": "What is the total budget approved for Q1 2025?",
+            "relevant_doc_ids": [
+                "eval-doc-010"
+            ],
+            "category": "finance"
+        },
+        {
+            "id": "q11",
+            "query": "security training requirements for new employees",
+            "relevant_doc_ids": [
+                "eval-doc-002"
+            ],
+            "category": "hr"
+        },
+        {
+            "id": "q12",
+            "query": "maximum number of pods in a Kubernetes deployment",
+            "relevant_doc_ids": [
+                "eval-doc-003"
+            ],
+            "category": "infrastructure"
+        },
+        {
+            "id": "q13",
+            "query": "cloud services revenue growth percentage",
+            "relevant_doc_ids": [
+                "eval-doc-001"
+            ],
+            "category": "finance"
+        },
+        {
+            "id": "q14",
+            "query": "how to request personal leave",
+            "relevant_doc_ids": [
+                "eval-doc-006"
+            ],
+            "category": "hr"
+        },
+        {
+            "id": "q15",
+            "query": "What happens when API rate limit is exceeded?",
+            "relevant_doc_ids": [
+                "eval-doc-007"
+            ],
+            "category": "api"
+        }
+    ]
+}

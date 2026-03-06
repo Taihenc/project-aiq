@@ -1,0 +1,39 @@
+# RAGFlow Comparison Stack
+# Usage: docker compose -f docker-compose.yml -f docker-compose.ragflow.yml up
+#
+# This adds RAGFlow alongside AINGO services for side-by-side evaluation.
+# RAGFlow UI: http://localhost:9380
+
+services:
+  ragflow-server:
+    image: infiniflow/ragflow:latest
+    container_name: ragflow
+    ports:
+      - '9380:9380'   # RAGFlow Web UI
+      - '9382:9382'   # RAGFlow API
+    environment:
+      - RAGFLOW_HOST=0.0.0.0
+    volumes:
+      - ragflow_data:/ragflow/data
+    depends_on:
+      - ragflow-es
+    networks:
+      - aingo-net
+
+  ragflow-es:
+    image: elasticsearch:8.11.3
+    container_name: ragflow-es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - ragflow_es_data:/usr/share/elasticsearch/data
+    ports:
+      - '9200:9200'
+    networks:
+      - aingo-net
+
+volumes:
+  ragflow_data:
+  ragflow_es_data:

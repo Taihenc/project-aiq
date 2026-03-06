@@ -1,37 +1,52 @@
 # Search Flow Service
 
-Service for managing Search workflows.
+AI-powered search orchestration using CrewAI, Azure OpenAI, and HyDE query expansion.
 
 ## Architecture
 
-This project follows the **Clean Architecture** pattern.
+- **CrewAI Flow**: Orchestrates a search agent with tools for document retrieval
+- **HyDE**: Generates hypothetical answers to enhance search queries
+- **MCP**: Connects to embedding-service via MCP protocol for search/pages/chunks
+- **Langfuse**: Optional tracing for observability
 
-```
-src/
-├── core/
-│   ├── application/    # Application logic (Use Cases, Ports, DTOs)
-│   └── domain/         # Domain entities and business logic
-├── infrastructure/     # Implementation details
-│   ├── adapter/        # Input (API) and Output (DB, external services) adapters
-│   └── config/         # Configuration and settings
-└── main.py             # Entry point
-```
+## Endpoints
 
-## Getting Started
+| Method | Path                          | Description            |
+|--------|-------------------------------|------------------------|
+| POST   | `/api/v1/completions`         | Sync search completion |
+| POST   | `/api/v1/completions/stream`  | Streaming completion   |
+| GET    | `/`                           | Health check           |
 
-### Prerequisites
+## Modes
 
-- Python 3.11+
-<!-- - [uv](https://github.com/astral-sh/uv) (recommended) -->
+- `auto` — Agent decides whether to search, lookup, or chat
+- `search` — Force document search via embedding-service
+- `lookup` — Page/chunk retrieval only (no semantic search)
+- `chat` — Direct LLM response, no tools
 
-### Installation
+## Run Locally
 
 ```bash
+cp .env.example .env  # Configure Azure credentials
 uv sync
+uv run uvicorn src.main:app --host 0.0.0.0 --port 8000
 ```
 
-### Running the service
+## Run via Docker
 
 ```bash
-uv run python src/main.py
+docker compose up search-flow -d
+```
+
+## CLI Test Client
+
+```bash
+uv run python client.py
+```
+
+## Eval
+
+```bash
+uv run python tests/eval_e2e.py
+uv run python tests/benchmark_report.py
 ```
