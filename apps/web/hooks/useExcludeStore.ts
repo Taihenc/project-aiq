@@ -16,6 +16,9 @@ interface ExcludeStore {
 
   /** Clear all exclusions (called after a message is sent). */
   clearAll: () => void;
+
+  /** Replace the full exclude list (called when restoring state from a loaded message). */
+  initFrom: (paths: string[]) => void;
 }
 
 export const useExcludeStore = create<ExcludeStore>((set, get) => ({
@@ -34,4 +37,6 @@ export const useExcludeStore = create<ExcludeStore>((set, get) => ({
     set({ excludedPaths: get().excludedPaths.filter((p) => p !== filePath) }),
 
   clearAll: () => set({ excludedPaths: [] }),
+
+  initFrom: (paths) => set({ excludedPaths: paths }),
 }));

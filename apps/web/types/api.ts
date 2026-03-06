@@ -204,6 +204,8 @@ export interface BackendMessage {
   createdAt: number;
   citations?: string;
   sentAttachments?: string | unknown[];
+  /** Search filter that was active when the user sent this message */
+  searchFilter?: string | SearchFilter;
   /** ID of the parent message in the tree; null = this is the session root */
   parentId?: string | null;
   /** Sibling order under the same parent (0-based) */

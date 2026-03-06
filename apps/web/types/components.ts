@@ -24,6 +24,8 @@ export interface ChatMessageProps {
   attachments?: FileRef[];
   /** Citation FileRefs that were attached when this user message was sent (read-only) */
   sentAttachments?: FileRef[];
+  /** Search filter that was active when the user sent this message */
+  searchFilter?: SearchFilter;
   // --- Tree / branch navigation props ---
   /** Unique message ID in the tree */
   messageId?: string;

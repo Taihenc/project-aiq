@@ -8,7 +8,7 @@ export const users = sqliteTable('users', {
   providerId: text('provider_id'),
   displayName: text('display_name'),
   refreshToken: text('refresh_token'),
-  createdAt: integer('created_at').default(Date.now()),
+  createdAt: integer('created_at').$defaultFn(() => Date.now()),
 });
 
 export const chatSessions = sqliteTable('chat_sessions', {
@@ -17,8 +17,8 @@ export const chatSessions = sqliteTable('chat_sessions', {
   userId: text('user_id')
     .references(() => users.id)
     .notNull(),
-  createdAt: integer('created_at').default(Date.now()),
-  updatedAt: integer('updated_at').default(Date.now()),
+  createdAt: integer('created_at').$defaultFn(() => Date.now()),
+  updatedAt: integer('updated_at').$defaultFn(() => Date.now()),
   summary: text('summary'),
   lastSummarizedMessageId: text('last_summarized_message_id'),
 });
@@ -32,13 +32,15 @@ export const chatMessages = sqliteTable('chat_messages', {
   sessionId: text('session_id')
     .references(() => chatSessions.id)
     .notNull(),
-  createdAt: integer('created_at').default(Date.now()),
+  createdAt: integer('created_at').$defaultFn(() => Date.now()),
   // Message tree support (branching / edit & regenerate)
   parentId: text('parent_id'), // FK to chat_messages.id; NULL = root of session
   branchIndex: integer('branch_index').default(0).notNull(), // sibling order at this parent
   // Per-path rolling summary stored on the TIP message of each branch
   pathSummary: text('path_summary'),
   pathLastSummarizedId: text('path_last_summarized_id'),
+  // Search filter active when the user sent this message
+  searchFilter: text('search_filter', { mode: 'json' }),
 });
 
 export type User = typeof users.$inferSelect;

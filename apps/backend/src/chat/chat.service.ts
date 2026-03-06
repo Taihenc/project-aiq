@@ -294,6 +294,7 @@ export class ChatService {
           chatRequest.attachments,
           parsed.title,
           chatRequest.parent_message_id ?? null,
+          chatRequest.filter ?? null,
         );
       }
 
@@ -480,6 +481,7 @@ export class ChatService {
                     chatRequest.attachments,
                     parsedResponse.title,
                     parentMessageId,
+                    chatRequest.filter ?? null,
                   ).catch((err) =>
                     this.logger.error(
                       'Streaming post-chat actions failed',
@@ -581,6 +583,7 @@ export class ChatService {
     sentAttachments?: any[],
     responseTitle?: string,
     parentMessageId?: string | null,
+    searchFilter?: any,
   ): Promise<void> {
     this.logger.debug(
       `Post-chat actions for session: ${sessionId}, user: ${userId}, parentMessageId: ${parentMessageId ?? 'root'}`,
@@ -605,6 +608,7 @@ export class ChatService {
         undefined,
         sentAttachments && sentAttachments.length > 0 ? sentAttachments : null,
         parentMessageId,
+        searchFilter ?? null,
       );
       // Assistant message's parent is the user message we just saved
       savedAssistantMessage = await this.chatHistoryService.addMessage(

@@ -10,7 +10,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { FileRef, Citation } from '@/types/api';
+import type { FileRef, Citation, SearchFilter } from '@/types/api';
 import { SentAttachmentsPillRow } from './sent-citation-pill';
 import { EditMessageCard } from './edit-message-card';
 import { useEditMessage } from '@/hooks/useEditMessage';
@@ -18,6 +18,7 @@ import { useEditMessage } from '@/hooks/useEditMessage';
 export function UserChatBubble({
   content,
   sentAttachments,
+  searchFilter,
   messageId,
   branchIndex = 0,
   siblingCount = 1,
@@ -28,6 +29,7 @@ export function UserChatBubble({
 }: {
   content: unknown;
   sentAttachments?: FileRef[];
+  searchFilter?: SearchFilter;
   messageId?: string;
   branchIndex?: number;
   siblingCount?: number;
@@ -183,6 +185,14 @@ export function UserChatBubble({
       </div>
       {/* end pencil+bubble row */}
 
+      {/* Sent attachments + filter circles — hidden while editing */}
+      {!isEditing && (sentAttachments?.length || searchFilter) && (
+        <SentAttachmentsPillRow
+          attachments={sentAttachments ?? []}
+          searchFilter={searchFilter}
+        />
+      )}
+
       {/* Branch navigation — hidden while editing */}
       {!isEditing && siblingCount > 1 && messageId && onNavigateBranch && (
         <div className="flex items-center gap-0.5 text-xs text-[var(--brand-fg-secondary)]">
@@ -204,11 +214,6 @@ export function UserChatBubble({
             <ChevronRight className="size-3.5" />
           </button>
         </div>
-      )}
-
-      {/* Sent attachments — hidden while editing (edit card manages them) */}
-      {!isEditing && sentAttachments && sentAttachments.length > 0 && (
-        <SentAttachmentsPillRow attachments={sentAttachments} />
       )}
     </div>
   );

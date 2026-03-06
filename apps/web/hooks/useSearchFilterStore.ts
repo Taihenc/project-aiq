@@ -22,6 +22,8 @@ interface SearchFilterStore extends SearchFilterState {
   addTag: (tag: string) => void;
   removeTag: (tag: string) => void;
   clearAll: () => void;
+  /** Restore state from a persisted SearchFilter snapshot (called on chat load). */
+  initFrom: (state: Partial<SearchFilterState>) => void;
   /** Returns true when at least one filter is non-empty */
   hasFilters: () => boolean;
   /** Number of active filter fields (for UI badge) */
@@ -52,6 +54,8 @@ export const useSearchFilterStore = create<SearchFilterStore>((set, get) => ({
     set({ tags: get().tags.filter((t) => t !== tag) }),
 
   clearAll: () => set(EMPTY),
+
+  initFrom: (state) => set({ ...EMPTY, ...state }),
 
   hasFilters: () => {
     const { department, team, project, tags, file_type } = get();

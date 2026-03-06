@@ -1,4 +1,4 @@
-import type { Citation, FileRef } from './api';
+import type { Citation, FileRef, SearchFilter } from './api';
 
 /**
  * UI Message interface that reflects the ChatCompletionsResponseDto from backend
@@ -34,6 +34,8 @@ export interface UIMessage {
   isStreaming?: boolean;
   /** Attachments (citation FileRefs) that were sent with this user message */
   sentAttachments?: FileRef[];
+  /** Search filter that was active when the user sent this message */
+  searchFilter?: SearchFilter;
   // --- Message tree fields ---
   /** ID of the parent message in the tree; null = root of session */
   parentId?: string | null;

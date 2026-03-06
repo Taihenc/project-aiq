@@ -168,6 +168,7 @@ export class ChatHistoryService {
     citations?: any,
     sentAttachments?: any,
     parentId?: string | null,
+    searchFilter?: any,
   ) {
     this.logger.debug(
       `Adding message to session ${sessionId}. Role: ${role}, User: ${userId}`,
@@ -246,6 +247,7 @@ export class ChatHistoryService {
           content: stringContent,
           citations: citations || null,
           sentAttachments: sentAttachments || null,
+          searchFilter: searchFilter ?? null,
           createdAt: Date.now(),
           parentId: parentId ?? null,
           branchIndex,

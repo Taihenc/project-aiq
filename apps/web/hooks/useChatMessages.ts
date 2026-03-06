@@ -8,6 +8,8 @@ import { CHAT_TEMPERATURE, CHAT_MAX_TOKENS } from '@/constants/chat';
 import { streamChatCompletions } from '@/lib/api/chat';
 import { historyApi } from '@/lib/api/history';
 import { useChatStore } from '@/lib/store/chat-store';
+import { useExcludeStore } from './useExcludeStore';
+import { useSearchFilterStore } from './useSearchFilterStore';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   createUserMessage,
@@ -37,6 +39,11 @@ function parseBackendMessageToUI(msg: BackendMessage): UIMessage {
       ? typeof msg.sentAttachments === 'string'
         ? JSON.parse(msg.sentAttachments as string)
         : (msg.sentAttachments as FileRef[])
+      : undefined,
+    searchFilter: msg.searchFilter
+      ? typeof msg.searchFilter === 'string'
+        ? JSON.parse(msg.searchFilter as string)
+        : (msg.searchFilter as SearchFilter)
       : undefined,
     parentId: msg.parentId ?? null,
     branchIndex: msg.branchIndex ?? 0,
@@ -323,6 +330,7 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       parentId: parentMessageId ?? (activePath[activePath.length - 1] ?? null),
       branchIndex: 0,
       ...(attachments && attachments.length > 0 ? { sentAttachments: attachments } : {}),
+      ...(filter ? { searchFilter: filter } : {}),
     };
 
     const asstMsg: UIMessage = {
@@ -580,11 +588,27 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       if (!userMsg) return;
       // Parent of new pair = grandparent of the assistant message
       const parentOfRegen = userMsg.parentId ?? null;
+
+      // Build the current active filter from both stores
+      const { excludedPaths } = useExcludeStore.getState();
+      const { department, team, project, tags, file_type } = useSearchFilterStore.getState();
+      const metaFilter: Partial<SearchFilter> = {
+        ...(excludedPaths.length > 0 ? { exclude: excludedPaths } : {}),
+        ...(file_type ? { file_type } : {}),
+        ...(department ? { department } : {}),
+        ...(team ? { team } : {}),
+        ...(project ? { project } : {}),
+        ...(tags.length > 0 ? { tags } : {}),
+      };
+      const filter: SearchFilter | undefined =
+        Object.keys(metaFilter).length > 0 ? metaFilter : undefined;
+
       return sendMessageInternal(
         userMsg.content,
         userMsg.sentAttachments,
         undefined,
         parentOfRegen,
+        filter,
       );
     },
     [messageTree, sendMessageInternal],

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/custom/sidebar';
 import { ChatHeader } from '@/components/features/chat/chat-header';
@@ -41,7 +41,8 @@ import { ChatLoadingScreen } from '@/components/features/chat/chat-loading-scree
 import { ThemeToggle } from '@/components/custom/theme-toggle';
 import { historyApi } from '@/lib/api/history';
 import { useExcludeStore } from '@/hooks/useExcludeStore';
-import type { FileRef, ChatHistoryItem } from '@/types';
+import { useSearchFilterStore } from '@/hooks/useSearchFilterStore';
+import type { FileRef, ChatHistoryItem, UIMessage } from '@/types';
 
 interface ChatLayoutProps {
   initialChatId?: string;
@@ -56,7 +57,13 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
   const [attachments, setAttachments] = useState<FileRef[]>([]);
   const branchMap = useBranchMap();
   const sourceExplorer = useSourceExplorerStore();
-  const { remove: removeExcluded } = useExcludeStore();
+  const {
+    remove: removeExcluded,
+    clearAll: clearExcluded,
+    initFrom: initExcluded,
+  } = useExcludeStore();
+  const { clearAll: clearFilter, initFrom: initFilter } =
+    useSearchFilterStore();
 
   const [currentChatId, setCurrentChatId] = useState<string | undefined>(
     initialChatId,
@@ -66,7 +73,9 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     setCurrentChatId(initialChatId);
     useChatStore.getState().setCurrentChatId(initialChatId);
     setAttachments([]); // Clear attachments when switching chats
-  }, [initialChatId]);
+    clearExcluded(); // Clear exclude list when switching chats
+    clearFilter(); // Clear search filters when switching chats
+  }, [initialChatId, clearExcluded, clearFilter]);
 
   const { history } = useHistory();
 
@@ -90,6 +99,35 @@ export function ChatLayout({ initialChatId }: ChatLayoutProps) {
     initialMessages: [],
     chatId: currentChatId,
   });
+
+  // Seed exclude + filter stores from the last user message once per chat load.
+  // Uses a ref to avoid re-seeding on every subsequent message update.
+  const seededForChatRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!currentChatId || messages.length === 0) return;
+    if (seededForChatRef.current === currentChatId) return;
+    seededForChatRef.current = currentChatId;
+
+    const lastUserMsg = [...messages]
+      .reverse()
+      .find((m: UIMessage) => m.role === 'user' && m.searchFilter);
+    if (!lastUserMsg?.searchFilter) return;
+
+    const { exclude, department, team, project, tags, file_type } =
+      lastUserMsg.searchFilter;
+    if (exclude?.length) initExcluded(exclude);
+    const filterState = {
+      department: department ?? '',
+      team: team ?? '',
+      project: project ?? '',
+      tags: tags ?? [],
+      file_type: file_type ?? '',
+    };
+    const hasFilter = Object.values(filterState).some((v) =>
+      Array.isArray(v) ? v.length > 0 : !!v,
+    );
+    if (hasFilter) initFilter(filterState);
+  }, [currentChatId, messages, initExcluded, initFilter]);
 
   // Authentication & Session Guard logic
   // ---------------------------------------------------------

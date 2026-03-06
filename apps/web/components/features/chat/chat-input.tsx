@@ -79,11 +79,7 @@ export function ChatInput({
   const [mode, setMode] = useState<SearchMode>('auto');
   const [isSending, setIsSending] = useState(false);
   const [sendPulse, setSendPulse] = useState(false);
-  const {
-    excludedPaths,
-    remove: removeExcluded,
-    clearAll: clearExcludedPaths,
-  } = useExcludeStore();
+  const { excludedPaths, remove: removeExcluded } = useExcludeStore();
   const { department, team, project, tags, file_type } = useSearchFilterStore();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -115,7 +111,6 @@ export function ChatInput({
 
       // Fire the actual send immediately — animation is cosmetic overlay
       onSendMessage?.(message, mode, filter);
-      clearExcludedPaths();
       textAreaRef.current?.blur();
 
       // Clear text after the launch animation settles

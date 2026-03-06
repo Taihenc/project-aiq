@@ -13,6 +13,7 @@ export function ChatMessage({
   isEmpty,
   isStreaming,
   sentAttachments,
+  searchFilter,
   onAddAttachment,
   onRemoveAttachment,
   onRemoveChunk,
@@ -32,6 +33,7 @@ export function ChatMessage({
         <UserChatBubble
           content={content}
           sentAttachments={sentAttachments}
+          searchFilter={searchFilter}
           messageId={messageId}
           branchIndex={branchIndex}
           siblingCount={siblingCount}
