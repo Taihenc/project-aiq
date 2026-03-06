@@ -31,7 +31,9 @@ import type { SearchMode, SearchFilter } from '@/types/api';
 import { AttachmentPill } from './attachment-pill';
 import { CitationPicker } from './citation-picker';
 import { ExcludeFilesPicker } from './exclude-files-picker';
+import { SearchFilterPicker } from './search-filter-picker';
 import { useExcludeStore } from '@/hooks/useExcludeStore';
+import { useSearchFilterStore } from '@/hooks/useSearchFilterStore';
 
 // ── Mode config ──────────────────────────────────────────────────────────────
 
@@ -82,6 +84,7 @@ export function ChatInput({
     remove: removeExcluded,
     clearAll: clearExcludedPaths,
   } = useExcludeStore();
+  const { department, team, project, tags, file_type } = useSearchFilterStore();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -95,8 +98,16 @@ export function ChatInput({
 
   const handleSubmit = () => {
     if (message.trim() && !disabled && !isSending) {
+      const metaFilter: Partial<SearchFilter> = {
+        ...(excludedPaths.length > 0 ? { exclude: excludedPaths } : {}),
+        ...(file_type ? { file_type } : {}),
+        ...(department ? { department } : {}),
+        ...(team ? { team } : {}),
+        ...(project ? { project } : {}),
+        ...(tags.length > 0 ? { tags } : {}),
+      };
       const filter: SearchFilter | undefined =
-        excludedPaths.length > 0 ? { exclude: excludedPaths } : undefined;
+        Object.keys(metaFilter).length > 0 ? metaFilter : undefined;
 
       // Trigger launch + ring animations
       setIsSending(true);
@@ -203,6 +214,9 @@ export function ChatInput({
               attachments={attachments}
               disabled={disabled || isSending}
             />
+
+            {/* Metadata filters (department / team / project / tags / file_type) */}
+            <SearchFilterPicker disabled={disabled || isSending} />
 
             {/* Search mode selector */}
             <DropdownMenu>

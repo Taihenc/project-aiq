@@ -2,4 +2,6 @@
 export { useChatMessages } from './useChatMessages';
 export { useAutoScroll } from './useAutoScroll';
 export { useEditMessage } from './useEditMessage';
+export { useExcludeStore } from './useExcludeStore';
+export { useSearchFilterStore } from './useSearchFilterStore';
 

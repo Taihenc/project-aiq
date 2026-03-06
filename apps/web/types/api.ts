@@ -70,8 +70,31 @@ export interface SourceFile {
 // Search mode for the search-flow service
 export type SearchMode = 'auto' | 'search' | 'lookup' | 'chat';
 
-// Filter for MCP search_documents — mirrors the backend Filter Pydantic model
+/** Distinct metadata values across all indexed chunks — used to populate filter pickers */
+export interface FilterOptions {
+  department: string[];
+  team: string[];
+  project: string[];
+  tags: string[];
+  file_type: string[];
+}
+
+// Filter for MCP search_documents — mirrors the backend Filter/SearchFilter Pydantic models
 export interface SearchFilter {
+  /** Exact file-name match */
+  file_name?: string;
+  /** Exact file-path match */
+  file_path?: string;
+  /** File type filter (e.g. "pdf", "docx") */
+  file_type?: string;
+  /** Department metadata filter — exact match */
+  department?: string;
+  /** Team metadata filter — exact match */
+  team?: string;
+  /** Project metadata filter — exact match */
+  project?: string;
+  /** Tag metadata filters */
+  tags?: string[];
   /** Document file paths to exclude from search results */
   exclude?: string[];
 }

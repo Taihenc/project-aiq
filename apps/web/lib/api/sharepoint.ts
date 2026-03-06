@@ -1,5 +1,5 @@
 import { client } from './client';
-import type { ChunkMetadata, SourceFile } from '@/types/api';
+import type { ChunkMetadata, FilterOptions, SourceFile } from '@/types/api';
 
 export const sharePointApi = {
   listFiles: async (path?: string) => {
@@ -97,5 +97,14 @@ export const sharePointApi = {
       { responseType: 'blob' },
     );
     return response.data as Blob;
+  },
+
+  /**
+   * Return distinct metadata values for all filter dimensions.
+   * Backed by GET /api/v1/sharepoint/filter-options → embedding service /v1/filter-options.
+   */
+  getFilterOptions: async (): Promise<FilterOptions> => {
+    const response = await client.get('/sharepoint/filter-options');
+    return response.data as FilterOptions;
   },
 };
