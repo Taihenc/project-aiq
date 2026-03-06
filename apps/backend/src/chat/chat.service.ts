@@ -567,6 +567,7 @@ export class ChatService {
           return cleanChunk;
         }),
       })),
+      ...(chatRequest.filter ? { filter: chatRequest.filter } : {}),
     };
   }
 

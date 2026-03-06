@@ -32,6 +32,7 @@ class SearchFlowService:
             "mode": request.mode,
             "metadata": request.metadata,
             "title": request.title,
+            "exclude_paths": (request.filter.exclude or []) if request.filter else [],
         }
         try:
             result = await flow.kickoff_async(inputs=inputs)
@@ -69,6 +70,7 @@ class SearchFlowService:
             "mode": request.mode,
             "metadata": request.metadata,
             "title": request.title,
+            "exclude_paths": (request.filter.exclude or []) if request.filter else [],
         }
 
         state = {"buf": "", "in_response": False, "done": False}

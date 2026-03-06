@@ -141,6 +141,26 @@ export class ChatCompletionsRequestDto {
   @IsOptional()
   @IsString()
   regenerate_from_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Search filter applied at the MCP/Qdrant layer (e.g. file-path exclusions)',
+    type: () => SearchFilterDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SearchFilterDto)
+  filter?: SearchFilterDto;
+}
+
+export class SearchFilterDto {
+  @ApiPropertyOptional({
+    description: 'File paths to exclude from search results',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  exclude?: string[];
 }
 
 // Search-flow FileRef DTOs

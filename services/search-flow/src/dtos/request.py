@@ -12,6 +12,7 @@ class SearchFilter(BaseModel):
     team: Optional[str] = Field(default=None, description="Team filter")
     project: Optional[str] = Field(default=None, description="Project filter")
     tags: Optional[List[str]] = Field(default=None, description="Tags filter")
+    exclude: Optional[List[str]] = Field(default=None, description="File paths to exclude from search results")
 
 
 class SearchChatRequest(BaseModel):
