@@ -36,6 +36,7 @@ class FlowState(BaseModel):
     metadata: dict = Field(default_factory=dict)
     mode: Literal["auto", "search", "lookup", "chat"] = Field(default="auto")
     title: Optional[str] = None
+    search_filter: Optional[dict] = None
 
     # Final Output Storage
     final_response: Optional[FlowResponse] = None

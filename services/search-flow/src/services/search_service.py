@@ -1,5 +1,5 @@
 import asyncio
-from typing import List
+from typing import List, Optional
 from src.dtos.request import SearchChatRequest
 from src.models.state import FlowResponse
 from src.models.search import FileRef, ChunkMetadata
@@ -20,6 +20,16 @@ from langfuse import observe
 
 
 class SearchFlowService:
+    def _build_search_filter(self, request: SearchChatRequest) -> Optional[dict]:
+        """Build search filter dict merging request.filter and request.exclude."""
+        search_filter = (
+            request.filter.model_dump(exclude_none=True) if request.filter else {}
+        )
+        exclude_paths = [ref.file_path for ref in request.exclude]
+        if exclude_paths:
+            search_filter["exclude"] = exclude_paths
+        return search_filter or None
+
     @observe(name="search_flow", as_type="generation")
     async def execute_workflow(self, request: SearchChatRequest) -> FlowResponse:
         flow = SearchCrewFlow(stream_llm=False)
@@ -32,6 +42,7 @@ class SearchFlowService:
             "mode": request.mode,
             "metadata": request.metadata,
             "title": request.title,
+            "search_filter": self._build_search_filter(request),
         }
         try:
             result = await flow.kickoff_async(inputs=inputs)
@@ -69,6 +80,7 @@ class SearchFlowService:
             "mode": request.mode,
             "metadata": request.metadata,
             "title": request.title,
+            "search_filter": self._build_search_filter(request),
         }
 
         state = {"buf": "", "in_response": False, "done": False}
