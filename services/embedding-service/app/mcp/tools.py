@@ -23,34 +23,37 @@ async def greet(name: str) -> str:
 
 
 @mcp.tool()
-async def search_documents(query: str, filter: Optional[Filter] = None) -> str:
+async def search_documents(
+    query: str, top_k: int = 10, top_n: int = 5, filter: Optional[Filter] = None
+) -> str:
     """Search for similar documents using semantic search."""
     search_request: SearchRequest = SearchRequest(
-        query=query,
-        filter=filter
-    ) 
+        query=query, top_k=top_k, top_n=top_n, filter=filter
+    )
     response = await service_tools.search_documents(search_request)
     return formatter_service.format_search_response(response)
+
 
 @mcp.tool()
 async def get_pages(file_path: str, start_page: int, end_page: int) -> str:
     """Retrieve pages from a document."""
     request: PageRetrievalRequest = PageRetrievalRequest(
-        file_path=file_path,
-        start_page=start_page,
-        end_page=end_page
+        file_path=file_path, start_page=start_page, end_page=end_page
     )
     response = await service_tools.get_pages_context(request)
     return formatter_service.format_get_pages_response(file_path, response)
 
+
 @mcp.tool()
-async def get_chunks(file_path: str, chunk_number: int, backward: int, forward: int) -> str:
+async def get_chunks(
+    file_path: str, chunk_number: int, backward: int, forward: int
+) -> str:
     """Retrieve context chunks around a specific chunk."""
     request: ChunkContextRequest = ChunkContextRequest(
         file_path=file_path,
         chunk_number=chunk_number,
         backward=backward,
-        forward=forward
+        forward=forward,
     )
     response = await service_tools.get_chunks_context(request)
     return formatter_service.format_get_chunks_response(response)

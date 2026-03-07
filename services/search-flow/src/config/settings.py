@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     crew_stream: bool = Field(True, validation_alias="CREWAI_STREAM")
     crew_max_tokens: int = Field(1500, validation_alias="CREW_MAX_TOKENS")
 
+    # Search defaults
+    search_top_k: int = Field(10, validation_alias="SEARCH_TOP_K")
+    search_top_n: int = Field(5, validation_alias="SEARCH_TOP_N")
+
     # HyDE
     crew_hyde_verbose: bool = Field(True, validation_alias="CREW_HYDE_VERBOSE")
     crew_hyde_max_tokens: int = Field(512, validation_alias="CREW_HYDE_MAX_TOKENS")
