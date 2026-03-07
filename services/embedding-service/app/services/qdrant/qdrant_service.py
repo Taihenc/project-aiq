@@ -277,6 +277,7 @@ class QdrantService:
             return Filter()
 
         field_conditions = []
+        must_not_conditions = []
 
         # Exact Matches (MatchValue)
         exact_match_fields = {
@@ -310,8 +311,14 @@ class QdrantService:
                 FieldCondition(key="tags", match=MatchAny(any=filters.tags))
             )
 
+        if filters.exclude:
+            must_not_conditions.append(
+                FieldCondition(key="file_path", match=MatchAny(any=filters.exclude))
+            )
+
         format_filter = Filter(
-            must=field_conditions
+            must=field_conditions,
+            must_not=must_not_conditions
         )
 
         return format_filter
