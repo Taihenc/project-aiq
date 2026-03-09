@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { getAttachmentFileId } from '@/lib/utils/file-identity';
 import type { FileRef } from '@/types/api';
 
 interface UseEditMessageOptions {
@@ -89,7 +90,10 @@ export function useEditMessage({
 
   const handleAddAttachment = useCallback((attachment: FileRef) => {
     setEditAttachments((prev) => {
-      const idx = prev.findIndex((a) => a.file_path === attachment.file_path);
+      const attachmentFileId = getAttachmentFileId(attachment);
+      const idx = prev.findIndex(
+        (a) => getAttachmentFileId(a) === attachmentFileId,
+      );
       if (idx !== -1) {
         const next = [...prev];
         const merged = [...next[idx].chunks];
@@ -110,11 +114,11 @@ export function useEditMessage({
   }, []);
 
   const handleRemoveChunk = useCallback(
-    (filePath: string, chunkNumber: number) => {
+    (fileId: string, chunkNumber: number) => {
       setEditAttachments((prev) =>
         prev
           .map((a) =>
-            a.file_path === filePath
+            getAttachmentFileId(a) === fileId
               ? {
                   ...a,
                   chunks: a.chunks.filter(

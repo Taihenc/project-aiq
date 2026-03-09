@@ -38,6 +38,15 @@ import { FileRow } from './file-row';
 import { PANEL_W, PANEL_H } from './constants';
 import { buildFileCountMap } from '@/lib/source-explorer/file-count-map';
 import { useExcludeStore } from '@/hooks/useExcludeStore';
+import {
+  createAttachmentFileRef,
+  getAttachmentFileId,
+  getCitationFileId,
+  hasFileIdentifier,
+  getPathDisplayName,
+  getSourceFileDisplayName,
+  getSourceFileId,
+} from '@/lib/utils/file-identity';
 import type { Citation, ChunkMetadata, FileRef, SourceFile } from '@/types/api';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -46,7 +55,7 @@ interface SourceExplorerPanelProps {
   attachments: FileRef[];
   availableCitations: Citation[];
   onAddAttachment: (att: FileRef) => void;
-  onRemoveChunk: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk: (fileId: string, chunkNumber: number) => void;
 }
 
 // ─── Panel ───────────────────────────────────────────────────────────────────
@@ -73,7 +82,7 @@ export function SourceExplorerPanel({
   } = useSourceExplorerStore();
 
   const {
-    excludedPaths,
+    excludedIdentifiers,
     toggle: toggleExclude,
     clearAll: clearAllExcluded,
   } = useExcludeStore();
@@ -121,7 +130,7 @@ export function SourceExplorerPanel({
         setFileList(files);
         // Auto-select first file if none selected
         if (!selectedFilePath && files.length > 0) {
-          selectFile(files[0].file_path);
+          selectFile(getSourceFileId(files[0]));
         }
       })
       .catch(() => {
@@ -151,14 +160,18 @@ export function SourceExplorerPanel({
   // Cited chunk numbers for selected file
   const citedChunkNumbers = useMemo(() => {
     if (!selectedFilePath) return new Set<number>();
-    const citation = availableCitations.find((c) => c.id === selectedFilePath);
+    const citation = availableCitations.find(
+      (c) => getCitationFileId(c) === selectedFilePath,
+    );
     return new Set<number>((citation?.chunks ?? []).map((c) => c.chunk_number));
   }, [availableCitations, selectedFilePath]);
 
   // Attached chunk numbers for selected file
   const attachedChunkNumbers = useMemo(() => {
     if (!selectedFilePath) return new Set<number>();
-    const att = attachments.find((a) => a.file_path === selectedFilePath);
+    const att = attachments.find(
+      (a) => getAttachmentFileId(a) === selectedFilePath,
+    );
     return new Set<number>((att?.chunks ?? []).map((c) => c.chunk_number));
   }, [attachments, selectedFilePath]);
 
@@ -203,12 +216,17 @@ export function SourceExplorerPanel({
   // Attach / detach for the currently-reading chunk
   const handleAttachSelected = useCallback(() => {
     if (!selectedFilePath || !selectedChunk) return;
-    onAddAttachment({
-      file_path: selectedFilePath,
-      chunks: [selectedChunk],
-      content: selectedChunk.content,
-    } as FileRef);
-  }, [selectedFilePath, selectedChunk, onAddAttachment]);
+    onAddAttachment(
+      createAttachmentFileRef({
+        fileId: selectedFilePath,
+        filePath:
+          fileList.find((f) => getSourceFileId(f) === selectedFilePath)
+            ?.file_path ?? selectedFilePath,
+        chunks: [selectedChunk],
+        content: selectedChunk.content,
+      }),
+    );
+  }, [selectedFilePath, selectedChunk, onAddAttachment, fileList]);
 
   const handleDetachSelected = useCallback(() => {
     if (!selectedFilePath || !selectedChunk) return;
@@ -250,7 +268,7 @@ export function SourceExplorerPanel({
       return null;
     });
     setPreviewError(null);
-  }, [selectedFilePath]);
+  }, [selectedFilePath, pendingChunkTarget]);
 
   // When already in preview mode, auto-fetch the new file's preview on file switch
   useEffect(() => {
@@ -293,19 +311,35 @@ export function SourceExplorerPanel({
       citedChunkNumbers.has(c.chunk_number),
     );
     if (citedChunks.length === 0) return;
-    onAddAttachment({
-      file_path: selectedFilePath,
-      chunks: citedChunks,
-    } as FileRef);
-  }, [selectedFilePath, selectedChunks, citedChunkNumbers, onAddAttachment]);
+    onAddAttachment(
+      createAttachmentFileRef({
+        fileId: selectedFilePath,
+        filePath:
+          fileList.find((f) => getSourceFileId(f) === selectedFilePath)
+            ?.file_path ?? selectedFilePath,
+        chunks: citedChunks,
+      }),
+    );
+  }, [
+    selectedFilePath,
+    selectedChunks,
+    citedChunkNumbers,
+    onAddAttachment,
+    fileList,
+  ]);
 
   const handleAttachAll = useCallback(() => {
     if (!selectedFilePath || selectedChunks.length === 0) return;
-    onAddAttachment({
-      file_path: selectedFilePath,
-      chunks: selectedChunks,
-    } as FileRef);
-  }, [selectedFilePath, selectedChunks, onAddAttachment]);
+    onAddAttachment(
+      createAttachmentFileRef({
+        fileId: selectedFilePath,
+        filePath:
+          fileList.find((f) => getSourceFileId(f) === selectedFilePath)
+            ?.file_path ?? selectedFilePath,
+        chunks: selectedChunks,
+      }),
+    );
+  }, [selectedFilePath, selectedChunks, onAddAttachment, fileList]);
 
   const handleClearAll = useCallback(() => {
     if (!selectedFilePath) return;
@@ -323,12 +357,17 @@ export function SourceExplorerPanel({
         (c) => (c.page_number ?? 0) === page,
       );
       if (pageChunks.length > 0)
-        onAddAttachment({
-          file_path: selectedFilePath,
-          chunks: pageChunks,
-        } as FileRef);
+        onAddAttachment(
+          createAttachmentFileRef({
+            fileId: selectedFilePath,
+            filePath:
+              fileList.find((f) => getSourceFileId(f) === selectedFilePath)
+                ?.file_path ?? selectedFilePath,
+            chunks: pageChunks,
+          }),
+        );
     },
-    [selectedFilePath, selectedChunks, onAddAttachment],
+    [selectedFilePath, selectedChunks, onAddAttachment, fileList],
   );
 
   const handleDetachPage = useCallback(
@@ -346,13 +385,18 @@ export function SourceExplorerPanel({
   const handleAttachChunk = useCallback(
     (chunk: ChunkMetadata) => {
       if (!selectedFilePath) return;
-      onAddAttachment({
-        file_path: selectedFilePath,
-        chunks: [chunk],
-        content: chunk.content,
-      } as FileRef);
+      onAddAttachment(
+        createAttachmentFileRef({
+          fileId: selectedFilePath,
+          filePath:
+            fileList.find((f) => getSourceFileId(f) === selectedFilePath)
+              ?.file_path ?? selectedFilePath,
+          chunks: [chunk],
+          content: chunk.content,
+        }),
+      );
     },
-    [selectedFilePath, onAddAttachment],
+    [selectedFilePath, onAddAttachment, fileList],
   );
 
   const handleDetachChunk = useCallback(
@@ -523,8 +567,8 @@ export function SourceExplorerPanel({
                       }}
                       onLoadAllFiles={() => {
                         fileList.forEach((f) => {
-                          if (!chunksCache[f.file_path])
-                            selectFile(f.file_path);
+                          const fileId = getSourceFileId(f);
+                          if (!chunksCache[fileId]) selectFile(fileId);
                         });
                       }}
                       onClose={() => setGlobalSearchOpen(false)}
@@ -563,27 +607,32 @@ export function SourceExplorerPanel({
                           ) : (
                             fileList
                               .filter(
-                                (f) => !excludedPaths.includes(f.file_path),
+                                (f) =>
+                                  !hasFileIdentifier(
+                                    excludedIdentifiers,
+                                    getSourceFileId(f),
+                                    f.file_path,
+                                  ),
                               )
                               .map((file) => {
-                                const counts = fileCountMap.get(
-                                  file.file_path,
-                                ) ?? { citedCount: 0, attachedCount: 0 };
+                                const fileId = getSourceFileId(file);
+                                const counts = fileCountMap.get(fileId) ?? {
+                                  citedCount: 0,
+                                  attachedCount: 0,
+                                };
                                 return (
                                   <FileRow
-                                    key={file.file_path}
-                                    filePath={file.file_path}
-                                    name={file.name}
+                                    key={fileId}
+                                    filePath={fileId}
+                                    name={getSourceFileDisplayName(file)}
                                     ext={file.ext}
                                     citedCount={counts.citedCount}
                                     attachedCount={counts.attachedCount}
-                                    isSelected={
-                                      selectedFilePath === file.file_path
-                                    }
-                                    onSelect={() => selectFile(file.file_path)}
+                                    isSelected={selectedFilePath === fileId}
+                                    onSelect={() => selectFile(fileId)}
                                     isExcluded={false}
                                     onToggleExclude={() =>
-                                      toggleExclude(file.file_path)
+                                      toggleExclude(fileId, file.file_path)
                                     }
                                   />
                                 );
@@ -592,7 +641,11 @@ export function SourceExplorerPanel({
                         </div>
                         {/* ── Excluded files — pinned to bottom of container ── */}
                         {fileList.some((f) =>
-                          excludedPaths.includes(f.file_path),
+                          hasFileIdentifier(
+                            excludedIdentifiers,
+                            getSourceFileId(f),
+                            f.file_path,
+                          ),
                         ) && (
                           <div className="shrink-0 px-1.5 pb-1.5">
                             <div className="overflow-hidden rounded-xl border border-rose-200/70 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/20">
@@ -604,7 +657,11 @@ export function SourceExplorerPanel({
                                 <span className="rounded-full bg-rose-100 px-1.5 py-0 text-[9px] font-bold text-rose-500 dark:bg-rose-950/60 dark:text-rose-400">
                                   {
                                     fileList.filter((f) =>
-                                      excludedPaths.includes(f.file_path),
+                                      hasFileIdentifier(
+                                        excludedIdentifiers,
+                                        getSourceFileId(f),
+                                        f.file_path,
+                                      ),
                                     ).length
                                   }
                                 </span>
@@ -620,29 +677,31 @@ export function SourceExplorerPanel({
                               <div className="custom-scrollbar max-h-[160px] overflow-y-auto p-1">
                                 {fileList
                                   .filter((f) =>
-                                    excludedPaths.includes(f.file_path),
+                                    hasFileIdentifier(
+                                      excludedIdentifiers,
+                                      getSourceFileId(f),
+                                      f.file_path,
+                                    ),
                                   )
                                   .map((file) => {
-                                    const counts = fileCountMap.get(
-                                      file.file_path,
-                                    ) ?? { citedCount: 0, attachedCount: 0 };
+                                    const fileId = getSourceFileId(file);
+                                    const counts = fileCountMap.get(fileId) ?? {
+                                      citedCount: 0,
+                                      attachedCount: 0,
+                                    };
                                     return (
                                       <FileRow
-                                        key={file.file_path}
-                                        filePath={file.file_path}
-                                        name={file.name}
+                                        key={fileId}
+                                        filePath={fileId}
+                                        name={getSourceFileDisplayName(file)}
                                         ext={file.ext}
                                         citedCount={counts.citedCount}
                                         attachedCount={counts.attachedCount}
-                                        isSelected={
-                                          selectedFilePath === file.file_path
-                                        }
-                                        onSelect={() =>
-                                          selectFile(file.file_path)
-                                        }
+                                        isSelected={selectedFilePath === fileId}
+                                        onSelect={() => selectFile(fileId)}
                                         isExcluded={true}
                                         onToggleExclude={() =>
-                                          toggleExclude(file.file_path)
+                                          toggleExclude(fileId, file.file_path)
                                         }
                                       />
                                     );
@@ -661,14 +720,16 @@ export function SourceExplorerPanel({
                             <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5">
                               {(() => {
                                 const file = fileList.find(
-                                  (f) => f.file_path === selectedFilePath,
+                                  (f) =>
+                                    getSourceFileId(f) === selectedFilePath,
                                 );
                                 return (
                                   <>
                                     <FileExtBadge ext={file?.ext ?? ''} />
                                     <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
-                                      {file?.name ??
-                                        selectedFilePath.split('/').pop()}
+                                      {file
+                                        ? getSourceFileDisplayName(file)
+                                        : selectedFilePath}
                                     </span>
                                   </>
                                 );
@@ -784,16 +845,18 @@ export function SourceExplorerPanel({
                                           fileName={
                                             fileList.find(
                                               (f) =>
-                                                f.file_path ===
+                                                getSourceFileId(f) ===
                                                 selectedFilePath,
                                             )?.name ??
-                                            selectedFilePath.split('/').pop() ??
+                                            getPathDisplayName(
+                                              selectedFilePath,
+                                            ) ??
                                             ''
                                           }
                                           ext={
                                             fileList.find(
                                               (f) =>
-                                                f.file_path ===
+                                                getSourceFileId(f) ===
                                                 selectedFilePath,
                                             )?.ext
                                           }
@@ -842,16 +905,18 @@ export function SourceExplorerPanel({
                                           fileName={
                                             fileList.find(
                                               (f) =>
-                                                f.file_path ===
+                                                getSourceFileId(f) ===
                                                 selectedFilePath,
                                             )?.name ??
-                                            selectedFilePath.split('/').pop() ??
+                                            getPathDisplayName(
+                                              selectedFilePath,
+                                            ) ??
                                             ''
                                           }
                                           fileExt={
                                             fileList.find(
                                               (f) =>
-                                                f.file_path ===
+                                                getSourceFileId(f) ===
                                                 selectedFilePath,
                                             )?.ext
                                           }

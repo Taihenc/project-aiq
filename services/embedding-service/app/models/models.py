@@ -60,6 +60,7 @@ class Filter(BaseModel):
     file_name: Optional[str] = Field(default="",description="File name filter",nullable=True)
     file_path: Optional[str] = Field(default="",description="Path filter",nullable=True)
     file_type: Optional[str] = Field(default="",description="File type filter",nullable=True)
+    exclude_file_ids: Optional[List[str]] = Field(default=[],description="List of stable file ids to exclude",nullable=True)
     exclude: Optional[List[str]] = Field(default=[],description="List of document path to exclude",nullable=True)
     pages: Optional[List[int]] = Field(default=[],description="Page filter",nullable=True)
     department: Optional[str] = Field(default="",description="Department filter",nullable=True)

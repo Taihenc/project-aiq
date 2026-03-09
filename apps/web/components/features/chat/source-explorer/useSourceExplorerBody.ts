@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { sharePointApi } from '@/lib/api/sharepoint';
 import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
 import { buildFileCountMap } from '@/lib/source-explorer/file-count-map';
+import {
+  createAttachmentFileRef,
+  getAttachmentFileId,
+  getCitationFileId,
+  getSourceFileId,
+} from '@/lib/utils/file-identity';
 import type { Citation, ChunkMetadata, FileRef, SourceFile } from '@/types/api';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -12,7 +18,7 @@ export interface SourceExplorerBodyProps {
   attachments: FileRef[];
   availableCitations: Citation[];
   onAddAttachment: (att: FileRef) => void;
-  onRemoveChunk: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk: (fileId: string, chunkNumber: number) => void;
 }
 
 // ─── Shared hook ─────────────────────────────────────────────────────────────
@@ -40,7 +46,7 @@ export function useSourceExplorerBody({
       const files = await sharePointApi.getIndexedFiles();
       setFileList(files);
       if (!selectedFilePath && files.length > 0) {
-        selectFile(files[0].file_path);
+        selectFile(getSourceFileId(files[0]));
       }
     } catch {
       setFileList([]);
@@ -75,13 +81,17 @@ export function useSourceExplorerBody({
   // Cited + attached sets for current file
   const citedChunkNumbers = useMemo(() => {
     if (!selectedFilePath) return new Set<number>();
-    const citation = availableCitations.find((c) => c.id === selectedFilePath);
+    const citation = availableCitations.find(
+      (c) => getCitationFileId(c) === selectedFilePath,
+    );
     return new Set<number>((citation?.chunks ?? []).map((c) => c.chunk_number));
   }, [availableCitations, selectedFilePath]);
 
   const attachedChunkNumbers = useMemo(() => {
     if (!selectedFilePath) return new Set<number>();
-    const att = attachments.find((a) => a.file_path === selectedFilePath);
+    const att = attachments.find(
+      (a) => getAttachmentFileId(a) === selectedFilePath,
+    );
     return new Set<number>((att?.chunks ?? []).map((c) => c.chunk_number));
   }, [attachments, selectedFilePath]);
 
@@ -103,12 +113,18 @@ export function useSourceExplorerBody({
 
   const handleAttachSelected = useCallback(() => {
     if (!selectedFilePath || !selectedChunk) return;
-    onAddAttachment({
-      file_path: selectedFilePath,
-      chunks: [selectedChunk],
-      content: selectedChunk.content,
-    } as FileRef);
-  }, [selectedFilePath, selectedChunk, onAddAttachment]);
+    const filePath =
+      fileList.find((f) => getSourceFileId(f) === selectedFilePath)?.file_path ??
+      selectedFilePath;
+    onAddAttachment(
+      createAttachmentFileRef({
+        fileId: selectedFilePath,
+        filePath,
+        chunks: [selectedChunk],
+        content: selectedChunk.content,
+      }),
+    );
+  }, [selectedFilePath, selectedChunk, onAddAttachment, fileList]);
 
   const handleDetachSelected = useCallback(() => {
     if (!selectedFilePath || !selectedChunk) return;
@@ -123,16 +139,29 @@ export function useSourceExplorerBody({
       citedChunkNumbers.has(c.chunk_number),
     );
     if (cited.length > 0)
-      onAddAttachment({ file_path: selectedFilePath, chunks: cited } as FileRef);
-  }, [selectedFilePath, selectedChunks, citedChunkNumbers, onAddAttachment]);
+      onAddAttachment(
+        createAttachmentFileRef({
+          fileId: selectedFilePath,
+          filePath:
+            fileList.find((f) => getSourceFileId(f) === selectedFilePath)
+              ?.file_path ?? selectedFilePath,
+          chunks: cited,
+        }),
+      );
+  }, [selectedFilePath, selectedChunks, citedChunkNumbers, onAddAttachment, fileList]);
 
   const handleAttachAll = useCallback(() => {
     if (!selectedFilePath || !selectedChunks.length) return;
-    onAddAttachment({
-      file_path: selectedFilePath,
-      chunks: selectedChunks,
-    } as FileRef);
-  }, [selectedFilePath, selectedChunks, onAddAttachment]);
+    onAddAttachment(
+      createAttachmentFileRef({
+        fileId: selectedFilePath,
+        filePath:
+          fileList.find((f) => getSourceFileId(f) === selectedFilePath)
+            ?.file_path ?? selectedFilePath,
+        chunks: selectedChunks,
+      }),
+    );
+  }, [selectedFilePath, selectedChunks, onAddAttachment, fileList]);
 
   const handleClearAll = useCallback(() => {
     if (!selectedFilePath) return;
@@ -149,12 +178,17 @@ export function useSourceExplorerBody({
         (c) => (c.page_number ?? 0) === page,
       );
       if (pageChunks.length > 0)
-        onAddAttachment({
-          file_path: selectedFilePath,
-          chunks: pageChunks,
-        } as FileRef);
+        onAddAttachment(
+          createAttachmentFileRef({
+            fileId: selectedFilePath,
+            filePath:
+              fileList.find((f) => getSourceFileId(f) === selectedFilePath)
+                ?.file_path ?? selectedFilePath,
+            chunks: pageChunks,
+          }),
+        );
     },
-    [selectedFilePath, selectedChunks, onAddAttachment],
+    [selectedFilePath, selectedChunks, onAddAttachment, fileList],
   );
 
   const handleDetachPage = useCallback(
@@ -172,13 +206,18 @@ export function useSourceExplorerBody({
   const handleAttachChunk = useCallback(
     (chunk: ChunkMetadata) => {
       if (!selectedFilePath) return;
-      onAddAttachment({
-        file_path: selectedFilePath,
-        chunks: [chunk],
-        content: chunk.content,
-      } as FileRef);
+      onAddAttachment(
+        createAttachmentFileRef({
+          fileId: selectedFilePath,
+          filePath:
+            fileList.find((f) => getSourceFileId(f) === selectedFilePath)
+              ?.file_path ?? selectedFilePath,
+          chunks: [chunk],
+          content: chunk.content,
+        }),
+      );
     },
-    [selectedFilePath, onAddAttachment],
+    [selectedFilePath, onAddAttachment, fileList],
   );
 
   const handleDetachChunk = useCallback(
@@ -191,7 +230,9 @@ export function useSourceExplorerBody({
 
   // ── Resolved file info for selected file ──────────────────────────────────
 
-  const selectedFile = fileList.find((f) => f.file_path === selectedFilePath);
+  const selectedFile = fileList.find(
+    (f) => getSourceFileId(f) === selectedFilePath,
+  );
 
   return {
     // File list

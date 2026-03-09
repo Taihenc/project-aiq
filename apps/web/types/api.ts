@@ -29,7 +29,8 @@ export interface Usage {
 
 // Citation structure (custom extension)
 export interface Citation {
-  id: string; // = file_path for FileRef citations
+  id: string; // frontend canonical file identifier
+  file_id?: string;
   title: string;
   platform: string;
   content?: string;
@@ -47,7 +48,10 @@ export interface ChunkMetadata {
 }
 
 export interface FileRef {
-  file_path: string;
+  /** Frontend-only stable file identity. */
+  file_id?: string;
+  /** Kept for the current backend payload contract. */
+  file_path?: string;
   chunks: ChunkMetadata[];
   /** Display-only: chunk content for hover preview */
   content?: string;
@@ -55,8 +59,10 @@ export interface FileRef {
 
 /** A file that has been ingested into the knowledge base */
 export interface SourceFile {
-  /** Canonical path / identifier — matches Citation.id and FileRef.file_path */
+  /** Legacy backend field; may still carry the canonical identifier */
   file_path: string;
+  /** Preferred stable frontend identity when available */
+  file_id?: string;
   /** Human-readable filename */
   name: string;
   /** File extension (pdf, docx, …) */
@@ -97,6 +103,8 @@ export interface SearchFilter {
   tags?: string[];
   /** Document file paths to exclude from search results */
   exclude?: string[];
+  /** Stable file IDs to exclude from search results at the frontend/backend boundary */
+  exclude_file_ids?: string[];
 }
 
 // OpenAI-compatible chat completions request

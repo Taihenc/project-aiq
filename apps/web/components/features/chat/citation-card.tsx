@@ -10,6 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, Copy, Check, Sparkles, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  getCitationDisplayName,
+  getCitationFileId,
+  getFileExtensionFromName,
+} from '@/lib/utils/file-identity';
 import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
 import type { Citation } from '@/types';
 import type { ChunkMetadata } from '@/types/api';
@@ -73,7 +78,9 @@ export function CitationCard({
   const [copiedChunk, setCopiedChunk] = useState<number | null>(null);
   const { open: openExplorer, selectFile } = useSourceExplorerStore();
 
-  const ext = citation.id.split('.').pop()?.toLowerCase();
+  const fileId = getCitationFileId(citation);
+  const fileName = getCitationDisplayName(citation);
+  const ext = getFileExtensionFromName(fileName, fileId);
   const allChunks: ChunkMetadata[] = citation.chunks ?? [];
   const chunks = visibleChunks ?? allChunks;
 
@@ -127,7 +134,7 @@ export function CitationCard({
               <FileExtBadge ext={ext} />
               <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 <span className="block truncate text-sm font-medium text-[var(--brand-source-text)] leading-tight">
-                  {citation.title}
+                  {fileName}
                 </span>
                 <span className="block truncate text-[11px] text-[var(--brand-source-time)]">
                   {citation.platform}
@@ -147,7 +154,7 @@ export function CitationCard({
             <button
               onClick={() => {
                 openExplorer();
-                selectFile(citation.id);
+                selectFile(fileId);
               }}
               className="flex h-6 w-6 items-center justify-center rounded-full opacity-0 transition-opacity group-hover/header:opacity-100 text-[var(--brand-source-icon)] hover:bg-[var(--brand-source-attach-bg)] hover:text-[var(--brand-link)]"
               title="Open chunk heatmap"

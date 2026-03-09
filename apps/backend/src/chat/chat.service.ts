@@ -23,6 +23,25 @@ import {
   DEFAULT_SESSION_TITLE,
 } from '../constants/chat.constants';
 
+type ResolvedChunkRef = {
+  chunk_number: number;
+  page_number: number;
+  score?: number;
+  content?: string;
+};
+
+type ResolvedFileRef = {
+  file_id?: string;
+  file_path: string;
+  chunks: ResolvedChunkRef[];
+};
+
+type PreparedSearchFlowRequest = {
+  payload: Record<string, any>;
+  persistedAttachments: ResolvedFileRef[];
+  persistedFilter?: Record<string, any>;
+};
+
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
@@ -54,8 +73,6 @@ export class ChatService {
     );
   }
 
-
-
   async enrichResultWithCitations(resultEvent: any): Promise<any> {
     if (resultEvent.type !== 'result' || !resultEvent.content) {
       return resultEvent;
@@ -73,10 +90,25 @@ export class ChatService {
     );
 
     const embeddingUrl = this.getEmbeddingServiceUrl();
+    const resolvedFileIds = await this.resolveFileIdsByPaths(
+      citations
+        .map((citation) => citation?.file_path || citation?.id)
+        .filter(
+          (value: unknown): value is string =>
+            typeof value === 'string' && value.trim().length > 0,
+        ),
+    );
     // One entry per file: id = file_path, chunks carry metadata for re-attaching
     const fileMap: Map<
       string,
-      { id: string; title: string; platform: string; content: string; chunks: any[] }
+      {
+        id: string;
+        file_id?: string;
+        title: string;
+        platform: string;
+        content: string;
+        chunks: any[];
+      }
     > = new Map();
     const filesPayload: any[] = [];
 
@@ -89,6 +121,12 @@ export class ChatService {
         if (!existing) {
           fileMap.set(citation.file_path, {
             id: citation.file_path,
+            ...(citation.file_id || resolvedFileIds.get(citation.file_path)
+              ? {
+                  file_id:
+                    citation.file_id || resolvedFileIds.get(citation.file_path),
+                }
+              : {}),
             title: citation.file_path.split('/').pop() || citation.file_path,
             platform: 'AI Engine',
             content: '',
@@ -136,6 +174,11 @@ export class ChatService {
       if (!fileMap.has(key)) {
         fileMap.set(key, {
           id: citation.id || `citation-${i}`,
+          ...(citation.file_id || resolvedFileIds.get(citation.id)
+            ? {
+                file_id: citation.file_id || resolvedFileIds.get(citation.id),
+              }
+            : {}),
           title: citation.title || citation.name || citation.file_path || `Source ${i + 1}`,
           platform: citation.platform || 'AI Engine',
           content: citation.content || '',
@@ -244,13 +287,14 @@ export class ChatService {
       // Only forward title after the first message so the LLM generates one on the first request
       const isFirstMessage = unsummarizedMessages.length === 0 && !existingSummary;
       const titleForEngine = !isFirstMessage ? sessionData?.title : undefined;
-      const aiEngineRequest = this.prepareAiEngineRequest(
+      const preparedRequest = await this.prepareAiEngineRequest(
         chatRequest,
         unsummarizedMessages,
         existingSummary,
         titleForEngine,
         chatRequest.mode,
       );
+      const aiEngineRequest = preparedRequest.payload;
 
       const aiEngineUrl = this.getAiEngineCompletionUrl();
       this.logger.debug(`Calling AI Engine at: ${aiEngineUrl}`);
@@ -291,10 +335,10 @@ export class ChatService {
           transformed,
           sessionData?.lastSummarizedMessageId ?? undefined,
           existingSummary,
-          chatRequest.attachments,
+          preparedRequest.persistedAttachments,
           parsed.title,
           chatRequest.parent_message_id ?? null,
-          chatRequest.filter ?? null,
+          preparedRequest.persistedFilter ?? null,
         );
       }
 
@@ -314,6 +358,7 @@ export class ChatService {
     userId: string,
   ): Promise<Observable<MessageEvent>> {
     try {
+      this.logger.debug(`Received from frontend: ${JSON.stringify(chatRequest, null, 2)}`);
       const sessionId = chatRequest.session_id || '';
       const parentMessageId = chatRequest.parent_message_id ?? null;
 
@@ -360,13 +405,14 @@ export class ChatService {
       const sessionData = await this.chatHistoryService.getSessionSummary(sessionId);
       const isFirstMessage = unsummarizedMessages.length === 0 && !existingSummary;
       const titleForEngine = !isFirstMessage ? sessionData?.title : undefined;
-      const aiEngineRequest = this.prepareAiEngineRequest(
+      const preparedRequest = await this.prepareAiEngineRequest(
         chatRequest,
         unsummarizedMessages,
         existingSummary,
         titleForEngine,
         chatRequest.mode,
       );
+      const aiEngineRequest = preparedRequest.payload;
 
       this.logger.debug(`Prepared AI Engine streaming request for session: ${sessionId}`);;
       this.logger.debug(`Sent to AI Engine: ${JSON.stringify(aiEngineRequest, null, 2)}`);
@@ -478,10 +524,10 @@ export class ChatService {
                     transformed,
                     lastSummarizedMessageId,
                     existingSummary,
-                    chatRequest.attachments,
+                    preparedRequest.persistedAttachments,
                     parsedResponse.title,
                     parentMessageId,
-                    chatRequest.filter ?? null,
+                    preparedRequest.persistedFilter ?? null,
                   ).catch((err) =>
                     this.logger.error(
                       'Streaming post-chat actions failed',
@@ -529,13 +575,13 @@ export class ChatService {
     return `${aiEngineBaseUrl}/api/v1/completions`;
   }
 
-  private prepareAiEngineRequest(
+  private async prepareAiEngineRequest(
     chatRequest: ChatCompletionsRequestDto,
     unsummarizedMessages: any[],
     existingSummary: string,
     sessionTitle?: string,
     mode?: string,
-  ) {
+  ): Promise<PreparedSearchFlowRequest> {
     const lastUserMessage = [...chatRequest.messages]
       .reverse()
       .find((m) => m.role === 'user');
@@ -544,33 +590,317 @@ export class ChatService {
       (msg) => `${msg.role === 'user' ? 'User' : 'Agent'}: ${msg.content}`,
     );
 
-    // Use only user-provided attachments (no session accumulation)
-    const allAttachments = [...(chatRequest.attachments || [])].map((a) => ({
-      file_path: a.file_path,
-      chunks: [...(a.chunks || [])],
-    }));
+    const resolvedAttachments = await this.resolveFileRefs(
+      chatRequest.attachments || [],
+    );
+    const resolvedFilter = await this.resolveSearchFilter(chatRequest.filter);
+    const enrichedContext = await this.buildAttachmentContext(resolvedAttachments);
+
+    this.logger.debug(
+      `Prepared search-flow payload with ${resolvedAttachments.length} attachment(s) and context length ${enrichedContext.length}`,
+    );
 
     return {
-      query:
-        lastUserMessage?.content ||
-        chatRequest.messages.slice(-1)[0]?.content ||
-        '',
-      title: sessionTitle,
-      history: historyStrings,
-      ...(mode ? { mode } : {}),
-      attachments: allAttachments.map((att) => ({
-        file_path: att.file_path,
-        chunks: (att.chunks || []).map((chunk: any) => {
-          const cleanChunk: any = {
-            chunk_number: chunk.chunk_number,
-            page_number: chunk.page_number,
-          };
-          if (chunk.score !== undefined) cleanChunk.score = chunk.score;
-          return cleanChunk;
-        }),
-      })),
-      ...(chatRequest.filter ? { filter: chatRequest.filter } : {}),
+      payload: {
+        query:
+          lastUserMessage?.content ||
+          chatRequest.messages.slice(-1)[0]?.content ||
+          '',
+        title: sessionTitle,
+        history: historyStrings,
+        ...(mode ? { mode } : {}),
+        ...(resolvedAttachments.length > 0
+          ? { attachments: resolvedAttachments }
+          : {}),
+        ...(enrichedContext ? { context: enrichedContext } : {}),
+        ...(resolvedFilter ? { filter: resolvedFilter } : {}),
+      },
+      persistedAttachments: resolvedAttachments,
+      persistedFilter: this.buildPersistedSearchFilter(
+        chatRequest.filter,
+        resolvedFilter,
+      ),
     };
+  }
+
+  private buildPersistedSearchFilter(
+    originalFilter?: Record<string, any>,
+    resolvedFilter?: Record<string, any>,
+  ): Record<string, any> | undefined {
+    if (!originalFilter && !resolvedFilter) return undefined;
+
+    const nextFilter = { ...(originalFilter || {}) };
+    if (resolvedFilter?.exclude) {
+      nextFilter.exclude = resolvedFilter.exclude;
+    }
+
+    return Object.keys(nextFilter).length > 0 ? nextFilter : undefined;
+  }
+
+  private async resolveSearchFilter(
+    filter?: Record<string, any>,
+  ): Promise<Record<string, any> | undefined> {
+    if (!filter) return undefined;
+
+    const excludeFileIds = Array.isArray(filter.exclude_file_ids)
+      ? filter.exclude_file_ids.filter(
+          (value: unknown): value is string =>
+            typeof value === 'string' && value.trim().length > 0,
+        )
+      : [];
+    const directExcludePaths = Array.isArray(filter.exclude)
+      ? filter.exclude.filter(
+          (value: unknown): value is string =>
+            typeof value === 'string' && value.trim().length > 0,
+        )
+      : [];
+
+    const resolvedExcludePaths = Array.from(
+      new Set([
+        ...directExcludePaths,
+        ...Array.from((await this.resolveFilePathsByIds(excludeFileIds)).values()),
+      ]),
+    );
+
+    const nextFilter = { ...filter };
+    if (excludeFileIds.length > 0) {
+      nextFilter.exclude_file_ids = Array.from(new Set(excludeFileIds));
+    } else {
+      delete nextFilter.exclude_file_ids;
+    }
+    if (resolvedExcludePaths.length > 0) {
+      nextFilter.exclude = resolvedExcludePaths;
+    } else {
+      delete nextFilter.exclude;
+    }
+
+    return Object.keys(nextFilter).length > 0 ? nextFilter : undefined;
+  }
+
+  private async resolveFileRefs(fileRefs: any[]): Promise<ResolvedFileRef[]> {
+    if (!Array.isArray(fileRefs) || fileRefs.length === 0) {
+      return [];
+    }
+
+    const fileIdsToResolve = Array.from(
+      new Set(
+        fileRefs
+          .filter(
+            (fileRef) =>
+              fileRef?.file_id &&
+              !fileRef?.file_path &&
+              typeof fileRef.file_id === 'string',
+          )
+          .map((fileRef) => fileRef.file_id),
+      ),
+    );
+    const resolvedPathMap = await this.resolveFilePathsByIds(fileIdsToResolve);
+
+    return fileRefs
+      .map((fileRef) => {
+        const filePath =
+          fileRef?.file_path ||
+          (fileRef?.file_id ? resolvedPathMap.get(fileRef.file_id) : undefined);
+
+        if (!filePath) {
+          this.logger.warn(
+            `Skipping unresolved attachment${fileRef?.file_id ? ` for file_id=${fileRef.file_id}` : ''}`,
+          );
+          return null;
+        }
+
+        return {
+          ...(fileRef?.file_id ? { file_id: fileRef.file_id } : {}),
+          file_path: filePath,
+          chunks: Array.isArray(fileRef?.chunks)
+            ? fileRef.chunks.map((chunk: any) => {
+                const cleanChunk: ResolvedChunkRef = {
+                  chunk_number: chunk.chunk_number,
+                  page_number: chunk.page_number,
+                };
+                if (chunk.score !== undefined) cleanChunk.score = chunk.score;
+                if (chunk.content !== undefined) cleanChunk.content = chunk.content;
+                return cleanChunk;
+              })
+            : [],
+        } satisfies ResolvedFileRef;
+      })
+      .filter((value): value is ResolvedFileRef => value !== null);
+  }
+
+  private async resolveFilePathsByIds(
+    fileIds: string[],
+  ): Promise<Map<string, string>> {
+    const pendingIds = new Set(fileIds.filter(Boolean));
+    const resolved = new Map<string, string>();
+
+    if (pendingIds.size === 0) {
+      return resolved;
+    }
+
+    const embeddingUrl = this.getEmbeddingServiceUrl();
+    const pageSize = 1000;
+    let offset = 0;
+
+    while (pendingIds.size > 0) {
+      const response = await firstValueFrom(
+        this.httpService.get(`${embeddingUrl}/v1/documents`, {
+          params: { limit: pageSize, offset },
+        }),
+      );
+      const documents: any[] = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.documents ?? response.data?.items ?? []);
+
+      if (!documents.length) {
+        break;
+      }
+
+      for (const document of documents) {
+        const metadata = document?.metadata ?? {};
+        const fileId = metadata.file_id;
+        const filePath = document?.file_path ?? metadata.file_path;
+        if (
+          typeof fileId === 'string' &&
+          typeof filePath === 'string' &&
+          filePath &&
+          pendingIds.has(fileId)
+        ) {
+          resolved.set(fileId, filePath);
+          pendingIds.delete(fileId);
+        }
+      }
+
+      if (documents.length < pageSize) {
+        break;
+      }
+
+      offset += pageSize;
+    }
+
+    if (pendingIds.size > 0) {
+      this.logger.warn(
+        `Could not resolve file paths for file IDs: ${Array.from(pendingIds).join(', ')}`,
+      );
+    }
+
+    return resolved;
+  }
+
+  private async resolveFileIdsByPaths(
+    filePaths: string[],
+  ): Promise<Map<string, string>> {
+    const pendingPaths = new Set(filePaths.filter(Boolean));
+    const resolved = new Map<string, string>();
+
+    if (pendingPaths.size === 0) {
+      return resolved;
+    }
+
+    const embeddingUrl = this.getEmbeddingServiceUrl();
+    const pageSize = 1000;
+    let offset = 0;
+
+    while (pendingPaths.size > 0) {
+      const response = await firstValueFrom(
+        this.httpService.get(`${embeddingUrl}/v1/documents`, {
+          params: { limit: pageSize, offset },
+        }),
+      );
+      const documents: any[] = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.documents ?? response.data?.items ?? []);
+
+      if (!documents.length) {
+        break;
+      }
+
+      for (const document of documents) {
+        const metadata = document?.metadata ?? {};
+        const fileId = metadata.file_id;
+        const filePath = document?.file_path ?? metadata.file_path;
+        if (
+          typeof fileId === 'string' &&
+          typeof filePath === 'string' &&
+          fileId &&
+          filePath &&
+          pendingPaths.has(filePath)
+        ) {
+          resolved.set(filePath, fileId);
+          pendingPaths.delete(filePath);
+        }
+      }
+
+      if (documents.length < pageSize) {
+        break;
+      }
+
+      offset += pageSize;
+    }
+
+    if (pendingPaths.size > 0) {
+      this.logger.warn(
+        `Could not resolve file IDs for file paths: ${Array.from(pendingPaths).join(', ')}`,
+      );
+    }
+
+    return resolved;
+  }
+
+  private async buildAttachmentContext(
+    attachments: ResolvedFileRef[],
+  ): Promise<string> {
+    if (attachments.length === 0) {
+      return '';
+    }
+
+    const files = attachments.map((attachment) => {
+      const pagesMap = new Map<
+        number,
+        Array<{ chunk_number: number; score?: number }>
+      >();
+
+      for (const chunk of attachment.chunks) {
+        const pageNumber = chunk.page_number ?? 0;
+        if (!pagesMap.has(pageNumber)) {
+          pagesMap.set(pageNumber, []);
+        }
+        pagesMap.get(pageNumber)?.push({
+          chunk_number: chunk.chunk_number,
+          ...(chunk.score !== undefined ? { score: chunk.score } : {}),
+        });
+      }
+
+      return {
+        file_path: attachment.file_path,
+        pages: Array.from(pagesMap.entries()).map(([page_number, chunks]) => ({
+          page_number,
+          chunks,
+        })),
+      };
+    });
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.getEmbeddingServiceUrl()}/v1/text-by-file-reference`,
+          { files },
+          { validateStatus: () => true },
+        ),
+      );
+
+      if (response.status !== 200 || !response.data?.result) {
+        this.logger.warn(
+          `text-by-file-reference returned status: ${response.status}`,
+        );
+        return '';
+      }
+
+      return response.data.result as string;
+    } catch (error: any) {
+      this.logger.warn(`Failed to enrich request attachments: ${error.message}`);
+      return '';
+    }
   }
 
   private async handlePostChatActions(
@@ -912,6 +1242,7 @@ export class ChatService {
             .join('\n\n');
           citations.push({
             id: source.file_path,
+            ...(source.file_id ? { file_id: source.file_id } : {}),
             title: fileName,
             platform: 'AI Engine',
             content: allContent,
@@ -928,6 +1259,7 @@ export class ChatService {
         // Handle generic object
         citations.push({
           id: source.id || `citation-${index}`,
+          ...(source.file_id ? { file_id: source.file_id } : {}),
           title:
             source.title ||
             source.name ||

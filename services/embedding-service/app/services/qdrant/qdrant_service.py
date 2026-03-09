@@ -412,6 +412,11 @@ class QdrantService:
                 FieldCondition(key="tags", match=MatchAny(any=filters.tags))
             )
 
+        if filters.exclude_file_ids:
+            must_not_conditions.append(
+                FieldCondition(key="file_id", match=MatchAny(any=filters.exclude_file_ids))
+            )
+
         if filters.exclude:
             must_not_conditions.append(
                 FieldCondition(key="file_path", match=MatchAny(any=filters.exclude))

@@ -28,6 +28,12 @@ import { GlobalSearchPane } from './global-search-pane';
 import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
 import { FileRow } from './file-row';
 import { useExcludeStore } from '@/hooks/useExcludeStore';
+import {
+  hasFileIdentifier,
+  getPathDisplayName,
+  getSourceFileDisplayName,
+  getSourceFileId,
+} from '@/lib/utils/file-identity';
 import type { useSourceExplorerBody } from './useSourceExplorerBody';
 import type { ChunkMetadata } from '@/types/api';
 
@@ -204,7 +210,7 @@ export function SourceExplorerBodyView({
   selectedFilePath,
 }: SourceExplorerBodyViewProps) {
   const {
-    excludedPaths,
+    excludedIdentifiers,
     toggle: toggleExclude,
     clearAll: clearAllExcluded,
   } = useExcludeStore();
@@ -274,7 +280,8 @@ export function SourceExplorerBodyView({
 
   const handleLoadAllFiles = useCallback(() => {
     fileList.forEach((f) => {
-      if (!chunksCache[f.file_path]) storeSelectFile(f.file_path);
+      const fileId = getSourceFileId(f);
+      if (!chunksCache[fileId]) storeSelectFile(fileId);
     });
   }, [fileList, chunksCache, storeSelectFile]);
 
@@ -399,31 +406,47 @@ export function SourceExplorerBodyView({
             </p>
           ) : (
             fileList
-              .filter((f) => !excludedPaths.includes(f.file_path))
+              .filter(
+                (f) =>
+                  !hasFileIdentifier(
+                    excludedIdentifiers,
+                    getSourceFileId(f),
+                    f.file_path,
+                  ),
+              )
               .map((file) => {
-                const counts = fileCountMap.get(file.file_path) ?? {
+                const fileId = getSourceFileId(file);
+                const counts = fileCountMap.get(fileId) ?? {
                   citedCount: 0,
                   attachedCount: 0,
                 };
                 return (
                   <FileRow
-                    key={file.file_path}
-                    filePath={file.file_path}
-                    name={file.name}
+                    key={fileId}
+                    filePath={fileId}
+                    name={getSourceFileDisplayName(file)}
                     ext={file.ext}
                     citedCount={counts.citedCount}
                     attachedCount={counts.attachedCount}
-                    isSelected={selectedFilePath === file.file_path}
-                    onSelect={() => handleFileSelect(file.file_path)}
+                    isSelected={selectedFilePath === fileId}
+                    onSelect={() => handleFileSelect(fileId)}
                     isExcluded={false}
-                    onToggleExclude={() => toggleExclude(file.file_path)}
+                    onToggleExclude={() =>
+                      toggleExclude(fileId, file.file_path)
+                    }
                   />
                 );
               })
           )}
         </div>
         {/* ── Excluded files — pinned to bottom of container ── */}
-        {fileList.some((f) => excludedPaths.includes(f.file_path)) && (
+        {fileList.some((f) =>
+          hasFileIdentifier(
+            excludedIdentifiers,
+            getSourceFileId(f),
+            f.file_path,
+          ),
+        ) && (
           <div className="shrink-0 px-1.5 pb-1.5">
             <div className="overflow-hidden rounded-xl border border-rose-200/70 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/20">
               <div className="flex items-center gap-1.5 border-b border-rose-200/70 px-2.5 py-1.5 dark:border-rose-900/40">
@@ -433,8 +456,13 @@ export function SourceExplorerBodyView({
                 </span>
                 <span className="rounded-full bg-rose-100 px-1.5 py-0 text-[9px] font-bold text-rose-500 dark:bg-rose-950/60 dark:text-rose-400">
                   {
-                    fileList.filter((f) => excludedPaths.includes(f.file_path))
-                      .length
+                    fileList.filter((f) =>
+                      hasFileIdentifier(
+                        excludedIdentifiers,
+                        getSourceFileId(f),
+                        f.file_path,
+                      ),
+                    ).length
                   }
                 </span>
                 <button
@@ -448,24 +476,33 @@ export function SourceExplorerBodyView({
               </div>
               <div className="custom-scrollbar max-h-[160px] overflow-y-auto p-1">
                 {fileList
-                  .filter((f) => excludedPaths.includes(f.file_path))
+                  .filter((f) =>
+                    hasFileIdentifier(
+                      excludedIdentifiers,
+                      getSourceFileId(f),
+                      f.file_path,
+                    ),
+                  )
                   .map((file) => {
-                    const counts = fileCountMap.get(file.file_path) ?? {
+                    const fileId = getSourceFileId(file);
+                    const counts = fileCountMap.get(fileId) ?? {
                       citedCount: 0,
                       attachedCount: 0,
                     };
                     return (
                       <FileRow
-                        key={file.file_path}
-                        filePath={file.file_path}
-                        name={file.name}
+                        key={fileId}
+                        filePath={fileId}
+                        name={getSourceFileDisplayName(file)}
                         ext={file.ext}
                         citedCount={counts.citedCount}
                         attachedCount={counts.attachedCount}
-                        isSelected={selectedFilePath === file.file_path}
-                        onSelect={() => handleFileSelect(file.file_path)}
+                        isSelected={selectedFilePath === fileId}
+                        onSelect={() => handleFileSelect(fileId)}
                         isExcluded={true}
-                        onToggleExclude={() => toggleExclude(file.file_path)}
+                        onToggleExclude={() =>
+                          toggleExclude(fileId, file.file_path)
+                        }
                       />
                     );
                   })}
@@ -510,7 +547,9 @@ export function SourceExplorerBodyView({
             <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5">
               <FileExtBadge ext={selectedFile?.ext ?? ''} />
               <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
-                {selectedFile?.name ?? selectedFilePath.split('/').pop()}
+                {selectedFile
+                  ? getSourceFileDisplayName(selectedFile)
+                  : selectedFilePath}
               </span>
               {/* Quick actions inline */}
               {viewMode === 'chunks' && (
@@ -632,8 +671,10 @@ export function SourceExplorerBodyView({
                         isLoading={previewLoading}
                         error={previewError}
                         fileName={
-                          selectedFile?.name ??
-                          selectedFilePath?.split('/').pop() ??
+                          (selectedFile
+                            ? getSourceFileDisplayName(selectedFile)
+                            : undefined) ??
+                          getPathDisplayName(selectedFilePath) ??
                           ''
                         }
                         ext={selectedFile?.ext}
@@ -675,8 +716,10 @@ export function SourceExplorerBodyView({
                         chunk={selectedChunk}
                         allChunks={selectedChunks}
                         fileName={
-                          selectedFile?.name ??
-                          selectedFilePath?.split('/').pop() ??
+                          (selectedFile
+                            ? getSourceFileDisplayName(selectedFile)
+                            : undefined) ??
+                          getPathDisplayName(selectedFilePath) ??
                           ''
                         }
                         fileExt={selectedFile?.ext}

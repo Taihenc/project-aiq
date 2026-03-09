@@ -16,6 +16,13 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EyeOff, Ban, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  getAttachmentFileId,
+  getCitationDisplayName,
+  getCitationFileId,
+  getFileExtensionFromName,
+  hasFileIdentifier,
+} from '@/lib/utils/file-identity';
 import type { Citation, FileRef } from '@/types/api';
 import { FileExtBadge } from './attachment-pill';
 import { useExcludeStore } from '@/hooks/useExcludeStore';
@@ -37,28 +44,28 @@ export function ExcludeFilesPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
-  const { excludedPaths, toggle, clearAll } = useExcludeStore();
+  const { excludedIdentifiers, excludedFileIds, toggle, clearAll } =
+    useExcludeStore();
 
-  const excludedSet = useMemo(() => new Set(excludedPaths), [excludedPaths]);
   const attachedSet = useMemo(
-    () => new Set(attachments.map((a) => a.file_path)),
+    () => new Set(attachments.map((a) => getAttachmentFileId(a))),
     [attachments],
   );
-  const count = excludedPaths.length;
+  const count = excludedFileIds.length;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return availableCitations;
     return availableCitations.filter(
       (c) =>
-        c.title.toLowerCase().includes(q) || c.id.toLowerCase().includes(q),
+        c.title.toLowerCase().includes(q) ||
+        getCitationFileId(c).toLowerCase().includes(q),
     );
   }, [availableCitations, query]);
 
-  const handleToggle = (filePath: string) => {
-    // Cannot exclude a file that is already attached
-    if (attachedSet.has(filePath)) return;
-    toggle(filePath);
+  const handleToggle = (fileId: string, filePath?: string) => {
+    if (attachedSet.has(fileId)) return;
+    toggle(fileId, filePath);
   };
 
   const handleClearAll = () => clearAll();
@@ -166,17 +173,21 @@ export function ExcludeFilesPicker({
                   </p>
                 ) : (
                   filtered.map((citation) => {
-                    const isExcluded = excludedSet.has(citation.id);
-                    const isAttached = attachedSet.has(citation.id);
-                    const filename =
-                      citation.id.split('/').pop() || citation.title;
-                    const ext = filename.split('.').pop()?.toLowerCase();
+                    const fileId = getCitationFileId(citation);
+                    const isExcluded = hasFileIdentifier(
+                      excludedIdentifiers,
+                      fileId,
+                      citation.id,
+                    );
+                    const isAttached = attachedSet.has(fileId);
+                    const filename = getCitationDisplayName(citation);
+                    const ext = getFileExtensionFromName(filename, fileId);
 
                     return (
                       <button
-                        key={citation.id}
+                        key={fileId}
                         type="button"
-                        onClick={() => handleToggle(citation.id)}
+                        onClick={() => handleToggle(fileId, citation.id)}
                         disabled={isAttached}
                         title={
                           isAttached

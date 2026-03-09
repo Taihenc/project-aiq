@@ -13,6 +13,14 @@ import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
 import { useExcludeStore } from '@/hooks/useExcludeStore';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import {
+  createAttachmentFileRef,
+  getAttachmentFileId,
+  getCitationDisplayName,
+  getCitationFileId,
+  getFileExtensionFromName,
+  hasFileIdentifier,
+} from '@/lib/utils/file-identity';
 import type { Citation, ChunkMetadata, FileRef } from '@/types';
 import { FileExtBadge } from './attachment-pill';
 
@@ -26,7 +34,7 @@ export function SourceCard({
   source: Citation;
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
-  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk?: (fileId: string, chunkNumber: number) => void;
   attachments?: FileRef[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,18 +44,22 @@ export function SourceCard({
     selectFile,
   } = useSourceExplorerStore();
   const {
-    excludedPaths,
+    excludedIdentifiers,
     toggle: toggleExclude,
     remove: removeExclude,
   } = useExcludeStore();
 
+  const fileId = getCitationFileId(source);
   const filePath = source.id;
   const chunks: ChunkMetadata[] = source.chunks ?? [];
-  const ext = filePath.split('.').pop()?.toLowerCase();
-  const isExcluded = excludedPaths.includes(filePath);
+  const fileName = getCitationDisplayName(source);
+  const ext = getFileExtensionFromName(fileName, fileId);
+  const isExcluded = hasFileIdentifier(excludedIdentifiers, fileId, filePath);
 
   // Current FileRef in attachments
-  const currentAttachment = attachments.find((a) => a.file_path === filePath);
+  const currentAttachment = attachments.find(
+    (a) => getAttachmentFileId(a) === fileId,
+  );
 
   const isChunkAttached = (chunkNumber: number) =>
     currentAttachment?.chunks.some((c) => c.chunk_number === chunkNumber) ??
@@ -62,37 +74,44 @@ export function SourceCard({
 
   const handleToggleChunk = (c: ChunkMetadata) => {
     if (isChunkAttached(c.chunk_number)) {
-      onRemoveChunk?.(filePath, c.chunk_number);
+      onRemoveChunk?.(fileId, c.chunk_number);
     } else {
-      onAddAttachment?.({
-        file_path: filePath,
-        chunks: [
-          {
-            chunk_number: c.chunk_number,
-            page_number: c.page_number,
-            content: c.content,
-          },
-        ],
-      });
+      onAddAttachment?.(
+        createAttachmentFileRef({
+          fileId,
+          filePath,
+          chunks: [
+            {
+              chunk_number: c.chunk_number,
+              page_number: c.page_number,
+              content: c.content,
+            },
+          ],
+        }),
+      );
     }
   };
 
   const handleToggleAll = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isAllAttached) {
-      const index = attachments.findIndex((a) => a.file_path === filePath);
+      const index = attachments.findIndex(
+        (a) => getAttachmentFileId(a) === fileId,
+      );
       if (index !== -1) onRemoveAttachment?.(index);
     } else {
-      // Attaching always clears any existing exclusion for this file
-      removeExclude(filePath);
-      onAddAttachment?.({
-        file_path: filePath,
-        chunks: chunks.map((c) => ({
-          chunk_number: c.chunk_number,
-          page_number: c.page_number,
-          content: c.content,
-        })),
-      });
+      removeExclude(fileId, filePath);
+      onAddAttachment?.(
+        createAttachmentFileRef({
+          fileId,
+          filePath,
+          chunks: chunks.map((c) => ({
+            chunk_number: c.chunk_number,
+            page_number: c.page_number,
+            content: c.content,
+          })),
+        }),
+      );
     }
   };
 
@@ -136,7 +155,7 @@ export function SourceCard({
             onClick={(e) => {
               e.stopPropagation();
               openExplorer();
-              selectFile(filePath);
+              selectFile(fileId);
             }}
             title="Open in Source Explorer"
           >
@@ -156,7 +175,7 @@ export function SourceCard({
             >
               <div className="flex flex-col items-start min-w-0">
                 <span className="truncate text-sm font-medium text-[var(--brand-source-text)] leading-tight">
-                  {source.title}
+                  {fileName}
                 </span>
                 <span className="text-[11px] text-[var(--brand-source-time)]">
                   {source.platform}
@@ -198,7 +217,7 @@ export function SourceCard({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!isAnyAttached) toggleExclude(filePath);
+                  if (!isAnyAttached) toggleExclude(fileId, filePath);
                 }}
                 disabled={isAnyAttached}
                 title={
@@ -309,7 +328,7 @@ export function SourceCard({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              openAtChunk(filePath, chunk.chunk_number);
+                              openAtChunk(fileId, chunk.chunk_number);
                             }}
                             className="flex h-6 w-6 items-center justify-center rounded-full opacity-0 transition-opacity group-hover/chunk:opacity-100 text-[var(--brand-source-icon)] hover:bg-[var(--brand-source-attach-bg)] hover:text-[var(--brand-link)]"
                             title="Open in Source Explorer"

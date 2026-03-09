@@ -11,6 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FileRef, ChunkMetadata, SearchFilter } from '@/types';
+import {
+  getAttachmentDisplayName,
+  getFileExtensionFromName,
+} from '@/lib/utils/file-identity';
 import { FileExtBadge } from './attachment-pill';
 import { ExcludeFilesCircle, SearchFilterCircle } from './message-filter-pills';
 
@@ -30,7 +34,11 @@ export function SentAttachmentsPillRow({
   const always = attachments.slice(0, PILL_VISIBLE_DEFAULT);
   const extra = attachments.slice(PILL_VISIBLE_DEFAULT);
 
-  const { exclude: excludeList, ...filterOnly } = searchFilter ?? {};
+  const {
+    exclude: excludeList,
+    exclude_file_ids: _excludeFileIds,
+    ...filterOnly
+  } = searchFilter ?? {};
   const hasFilter = Object.values(filterOnly).some(
     (v) =>
       v !== undefined &&
@@ -110,8 +118,8 @@ export function SentAttachmentsPillRow({
 
 export function SentCitationPill({ att }: { att: FileRef }) {
   const [expanded, setExpanded] = useState(false);
-  const filename = att.file_path.split('/').pop() || att.file_path;
-  const ext = att.file_path.split('.').pop()?.toLowerCase();
+  const filename = getAttachmentDisplayName(att);
+  const ext = getFileExtensionFromName(filename, att.file_path);
 
   const pageMap = new Map<number, ChunkMetadata[]>();
   for (const chunk of att.chunks) {

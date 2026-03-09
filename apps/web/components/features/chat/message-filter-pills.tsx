@@ -7,6 +7,11 @@ import {
 } from '@/components/ui/popover';
 import { EyeOff, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  decodeForDisplay,
+  getFileExtensionFromName,
+  getPathDisplayName,
+} from '@/lib/utils/file-identity';
 import type { SearchFilter } from '@/types/api';
 import { FileExtBadge } from './attachment-pill';
 
@@ -53,8 +58,9 @@ export function ExcludeFilesCircle({ exclude }: { exclude: string[] }) {
         {/* File list */}
         <div className="flex max-h-52 flex-col gap-0 overflow-y-auto custom-scrollbar">
           {exclude.map((filePath, i) => {
-            const filename = filePath.split('/').pop() || filePath;
-            const ext = filePath.split('.').pop()?.toLowerCase();
+            const filename = getPathDisplayName(filePath);
+            const fullPath = decodeForDisplay(filePath);
+            const ext = getFileExtensionFromName(filename, filePath);
             return (
               <div
                 key={filePath}
@@ -69,9 +75,9 @@ export function ExcludeFilesCircle({ exclude }: { exclude: string[] }) {
                   <span className="truncate text-[11px] font-medium leading-tight text-[var(--brand-source-text)]">
                     {filename}
                   </span>
-                  {filePath !== filename && (
+                  {fullPath !== filename && (
                     <span className="truncate text-[9px] text-[var(--brand-source-time)]">
-                      {filePath}
+                      {fullPath}
                     </span>
                   )}
                 </div>
