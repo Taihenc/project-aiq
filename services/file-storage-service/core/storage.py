@@ -46,3 +46,11 @@ class StorageService:
         except ClientError as e:
             print(f"Error generating presigned URL: {e}")
             return None
+
+    def delete_object(self, object_name):
+        try:
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=object_name)
+            return True
+        except ClientError as e:
+            print(f"Error deleting object: {e}")
+            return False

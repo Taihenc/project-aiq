@@ -16,6 +16,8 @@ class MetaData(BaseModel):
     columns: Optional[List[str]] = Field(default=None, description="columns", nullable=True)
     created_at: Optional[str] = Field(default="", description="created time", nullable=True)
     checksum: Optional[str] = Field(default="", description="checksum of byte", nullable=True)
+    file_id: Optional[str] = Field(default=None, description="stable file id", nullable=True)
+    source_id: Optional[str] = Field(default=None, description="stable upstream source id", nullable=True)
 
 class Chunk(BaseModel):
     chunk_number: int = Field(...)

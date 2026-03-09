@@ -1,15 +1,17 @@
-from .context_builder import ContextMetadata, ContextRecord
-
 import requests
 from config import settings
-from typing import Any, Dict, List
-import json
+from typing import Any, Dict, Mapping, Sequence
 
 class Upload:
     def __init__(self):
         self.API_URL = settings.api_url
 
-    async def upload(self, contexts: List[Dict[str, Any]], file_id: str | None = None):
+    async def upload(
+        self,
+        contexts: Sequence[Mapping[str, Any]],
+        file_id: str | None = None,
+        source_id: str | None = None,
+    ):
 
         documents = []
 
@@ -38,6 +40,8 @@ class Upload:
                     ###
                     "created_at": metadata.get("created_at"),
                     "checksum": metadata.get("checksum"),
+                    "file_id": file_id,
+                    "source_id": source_id,
                 }
             })
 

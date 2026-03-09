@@ -97,6 +97,8 @@ async def upload_documents(batch: DocumentUploadRequest):
                     "columns": doc.metadata.columns,
                     "created_at": doc.metadata.created_at,
                     "checksum": doc.metadata.checksum,
+                    "file_id": doc.metadata.file_id,
+                    "source_id": doc.metadata.source_id,
                 }
             }
             for doc in batch.documents
@@ -167,18 +169,34 @@ async def delete_document(id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
 @router.delete("/delete-by-file", response_model=DocumentDeleteResponse)
-async def delete_documents_by_file(file_name: str = Query(..., description="File name to delete all chunks for")):
-    """Delete all Qdrant vectors that belong to a given file (matched on the 'file' metadata field)."""
+async def delete_documents_by_file(
+    file_name: Optional[str] = Query(None, description="File name to delete all chunks for"),
+    file_id: Optional[str] = Query(None, description="Stable file id to delete all chunks for"),
+    source_id: Optional[str] = Query(None, description="Stable source id to delete all chunks for"),
+):
+    """Delete all Qdrant vectors that belong to a file using stable identity first, with file-name fallback."""
     try:
-        qdrant_service.delete_documents_by_file(file_name)
-        return DocumentDeleteResponse(message=f"All chunks for '{file_name}' deleted successfully")
+        if file_id:
+            qdrant_service.delete_documents_by_file_id(file_id)
+            return DocumentDeleteResponse(message=f"All chunks for file_id '{file_id}' deleted successfully")
+        if source_id:
+            qdrant_service.delete_documents_by_source_id(source_id)
+            return DocumentDeleteResponse(message=f"All chunks for source_id '{source_id}' deleted successfully")
+        if file_name:
+            qdrant_service.delete_documents_by_file(file_name)
+            return DocumentDeleteResponse(message=f"All chunks for '{file_name}' deleted successfully")
+        raise HTTPException(status_code=422, detail="Provide file_id, source_id, or file_name")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete documents for file: {str(e)}")
 
 
 @router.get("/file-status", response_model=FileStatusResponse)
 async def get_file_index_status(
-    file_name: str = Query(..., description="File name to check (matched on 'file' metadata field)"),
+    file_name: Optional[str] = Query(None, description="File name to check (matched on 'file' metadata field)"),
+    file_id: Optional[str] = Query(None, description="Stable file id to check"),
+    source_id: Optional[str] = Query(None, description="Stable source id to check"),
 ):
     """
     Reconciliation probe: returns whether the file has any chunks stored in Qdrant
@@ -186,12 +204,21 @@ async def get_file_index_status(
     for the canonical FSS status record.
     """
     try:
-        count = qdrant_service.count_documents_by_file(file_name)
+        if file_id:
+            count = qdrant_service.count_documents_by_file_id(file_id)
+        elif source_id:
+            count = qdrant_service.count_documents_by_source_id(source_id)
+        elif file_name:
+            count = qdrant_service.count_documents_by_file(file_name)
+        else:
+            raise HTTPException(status_code=422, detail="Provide file_id, source_id, or file_name")
         return FileStatusResponse(
-            file_name=file_name,
+            file_name=file_name or "",
             indexed=count > 0,
             chunk_count=count,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to query file status: {str(e)}")
 
