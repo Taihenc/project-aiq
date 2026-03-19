@@ -2,11 +2,11 @@
   "entries": [
     {
       "question": "what is life span of sandbox environment?",
-      "expected_answer": "Sandbox environment has a lifespan of 30 days. After 30 days, the environment and all associated data will be automatically deleted.",
+      "expected_answer": "Sandbox environment has a lifespan of 14 days.",
       "expected_tool_calls": [
         "search_documents"
       ],
-      "objective": "Identify the specific duration (30 days) and the consequence of expiration (automatic deletion)."
+      "objective": "Identify the specific duration."
     },
     {
       "question": "สภาพแวดล้อมแบบ Sandbox (Sandbox environment) มีอายุการใช้งานนานเท่าใด?",
