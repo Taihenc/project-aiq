@@ -98,7 +98,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
 
   return (
     <ScrollArea className="h-full" ref={scrollAreaRef}>
-      <div className="mx-auto max-w-3xl space-y-6 pb-28">
+      <div className="mx-auto max-w-3xl flex flex-col gap-6 pb-28">
         {/* Older messages sentinel */}
         {hasOlderMessages && (
           <div ref={sentinelRef} className="flex justify-center py-3">
