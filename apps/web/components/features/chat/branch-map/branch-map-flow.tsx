@@ -82,13 +82,14 @@ export function BranchMapFlow({
     [],
   );
 
-  const hasBranches = Array.from(messageTree.values()).some(
-    (m) =>
-      m.parentId &&
-      (messageTree.get(m.parentId)?.parentId !== null || true) &&
-      Array.from(messageTree.values()).filter((x) => x.parentId === m.parentId)
-        .length > 1,
-  );
+  const hasBranches = (() => {
+    const childrenByParent = new Map<string | null, number>();
+    for (const m of messageTree.values()) {
+      const key = m.parentId ?? null;
+      childrenByParent.set(key, (childrenByParent.get(key) ?? 0) + 1);
+    }
+    return Array.from(childrenByParent.values()).some((count) => count > 1);
+  })();
 
   if (messageTree.size === 0 || !hasBranches) {
     return <EmptyState />;
