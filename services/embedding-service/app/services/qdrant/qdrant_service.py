@@ -13,6 +13,7 @@ from app.config import settings
 from app.services.embedding.embedding_service import embedding_service
 from app.models.models import (
     Filter as ModelFilter,
+    FilterOptionsResponse,
     Page,
     Chunk,
 )
@@ -53,7 +54,7 @@ class QdrantService:
             )
             logger.info("Collection %s created", self.collection_name)
 
-    def _ensure_duplicate(self, path: str) -> bool:
+    def _ensure_duplicate(self, key: str, value: str) -> bool:
         self._ensure_collection()
 
         try:
@@ -62,8 +63,8 @@ class QdrantService:
                 scroll_filter=Filter(
                     must=[
                         FieldCondition(
-                            key="file_path",
-                            match=MatchValue(value=path)
+                            key=key,
+                            match=MatchValue(value=value)
                         )
                     ]
                 ),
@@ -73,8 +74,25 @@ class QdrantService:
             return len(results) > 0
 
         except Exception:
-            logger.exception("Error checking for duplicate path '%s'", path)
+            logger.exception("Error checking for duplicate %s '%s'", key, value)
             return False
+
+    def _metadata_filter(self, key: str, value: str) -> Filter:
+        return Filter(
+            must=[
+                FieldCondition(
+                    key=key,
+                    match=MatchValue(value=value)
+                )
+            ]
+        )
+
+    def _get_document_identity(self, metadata: Dict[str, Any]) -> Optional[tuple[str, str]]:
+        for key in ("file_id", "source_id", "file_path"):
+            value = metadata.get(key)
+            if value:
+                return key, str(value)
+        return None
 
     def _delete_by_metadata(self, metadata_filter: Filter) -> None:
         self._ensure_collection()
@@ -94,16 +112,9 @@ class QdrantService:
         if len(documents) == 0:
             return []
 
-        if not duplicate and self._ensure_duplicate(documents[0]["metadata"]["file_path"]):
-            metadata_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="file_path",
-                        match=MatchValue(value=documents[0]["metadata"]["file_path"])
-                    )
-                ]
-            )
-            self._delete_by_metadata(metadata_filter=metadata_filter)
+        identity = self._get_document_identity(documents[0].get("metadata", {}))
+        if not duplicate and identity and self._ensure_duplicate(identity[0], identity[1]):
+            self._delete_by_metadata(self._metadata_filter(identity[0], identity[1]))
 
         texts = [doc['text'] for doc in documents]
 
@@ -258,15 +269,13 @@ class QdrantService:
 
     def delete_documents_by_file(self, file_name: str) -> None:
         """Delete all Qdrant points whose 'file' metadata field matches the given file name."""
-        metadata_filter = Filter(
-            must=[
-                FieldCondition(
-                    key="file",
-                    match=MatchValue(value=file_name)
-                )
-            ]
-        )
-        self._delete_by_metadata(metadata_filter=metadata_filter)
+        self._delete_by_metadata(self._metadata_filter("file", file_name))
+
+    def delete_documents_by_file_id(self, file_id: str) -> None:
+        self._delete_by_metadata(self._metadata_filter("file_id", file_id))
+
+    def delete_documents_by_source_id(self, source_id: str) -> None:
+        self._delete_by_metadata(self._metadata_filter("source_id", source_id))
 
     def count_documents_by_file(self, file_name: str) -> int:
         """
@@ -278,20 +287,81 @@ class QdrantService:
         try:
             result = self.client.count(
                 collection_name=self.collection_name,
-                count_filter=Filter(
-                    must=[
-                        FieldCondition(
-                            key="file",
-                            match=MatchValue(value=file_name),
-                        )
-                    ]
-                ),
+                count_filter=self._metadata_filter("file", file_name),
                 exact=True,
             )
             return result.count
         except Exception:
             logger.exception("Error counting documents for file '%s'", file_name)
             return 0
+
+    def count_documents_by_file_id(self, file_id: str) -> int:
+        self._ensure_collection()
+        try:
+            result = self.client.count(
+                collection_name=self.collection_name,
+                count_filter=self._metadata_filter("file_id", file_id),
+                exact=True,
+            )
+            return result.count
+        except Exception:
+            logger.exception("Error counting documents for file_id '%s'", file_id)
+            return 0
+
+    def count_documents_by_source_id(self, source_id: str) -> int:
+        self._ensure_collection()
+        try:
+            result = self.client.count(
+                collection_name=self.collection_name,
+                count_filter=self._metadata_filter("source_id", source_id),
+                exact=True,
+            )
+            return result.count
+        except Exception:
+            logger.exception("Error counting documents for source_id '%s'", source_id)
+            return 0
+
+    def get_filter_options(self) -> FilterOptionsResponse:
+        """
+        Scroll every point in the collection and extract the distinct values for
+        every filterable metadata dimension (department, team, project, tags, file_type).
+        Returned lists are sorted case-insensitively for predictable UI ordering.
+        """
+        self._ensure_collection()
+
+        departments: set = set()
+        teams: set = set()
+        projects: set = set()
+        tags: set = set()
+        file_types: set = set()
+
+        next_offset = None
+        while True:
+            points, next_offset = self.client.scroll(
+                collection_name=self.collection_name,
+                offset=next_offset,
+                limit=1000,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for point in points:
+                p = point.payload or {}
+                if p.get("department"): departments.add(p["department"])
+                if p.get("team"): teams.add(p["team"])
+                if p.get("project"): projects.add(p["project"])
+                if p.get("file_type"): file_types.add(p["file_type"])
+                for tag in (p.get("tags") or []):
+                    if tag: tags.add(tag)
+            if next_offset is None:
+                break
+
+        return FilterOptionsResponse(
+            department=sorted(departments, key=str.lower),
+            team=sorted(teams, key=str.lower),
+            project=sorted(projects, key=str.lower),
+            tags=sorted(tags, key=str.lower),
+            file_type=sorted(file_types, key=str.lower),
+        )
 
     def get_collection_info(self) -> Dict[str, Any]:
         self._ensure_collection()
@@ -308,6 +378,7 @@ class QdrantService:
             return Filter()
 
         field_conditions = []
+        must_not_conditions = []
 
         # Exact Matches (MatchValue)
         exact_match_fields = {
@@ -341,8 +412,19 @@ class QdrantService:
                 FieldCondition(key="tags", match=MatchAny(any=filters.tags))
             )
 
+        if filters.exclude_file_ids:
+            must_not_conditions.append(
+                FieldCondition(key="file_id", match=MatchAny(any=filters.exclude_file_ids))
+            )
+
+        if filters.exclude:
+            must_not_conditions.append(
+                FieldCondition(key="file_path", match=MatchAny(any=filters.exclude))
+            )
+
         format_filter = Filter(
-            must=field_conditions
+            must=field_conditions,
+            must_not=must_not_conditions
         )
 
         return format_filter

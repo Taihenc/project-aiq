@@ -85,7 +85,16 @@ class StatusUpdateRequest(BaseModel):
     status: str
 
 
-async def process_upload(file_id: str, upload_request: UploadRequest):
+def _normalize_metadata(file_name: str, metadata: dict, previous_file_name: Optional[str] = None) -> dict:
+    normalized = dict(metadata)
+    if previous_file_name and previous_file_name != file_name:
+        normalized["_previous_file_name"] = previous_file_name
+    else:
+        normalized.pop("_previous_file_name", None)
+    return normalized
+
+
+async def process_upload(file_id: str, upload_request: UploadRequest, previous_s3_key: Optional[str] = None):
     print(f"Starting upload for {file_id}")
 
     update_status(file_id, "PROCESSING")
@@ -116,7 +125,15 @@ async def process_upload(file_id: str, upload_request: UploadRequest):
                 )
 
                 if success:
-                    update_file_record(file_id, s3_key, "COMPLETED")
+                    update_file_record(
+                        file_id,
+                        s3_key,
+                        "COMPLETED",
+                        file_name=file_name,
+                        metadata=upload_request.metadata or {},
+                    )
+                    if previous_s3_key and previous_s3_key != s3_key:
+                        await asyncio.to_thread(storage_service.delete_object, previous_s3_key)
                     _notify_webhook(file_id, source_id, "COMPLETED", file_name)
 
                     await message_publisher.publish_file_ready(
@@ -124,29 +141,67 @@ async def process_upload(file_id: str, upload_request: UploadRequest):
                     )
                     print(f"Upload completed for {file_id}")
                 else:
-                    update_status(file_id, "FAILED")
+                    update_file_record(
+                        file_id,
+                        None,
+                        "FAILED",
+                        file_name=file_name,
+                        metadata=upload_request.metadata or {},
+                    )
                     _notify_webhook(file_id, source_id, "FAILED", file_name)
                     print(f"Upload failed for {file_id}")
 
     except Exception as e:
         print(f"Error processing upload for {file_id}: {e}")
-        update_status(file_id, "FAILED")
+        update_file_record(
+            file_id,
+            None,
+            "FAILED",
+            file_name=file_name,
+            metadata=upload_request.metadata or {},
+        )
         _notify_webhook(file_id, source_id, "FAILED", file_name)
 
-def save_initial_record(file_id: str, file_name: str, metadata: dict) -> None:
+def prepare_upload_record(file_name: str, metadata: dict) -> tuple[str, Optional[str], dict]:
     now = datetime.now(timezone.utc).isoformat()
     source_id = metadata.get("id", "") or ""
     with _new_session() as session:
+        existing = None
+        if source_id:
+            statement = (
+                select(File)
+                .where(File.source_id == source_id, File.status != "DELETED")
+                .order_by(File.status_updated_at.desc())  # type: ignore[arg-type]
+            )
+            existing = session.exec(statement).first()
+        normalized_metadata = _normalize_metadata(
+            file_name,
+            metadata,
+            previous_file_name=existing.file_name if existing else None,
+        )
+
+        if existing:
+            existing.file_name = file_name
+            existing.file_metadata = json.dumps(normalized_metadata)
+            existing.status = "PENDING"
+            existing.status_updated_at = now
+            existing.source_id = source_id
+            session.add(existing)
+            session.commit()
+            return existing.id, existing.s3_key, normalized_metadata
+
+        file_id = str(uuid.uuid4())
         file = File(
             id=file_id,
             file_name=file_name,
-            file_metadata=json.dumps(metadata),
+            file_metadata=json.dumps(normalized_metadata),
             status="PENDING",
             status_updated_at=now,
             source_id=source_id,
         )
         session.add(file)
         session.commit()
+        return file_id, None, normalized_metadata
 
 
 def update_status(file_id: str, status: str) -> None:
@@ -160,14 +215,31 @@ def update_status(file_id: str, status: str) -> None:
             session.commit()
 
 
-def update_file_record(file_id: str, s3_key: str, status: str) -> None:
+def update_file_record(
+    file_id: str,
+    s3_key: Optional[str],
+    status: str,
+    *,
+    file_name: Optional[str] = None,
+    metadata: Optional[dict] = None,
+) -> None:
     now = datetime.now(timezone.utc).isoformat()
     with _new_session() as session:
         file = session.get(File, file_id)
         if file:
-            file.s3_key = s3_key
+            if s3_key is not None:
+                file.s3_key = s3_key
             file.status = status
             file.status_updated_at = now
+            if file_name is not None:
+                previous_file_name = file.file_name if file.file_name != file_name else None
+                file.file_name = file_name
+            else:
+                previous_file_name = None
+            if metadata is not None:
+                file.file_metadata = json.dumps(
+                    _normalize_metadata(file.file_name, metadata, previous_file_name=previous_file_name)
+                )
             session.add(file)
             session.commit()
 
@@ -177,12 +249,33 @@ def get_file_record(file_id: str) -> File | None:
         return session.get(File, file_id)
 
 
-def find_file_by_source_id(source_id: str) -> File | None:
-    """O(1) lookup via indexed source_id column."""
+def find_files_by_source_id(source_id: str) -> list[File]:
+    """Return all non-deleted records for a given source_id, newest first."""
     with _new_session() as session:
-        statement = select(File).where(
-            File.source_id == source_id,
-            File.status != "DELETED",
+        statement = (
+            select(File)
+            .where(
+                File.source_id == source_id,
+                File.status != "DELETED",
+            )
+            .order_by(File.status_updated_at.desc())  # type: ignore[arg-type]
+        )
+        return list(session.exec(statement).all())
+
+
+def find_file_by_source_id(source_id: str) -> File | None:
+    """Lookup via indexed source_id column, returning the most recently updated non-deleted record."""
+    records = find_files_by_source_id(source_id)
+    return records[0] if records else None
+
+
+def find_file_by_name(file_name: str) -> File | None:
+    """Lookup by original file_name — returns the most recently created non-deleted record."""
+    with _new_session() as session:
+        statement = (
+            select(File)
+            .where(File.file_name == file_name, File.status != "DELETED")
+            .order_by(File.status_updated_at.desc())  # type: ignore[arg-type]
         )
         return session.exec(statement).first()
 
@@ -224,12 +317,11 @@ async def shutdown_event():
 
 @app.post("/files/upload-from-url", status_code=202)
 async def upload_from_url(request: UploadRequest, background_tasks: BackgroundTasks):
-    file_id = str(uuid.uuid4())
-
-    save_initial_record(file_id, request.file_name, request.metadata or {})
+    file_id, previous_s3_key, normalized_metadata = prepare_upload_record(request.file_name, request.metadata or {})
+    request.metadata = normalized_metadata
     _notify_webhook(file_id, (request.metadata or {}).get("id", ""), "PENDING", request.file_name)
 
-    background_tasks.add_task(process_upload, file_id, request)
+    background_tasks.add_task(process_upload, file_id, request, previous_s3_key)
 
     return {"file_id": file_id, "status": "ACCEPTED"}
 
@@ -252,6 +344,7 @@ async def get_file_meta(file_id: str):
         "file_name": record.file_name,
         "status": record.status,
         "s3_key": record.s3_key,
+        "source_id": record.source_id,
         "metadata": metadata,
     }
 
@@ -298,7 +391,41 @@ async def get_download_url(file_id: str):
     if not url:
         raise HTTPException(status_code=500, detail="Could not generate download URL")
 
-    return {"download_url": url, "file_name": record.file_name}
+    metadata = {}
+    try:
+        if record.file_metadata:
+            metadata = json.loads(record.file_metadata)
+    except Exception:
+        pass
+
+    return {
+        "download_url": url,
+        "file_name": record.file_name,
+        "source_id": record.source_id,
+        "metadata": metadata,
+    }
+
+@app.get("/files/by-name/{file_name:path}")
+async def get_by_file_name(file_name: str):
+    """Look up a file record by its original file name (basename)."""
+    record = find_file_by_name(file_name)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    metadata = {}
+    try:
+        if record.file_metadata:
+            metadata = json.loads(record.file_metadata)
+    except Exception:
+        pass
+
+    return {
+        "file_id": record.id,
+        "file_name": record.file_name,
+        "status": record.status,
+        "metadata": metadata,
+    }
+
 
 @app.get("/files/source/{source_id}")
 async def get_by_source_id(source_id: str):
@@ -323,18 +450,19 @@ async def get_by_source_id(source_id: str):
 
 @app.delete("/files/source/{source_id}")
 async def delete_by_source_id(source_id: str):
-    """Delete a file based on its source ID (e.g. SharePoint ID)."""
+    """Delete all file records for the given source ID (e.g. SharePoint item ID)."""
     print(f"Request to delete file with source_id: {source_id}")
-    record = find_file_by_source_id(source_id)
-    if not record:
-        # If not found, we can assume it's already deleted or never existed.
-        # Return 404 to be explicit, or 200 to be idempotent.
-        # Let's return 404 so the caller knows.
+    records = find_files_by_source_id(source_id)
+    if not records:
         raise HTTPException(status_code=404, detail="File not found")
 
-    file_id = record.id
-    print(f"Found file_id: {file_id} for source_id: {source_id}")
-    update_status(file_id, "DELETED")
-    _notify_webhook(file_id, source_id, "DELETED", record.file_name or "")
-    await message_publisher.publish_file_deleted(file_id, source_id)
-    return {"status": "DELETED", "file_id": file_id}
+    deleted_ids = []
+    for record in records:
+        file_id = record.id
+        print(f"Marking file_id: {file_id} as DELETED (source_id: {source_id})")
+        update_status(file_id, "DELETED")
+        _notify_webhook(file_id, source_id, "DELETED", record.file_name or "")
+        await message_publisher.publish_file_deleted(file_id, source_id)
+        deleted_ids.append(file_id)
+
+    return {"status": "DELETED", "file_ids": deleted_ids}

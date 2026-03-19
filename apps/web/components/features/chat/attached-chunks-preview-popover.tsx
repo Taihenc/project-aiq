@@ -23,7 +23,7 @@ export function AttachedChunksPreviewPopover({
   filename: string;
   ext: string | undefined;
   filePath: string;
-  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk?: (fileId: string, chunkNumber: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -104,7 +104,7 @@ export function AttachedChunksPreviewPopover({
         {/* Pages → Chunks */}
         <div
           className={cn(
-            'flex flex-col gap-0 overflow-y-auto transition-[max-height] duration-300 ease-in-out',
+            'flex flex-col gap-0 overflow-y-auto custom-scrollbar transition-[max-height] duration-300 ease-in-out',
             expanded ? 'max-h-[60vh]' : 'max-h-52',
           )}
         >

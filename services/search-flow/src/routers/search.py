@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+import json
+import logging
 from src.dtos.request import SearchChatRequest
 from src.models.state import FlowResponse
 from src.dtos.response import APIResponse
@@ -7,12 +9,18 @@ from src.services.search_service import SearchFlowService
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
+
 service = SearchFlowService()
 
 
 @router.post("/completions", response_model=APIResponse[FlowResponse])
 async def completions_sync(request: SearchChatRequest):
     try:
+        logger.info(
+            "Received sync request from backend: %s",
+            json.dumps(request.model_dump(), ensure_ascii=False, indent=2),
+        )
         response = await service.execute_workflow(request)
         return APIResponse(data=response)
     except Exception as e:
@@ -22,6 +30,10 @@ async def completions_sync(request: SearchChatRequest):
 @router.post("/completions/stream")
 async def completions_stream(request: SearchChatRequest):
     try:
+        logger.info(
+            "Received stream request from backend: %s",
+            json.dumps(request.model_dump(), ensure_ascii=False, indent=2),
+        )
         return StreamingResponse(
             service.execute_workflow_stream(request),
             media_type="text/event-stream",

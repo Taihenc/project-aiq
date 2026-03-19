@@ -11,6 +11,7 @@ import type {
   ChatResponse,
   FileRef,
   SearchMode,
+  SearchFilter,
 } from '@/types/api';
 
 // Re-export types for backward compatibility
@@ -27,6 +28,14 @@ export type {
 } from '@/types/api';
 
 import { client, streamFetch } from '@/lib/api/client';
+
+function toRequestAttachments(attachments?: FileRef[]): FileRef[] | undefined {
+  if (!attachments?.length) return undefined;
+  return attachments.map((attachment) => ({
+    ...(attachment.file_id ? { file_id: attachment.file_id } : {}),
+    chunks: attachment.chunks,
+  }));
+}
 
 /**
  * Send chat completions request (OpenAI-compatible)
@@ -88,6 +97,8 @@ export async function streamChatCompletions(
     maxTokens?: number;
     attachments?: FileRef[];
     mode?: SearchMode;
+    filter?: SearchFilter;
+    parentMessageId?: string;
   },
 ): Promise<ReadableStream<Uint8Array>> {
   const requestBody: ChatCompletionsRequest = {
@@ -98,8 +109,10 @@ export async function streamChatCompletions(
     temperature: options?.temperature,
     max_tokens: options?.maxTokens,
     stream: true,
-    attachments: options?.attachments,
+    attachments: toRequestAttachments(options?.attachments),
     mode: options?.mode,
+    filter: options?.filter,
+    parent_message_id: options?.parentMessageId,
   };
 
   const stream = await streamFetch('/chat/completions/stream', requestBody);

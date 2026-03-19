@@ -10,8 +10,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { FileRef, ChunkMetadata } from '@/types';
+import type { FileRef, ChunkMetadata, SearchFilter } from '@/types';
+import {
+  getAttachmentDisplayName,
+  getFileExtensionFromName,
+} from '@/lib/utils/file-identity';
 import { FileExtBadge } from './attachment-pill';
+import { ExcludeFilesCircle, SearchFilterCircle } from './message-filter-pills';
 
 import { PILL_VISIBLE_DEFAULT } from '@/constants/chat';
 
@@ -19,13 +24,27 @@ import { PILL_VISIBLE_DEFAULT } from '@/constants/chat';
 
 export function SentAttachmentsPillRow({
   attachments,
+  searchFilter,
 }: {
   attachments: FileRef[];
+  searchFilter?: SearchFilter;
 }) {
   const [showAll, setShowAll] = useState(false);
   const hidden = attachments.length - PILL_VISIBLE_DEFAULT;
   const always = attachments.slice(0, PILL_VISIBLE_DEFAULT);
   const extra = attachments.slice(PILL_VISIBLE_DEFAULT);
+
+  const {
+    exclude: excludeList,
+    exclude_file_ids: _excludeFileIds,
+    ...filterOnly
+  } = searchFilter ?? {};
+  const hasFilter = Object.values(filterOnly).some(
+    (v) =>
+      v !== undefined &&
+      v !== null &&
+      (Array.isArray(v) ? v.length > 0 : String(v).trim() !== ''),
+  );
 
   const pillVariants = {
     hidden: { opacity: 0, scale: 0.75, y: 4 },
@@ -35,6 +54,13 @@ export function SentAttachmentsPillRow({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {/* Filter circles — always first */}
+      {excludeList && excludeList.length > 0 && (
+        <ExcludeFilesCircle exclude={excludeList} />
+      )}
+      {hasFilter && <SearchFilterCircle filter={filterOnly} />}
+
+      {/* Attachment pills */}
       {always.map((att) => (
         <SentCitationPill key={att.file_path} att={att} />
       ))}
@@ -92,8 +118,8 @@ export function SentAttachmentsPillRow({
 
 export function SentCitationPill({ att }: { att: FileRef }) {
   const [expanded, setExpanded] = useState(false);
-  const filename = att.file_path.split('/').pop() || att.file_path;
-  const ext = att.file_path.split('.').pop()?.toLowerCase();
+  const filename = getAttachmentDisplayName(att);
+  const ext = getFileExtensionFromName(filename, att.file_path);
 
   const pageMap = new Map<number, ChunkMetadata[]>();
   for (const chunk of att.chunks) {
@@ -155,7 +181,7 @@ export function SentCitationPill({ att }: { att: FileRef }) {
         {/* Pages → Chunks (read-only) */}
         <div
           className={cn(
-            'flex flex-col gap-0 overflow-y-auto transition-[max-height] duration-300 ease-in-out',
+            'flex flex-col gap-0 overflow-y-auto custom-scrollbar transition-[max-height] duration-300 ease-in-out',
             expanded ? 'max-h-[60vh]' : 'max-h-52',
           )}
         >

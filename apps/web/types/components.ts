@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Citation, FileRef, SearchMode } from './api';
+import type { Citation, FileRef, SearchMode, SearchFilter } from './api';
 import type { UIMessage } from './chat';
 
 /**
@@ -16,16 +16,37 @@ export interface ChatMessageProps {
   status?: string;
   statusHistory?: string[];
   isEmpty?: boolean;
+  /** True while token events are arriving (before the result event completes) */
+  isStreaming?: boolean;
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
   onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
   attachments?: FileRef[];
   /** Citation FileRefs that were attached when this user message was sent (read-only) */
   sentAttachments?: FileRef[];
+  /** Search filter that was active when the user sent this message */
+  searchFilter?: SearchFilter;
+  // --- Tree / branch navigation props ---
+  /** Unique message ID in the tree */
+  messageId?: string;
+  /** 0-based sibling index of this message */
+  branchIndex?: number;
+  /** Total siblings at this level (1 = no branching) */
+  siblingCount?: number;
+  /** Called with this message's ID and direction to switch branches */
+  onNavigateBranch?: (messageId: string, direction: 'prev' | 'next') => void;
+  /** Available citations from the session, forwarded into the edit card */
+  availableCitations?: Citation[];
+  /** Called when user submits an edit for a user message */
+  onEditMessage?: (messageId: string, newContent: string, attachments?: FileRef[]) => void;
+  /** Called when user requests a regenerate for an assistant message */
+  onRegenerate?: (assistantMessageId: string) => void;
+  /** True while waiting for the assistant response */
+  isLoading?: boolean;
 }
 
 export interface ChatInputProps {
-  onSendMessage?: (message: string, mode?: SearchMode) => void;
+  onSendMessage?: (message: string, mode?: SearchMode, filter?: SearchFilter) => void;
   disabled?: boolean;
   attachments?: FileRef[];
   onRemoveAttachment?: (index: number) => void;
@@ -35,7 +56,7 @@ export interface ChatInputProps {
 }
 
 export interface ChatInputAreaProps {
-  onSendMessage: (message: string, mode?: SearchMode) => void;
+  onSendMessage: (message: string, mode?: SearchMode, filter?: SearchFilter) => void;
   isLoading: boolean;
   attachments?: FileRef[];
   onRemoveAttachment?: (index: number) => void;
@@ -55,6 +76,11 @@ export interface ChatMessagesAreaProps {
   hasOlderMessages?: boolean;
   isLoadingOlder?: boolean;
   onLoadOlder?: () => void;
+  // --- Tree callbacks ---
+  onNavigateBranch?: (messageId: string, direction: 'prev' | 'next') => void;
+  onEditMessage?: (messageId: string, newContent: string, attachments?: FileRef[]) => void;
+  onRegenerate?: (assistantMessageId: string) => void;
+  availableCitations?: Citation[];
 }
 
 export interface ChatHeaderProps {
@@ -63,8 +89,13 @@ export interface ChatHeaderProps {
 }
 
 export interface ChatWelcomeProps {
-  onSendMessage: (message: string, mode?: SearchMode) => void;
+  onSendMessage: (message: string, mode?: SearchMode, filter?: SearchFilter) => void;
   isLoading: boolean;
+  attachments?: FileRef[];
+  onRemoveAttachment?: (index: number) => void;
+  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onAddAttachment?: (att: FileRef) => void;
+  availableCitations?: Citation[];
 }
 
 export interface CitationsPanelProps {

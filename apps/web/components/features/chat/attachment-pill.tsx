@@ -9,6 +9,11 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
+import {
+  getAttachmentDisplayName,
+  getAttachmentFileId,
+  getFileExtensionFromName,
+} from '@/lib/utils/file-identity';
 import type { FileRef, ChunkMetadata } from '@/types/api';
 
 // ── Ext badge ────────────────────────────────────────────────────────────────
@@ -57,11 +62,12 @@ function AttachmentHoverContent({
   onRemoveChunk,
 }: {
   att: FileRef;
-  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk?: (fileId: string, chunkNumber: number) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const filename = att.file_path.split('/').pop() || att.file_path;
-  const ext = att.file_path.split('.').pop()?.toLowerCase();
+  const filename = getAttachmentDisplayName(att);
+  const ext = getFileExtensionFromName(filename, att.file_path);
+  const fileId = getAttachmentFileId(att);
 
   const pageMap = new Map<number, ChunkMetadata[]>();
   for (const chunk of att.chunks) {
@@ -104,7 +110,7 @@ function AttachmentHoverContent({
       {/* Pages → Chunks */}
       <div
         className={cn(
-          'flex flex-col gap-0 overflow-y-auto transition-all duration-200',
+          'flex flex-col gap-0 overflow-y-auto custom-scrollbar transition-all duration-200',
           isExpanded ? 'max-h-[32rem]' : 'max-h-52',
         )}
       >
@@ -145,7 +151,7 @@ function AttachmentHoverContent({
                   <button
                     type="button"
                     onClick={() =>
-                      onRemoveChunk(att.file_path, chunk.chunk_number ?? ci + 1)
+                      onRemoveChunk(fileId, chunk.chunk_number ?? ci + 1)
                     }
                     className="mt-0.5 shrink-0 self-start rounded-full p-0.5 text-[var(--brand-source-time)] opacity-0 group-hover/chunk:opacity-100 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/40 dark:hover:text-red-400 transition-all"
                     title="Remove this chunk"
@@ -173,10 +179,10 @@ export function AttachmentPill({
   att: FileRef;
   index: number;
   onRemove?: (index: number) => void;
-  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk?: (fileId: string, chunkNumber: number) => void;
 }) {
-  const filename = att.file_path.split('/').pop() || att.file_path;
-  const ext = att.file_path.split('.').pop()?.toLowerCase();
+  const filename = getAttachmentDisplayName(att);
+  const ext = getFileExtensionFromName(filename, att.file_path);
 
   return (
     <HoverCard openDelay={200} closeDelay={150}>

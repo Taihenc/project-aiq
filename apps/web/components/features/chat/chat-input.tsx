@@ -12,6 +12,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Tooltip,
   TooltipContent,
@@ -22,14 +23,18 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { ChatInputProps } from '@/types';
-import type { SearchMode } from '@/types/api';
+import type { SearchMode, SearchFilter } from '@/types/api';
 import { AttachmentPill } from './attachment-pill';
 import { CitationPicker } from './citation-picker';
+import { ExcludeFilesPicker } from './exclude-files-picker';
+import { SearchFilterPicker } from './search-filter-picker';
+import { useExcludeStore } from '@/hooks/useExcludeStore';
+import { useSearchFilterStore } from '@/hooks/useSearchFilterStore';
+import { getAttachmentFileId } from '@/lib/utils/file-identity';
 
 // ── Mode config ──────────────────────────────────────────────────────────────
 
@@ -73,6 +78,14 @@ export function ChatInput({
   const [message, setMessage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [mode, setMode] = useState<SearchMode>('auto');
+  const [isSending, setIsSending] = useState(false);
+  const [sendPulse, setSendPulse] = useState(false);
+  const {
+    excludedPaths,
+    excludedFileIds,
+    remove: removeExcluded,
+  } = useExcludeStore();
+  const { department, team, project, tags, file_type } = useSearchFilterStore();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -85,11 +98,45 @@ export function ChatInput({
   };
 
   const handleSubmit = () => {
-    if (message.trim() && !disabled) {
-      onSendMessage?.(message, mode);
-      setMessage('');
+    if (message.trim() && !disabled && !isSending) {
+      const metaFilter: Partial<SearchFilter> = {
+        ...(excludedPaths.length > 0 || excludedFileIds.length > 0
+          ? {
+              ...(excludedPaths.length > 0 ? { exclude: excludedPaths } : {}),
+              ...(excludedFileIds.length > 0
+                ? { exclude_file_ids: excludedFileIds }
+                : {}),
+            }
+          : {}),
+        ...(file_type ? { file_type } : {}),
+        ...(department ? { department } : {}),
+        ...(team ? { team } : {}),
+        ...(project ? { project } : {}),
+        ...(tags.length > 0 ? { tags } : {}),
+      };
+      const filter: SearchFilter | undefined =
+        Object.keys(metaFilter).length > 0 ? metaFilter : undefined;
+
+      // Trigger launch + ring animations
+      setIsSending(true);
+      setSendPulse(true);
+
+      // Fire the actual send immediately — animation is cosmetic overlay
+      onSendMessage?.(message, mode, filter);
       textAreaRef.current?.blur();
+
+      // Clear text after the launch animation settles
+      setTimeout(() => {
+        setMessage('');
+        setIsSending(false);
+      }, 160);
     }
+  };
+
+  // When a file is attached, auto-remove it from the exclude list
+  const handleAddAttachment = (attachment: import('@/types/api').FileRef) => {
+    removeExcluded(getAttachmentFileId(attachment), attachment.file_path);
+    onAddAttachment?.(attachment);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -115,7 +162,7 @@ export function ChatInput({
             <div className="flex flex-wrap gap-1.5 px-2">
               {attachments.map((att, index) => (
                 <AttachmentPill
-                  key={att.file_path || `att-${index}`}
+                  key={att.file_id || att.file_path || `att-${index}`}
                   att={att}
                   index={index}
                   onRemove={onRemoveAttachment}
@@ -124,24 +171,37 @@ export function ChatInput({
               ))}
             </div>
           )}
-          {/* Upper part - textarea */}
-          <textarea
-            ref={textAreaRef}
-            placeholder="Ask anything..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={handleBlur}
-            disabled={disabled}
-            style={{
-              height: isExpanded ? '72px' : '24px',
-            }}
-            className={cn(
-              'w-full resize-none border-0 bg-transparent px-2 text-sm text-primary-dark placeholder:text-muted-purple focus:outline-none focus:ring-0 transition-all duration-300 ease-in-out',
-              !isExpanded && 'overflow-hidden',
-            )}
-          />
+          {/* Upper part - textarea (wrapped for launch animation) */}
+          <motion.div
+            animate={
+              isSending
+                ? { scale: 0.95, y: -10, opacity: 0 }
+                : { scale: 1, y: 0, opacity: 1 }
+            }
+            transition={
+              isSending
+                ? { duration: 0.14, ease: [0.4, 0, 0.6, 1] }
+                : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
+            }
+          >
+            <textarea
+              ref={textAreaRef}
+              placeholder="Ask anything..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setIsFocused(true)}
+              onBlur={handleBlur}
+              disabled={disabled || isSending}
+              style={{
+                height: isExpanded ? '72px' : '24px',
+              }}
+              className={cn(
+                'w-full resize-none border-0 bg-transparent px-2 text-sm text-primary-dark placeholder:text-muted-purple focus:outline-none focus:ring-0 transition-all duration-300 ease-in-out',
+                !isExpanded && 'overflow-hidden',
+              )}
+            />
+          </motion.div>
 
           {/* Lower part - tools icons */}
           <div className="flex items-center gap-1">
@@ -149,10 +209,21 @@ export function ChatInput({
             <CitationPicker
               availableCitations={availableCitations}
               attachments={attachments}
-              onAddAttachment={onAddAttachment}
+              onAddAttachment={handleAddAttachment}
               onRemoveAttachment={onRemoveAttachment}
               onRemoveChunk={onRemoveChunk}
+              disabled={disabled || isSending}
             />
+
+            {/* Exclude files from search */}
+            <ExcludeFilesPicker
+              availableCitations={availableCitations}
+              attachments={attachments}
+              disabled={disabled || isSending}
+            />
+
+            {/* Metadata filters (department / team / project / tags / file_type) */}
+            <SearchFilterPicker disabled={disabled || isSending} />
 
             {/* Search mode selector */}
             <DropdownMenu>
@@ -161,10 +232,13 @@ export function ChatInput({
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
+                      disabled={disabled || isSending}
                       className={cn(
                         'h-9 gap-1.5 rounded-full px-2.5 text-xs font-medium text-[var(--brand-link)] hover:bg-[var(--brand-new-chat-bg)]',
                         mode !== 'auto' &&
                           'bg-[var(--brand-link)]/10 hover:bg-[var(--brand-link)]/15',
+                        (disabled || isSending) &&
+                          'opacity-40 cursor-not-allowed',
                       )}
                     >
                       {(() => {
@@ -188,12 +262,14 @@ export function ChatInput({
                 side="top"
                 align="start"
                 sideOffset={12}
-                className="min-w-[260px] rounded-2xl border-[var(--brand-source-border)] bg-card/98 dark:bg-card p-1.5 shadow-[0_20px_60px_-20px_rgba(102,88,204,0.35)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.6)]"
+                className="min-w-[260px] rounded-2xl border-[var(--brand-source-border)] bg-card/98 dark:bg-card p-1.5 overflow-hidden shadow-[0_20px_60px_-20px_rgba(102,88,204,0.35)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.6)]"
               >
-                <DropdownMenuLabel className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--brand-source-time)]">
-                  Search Mode
+                <DropdownMenuLabel className="flex items-center gap-2 -mx-1.5 -mt-1.5 border-b border-[var(--brand-source-border)] px-4 pb-3 pt-3.5 mb-1">
+                  <Sparkles className="h-3.5 w-3.5 text-[var(--brand-link)]" />
+                  <span className="text-xs font-semibold text-[var(--brand-source-text)]">
+                    Search Mode
+                  </span>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator className="mx-1 mb-1 bg-[var(--brand-source-border)]" />
                 {(
                   Object.entries(MODE_CONFIG) as [
                     SearchMode,
@@ -250,7 +326,11 @@ export function ChatInput({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="rounded-pill h-9 w-9 text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]"
+                  disabled={disabled || isSending}
+                  className={cn(
+                    'rounded-pill h-9 w-9 text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]',
+                    (disabled || isSending) && 'opacity-40 cursor-not-allowed',
+                  )}
                 >
                   <Globe className="h-4 w-4" />
                 </Button>
@@ -262,19 +342,34 @@ export function ChatInput({
           </div>
         </div>
 
-        {/* Right part - send button */}
+        {/* Right part - send button with ring burst */}
         <div className="flex items-center">
-          <Button
-            size="icon-sm"
-            className={cn(
-              'animate-mesh-gradient rounded-pill text-white shadow-[0_20px_50px_-28px_rgba(111,93,235,1)] transition-all duration-300 ease-in-out hover:scale-105',
-              isExpanded ? 'h-12 w-12' : 'h-10 w-10',
-            )}
-            onClick={handleSubmit}
-            disabled={!message.trim() || disabled}
-          >
-            <ArrowUp className="size-5" />
-          </Button>
+          <div className="relative">
+            {/* Ring burst — expands and fades on send */}
+            <AnimatePresence>
+              {sendPulse && (
+                <motion.span
+                  className="pointer-events-none absolute inset-0 rounded-full bg-brand-fg-light"
+                  initial={{ scale: 0.8, opacity: 0.55 }}
+                  animate={{ scale: 2.6, opacity: 0 }}
+                  exit={{}}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  onAnimationComplete={() => setSendPulse(false)}
+                />
+              )}
+            </AnimatePresence>
+            <Button
+              size="icon-sm"
+              className={cn(
+                'animate-mesh-gradient rounded-pill text-white shadow-[0_20px_50px_-28px_rgba(111,93,235,1)] transition-all duration-300 ease-in-out hover:scale-105',
+                isExpanded ? 'h-12 w-12' : 'h-10 w-10',
+              )}
+              onClick={handleSubmit}
+              disabled={!message.trim() || disabled || isSending}
+            >
+              <ArrowUp className="size-5" />
+            </Button>
+          </div>
         </div>
       </div>
 

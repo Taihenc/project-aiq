@@ -23,6 +23,25 @@ import {
   DEFAULT_SESSION_TITLE,
 } from '../constants/chat.constants';
 
+type ResolvedChunkRef = {
+  chunk_number: number;
+  page_number: number;
+  score?: number;
+  content?: string;
+};
+
+type ResolvedFileRef = {
+  file_id?: string;
+  file_path: string;
+  chunks: ResolvedChunkRef[];
+};
+
+type PreparedSearchFlowRequest = {
+  payload: Record<string, any>;
+  persistedAttachments: ResolvedFileRef[];
+  persistedFilter?: Record<string, any>;
+};
+
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
@@ -54,8 +73,6 @@ export class ChatService {
     );
   }
 
-
-
   async enrichResultWithCitations(resultEvent: any): Promise<any> {
     if (resultEvent.type !== 'result' || !resultEvent.content) {
       return resultEvent;
@@ -73,10 +90,25 @@ export class ChatService {
     );
 
     const embeddingUrl = this.getEmbeddingServiceUrl();
+    const resolvedFileIds = await this.resolveFileIdsByPaths(
+      citations
+        .map((citation) => citation?.file_path || citation?.id)
+        .filter(
+          (value: unknown): value is string =>
+            typeof value === 'string' && value.trim().length > 0,
+        ),
+    );
     // One entry per file: id = file_path, chunks carry metadata for re-attaching
     const fileMap: Map<
       string,
-      { id: string; title: string; platform: string; content: string; chunks: any[] }
+      {
+        id: string;
+        file_id?: string;
+        title: string;
+        platform: string;
+        content: string;
+        chunks: any[];
+      }
     > = new Map();
     const filesPayload: any[] = [];
 
@@ -89,6 +121,12 @@ export class ChatService {
         if (!existing) {
           fileMap.set(citation.file_path, {
             id: citation.file_path,
+            ...(citation.file_id || resolvedFileIds.get(citation.file_path)
+              ? {
+                  file_id:
+                    citation.file_id || resolvedFileIds.get(citation.file_path),
+                }
+              : {}),
             title: citation.file_path.split('/').pop() || citation.file_path,
             platform: 'AI Engine',
             content: '',
@@ -136,6 +174,11 @@ export class ChatService {
       if (!fileMap.has(key)) {
         fileMap.set(key, {
           id: citation.id || `citation-${i}`,
+          ...(citation.file_id || resolvedFileIds.get(citation.id)
+            ? {
+                file_id: citation.file_id || resolvedFileIds.get(citation.id),
+              }
+            : {}),
           title: citation.title || citation.name || citation.file_path || `Source ${i + 1}`,
           platform: citation.platform || 'AI Engine',
           content: citation.content || '',
@@ -244,13 +287,14 @@ export class ChatService {
       // Only forward title after the first message so the LLM generates one on the first request
       const isFirstMessage = unsummarizedMessages.length === 0 && !existingSummary;
       const titleForEngine = !isFirstMessage ? sessionData?.title : undefined;
-      const aiEngineRequest = this.prepareAiEngineRequest(
+      const preparedRequest = await this.prepareAiEngineRequest(
         chatRequest,
         unsummarizedMessages,
         existingSummary,
         titleForEngine,
         chatRequest.mode,
       );
+      const aiEngineRequest = preparedRequest.payload;
 
       const aiEngineUrl = this.getAiEngineCompletionUrl();
       this.logger.debug(`Calling AI Engine at: ${aiEngineUrl}`);
@@ -284,10 +328,6 @@ export class ChatService {
 
       // 4. Post-Chat Actions
       if (sessionId) {
-        const mergedCitations =
-          parsed.sources_used.length > 0
-            ? this.computeMergedCitations(sessionId, parsed.sources_used)
-            : undefined;
         await this.handlePostChatActions(
           sessionId,
           userId,
@@ -295,9 +335,10 @@ export class ChatService {
           transformed,
           sessionData?.lastSummarizedMessageId ?? undefined,
           existingSummary,
-          chatRequest.attachments,
+          preparedRequest.persistedAttachments,
           parsed.title,
-          mergedCitations,
+          chatRequest.parent_message_id ?? null,
+          preparedRequest.persistedFilter ?? null,
         );
       }
 
@@ -317,26 +358,61 @@ export class ChatService {
     userId: string,
   ): Promise<Observable<MessageEvent>> {
     try {
+      this.logger.debug(`Received from frontend: ${JSON.stringify(chatRequest, null, 2)}`);
       const sessionId = chatRequest.session_id || '';
-      const sessionData =
-        await this.chatHistoryService.getSessionSummary(sessionId);
-      const existingSummary = sessionData?.summary || '';
+      const parentMessageId = chatRequest.parent_message_id ?? null;
+
+      // Resolve the active history path:
+      // - If branching (parent_message_id provided), use the path leading to that parent.
+      // - Otherwise, fall back to the default session-level summary.
+      let existingSummary = '';
+      let lastSummarizedMessageId: string | undefined;
+      let activePath: string[] | undefined;
+
+      if (parentMessageId) {
+        // Non-root message: resolve the exact path up to the parent.
+        // This ensures getUnsummarizedMessages only sees messages on this branch.
+        activePath = this.chatHistoryService.getActivePath(sessionId, parentMessageId);
+
+        // Use only the per-branch summary stored on this specific message node.
+        // Do NOT fall back to the session-level summary — that belongs to a
+        // different branch and would corrupt this branch's context.
+        const pathSummaryData = this.chatHistoryService.getPathSummary(parentMessageId);
+        if (pathSummaryData?.pathSummary) {
+          existingSummary = pathSummaryData.pathSummary;
+          lastSummarizedMessageId = pathSummaryData.pathLastSummarizedId ?? undefined;
+        }
+        // No fallback: if no per-branch summary exists yet, existingSummary stays ''
+        // and all branch messages are forwarded as unsummarized history.
+      } else {
+        // parentMessageId is null = root-level message (either first-ever message in
+        // a fresh session OR a new root-level branch created by editing the root).
+        // In both cases there are NO ancestor messages for this branch, so we must
+        // send an empty history. Setting activePath = [] tells getUnsummarizedMessages
+        // to return nothing, preventing history from other branches from leaking in.
+        activePath = [];
+        // existingSummary stays '' and lastSummarizedMessageId stays undefined.
+      }
+
       const unsummarizedMessages =
         await this.chatHistoryService.getUnsummarizedMessages(
           sessionId,
-          sessionData?.lastSummarizedMessageId,
+          lastSummarizedMessageId,
+          activePath,
         );
 
       // Only forward title after the first message so the LLM generates one on the first request
+      const sessionData = await this.chatHistoryService.getSessionSummary(sessionId);
       const isFirstMessage = unsummarizedMessages.length === 0 && !existingSummary;
       const titleForEngine = !isFirstMessage ? sessionData?.title : undefined;
-      const aiEngineRequest = this.prepareAiEngineRequest(
+      const preparedRequest = await this.prepareAiEngineRequest(
         chatRequest,
         unsummarizedMessages,
         existingSummary,
         titleForEngine,
         chatRequest.mode,
       );
+      const aiEngineRequest = preparedRequest.payload;
 
       this.logger.debug(`Prepared AI Engine streaming request for session: ${sessionId}`);;
       this.logger.debug(`Sent to AI Engine: ${JSON.stringify(aiEngineRequest, null, 2)}`);
@@ -351,7 +427,6 @@ export class ChatService {
             next: (response) => {
               const stream = response.data;
               let fullResult: any = null;
-              let precomputedCitations: any[] | undefined;
 
               let buffer = '';
               let processingPromise: Promise<void> = Promise.resolve();
@@ -396,17 +471,13 @@ export class ChatService {
                           );
                         }
 
-                        // Compute merged citations server-side and inject into the
-                        // SSE event so the frontend can set state directly — no
-                        // merge logic needed in the browser.
+                        // Compute merged citations server-side and inject a
+                        // lightweight signal into the SSE event so the
+                        // frontend knows to re-fetch branch-scoped citations.
                         if (sessionId) {
                           const enrichedCits: any[] = json.content?.citations || [];
                           if (enrichedCits.length > 0) {
-                            precomputedCitations = this.computeMergedCitations(
-                              sessionId,
-                              enrichedCits,
-                            );
-                            json = { ...json, available_citations: precomputedCitations };
+                            json = { ...json, citations_updated: true };
                           }
                         }
 
@@ -451,11 +522,12 @@ export class ChatService {
                     userId,
                     aiEngineRequest.query,
                     transformed,
-                    sessionData?.lastSummarizedMessageId ?? undefined,
+                    lastSummarizedMessageId,
                     existingSummary,
-                    chatRequest.attachments,
+                    preparedRequest.persistedAttachments,
                     parsedResponse.title,
-                    precomputedCitations,
+                    parentMessageId,
+                    preparedRequest.persistedFilter ?? null,
                   ).catch((err) =>
                     this.logger.error(
                       'Streaming post-chat actions failed',
@@ -503,13 +575,13 @@ export class ChatService {
     return `${aiEngineBaseUrl}/api/v1/completions`;
   }
 
-  private prepareAiEngineRequest(
+  private async prepareAiEngineRequest(
     chatRequest: ChatCompletionsRequestDto,
     unsummarizedMessages: any[],
     existingSummary: string,
     sessionTitle?: string,
     mode?: string,
-  ) {
+  ): Promise<PreparedSearchFlowRequest> {
     const lastUserMessage = [...chatRequest.messages]
       .reverse()
       .find((m) => m.role === 'user');
@@ -518,32 +590,317 @@ export class ChatService {
       (msg) => `${msg.role === 'user' ? 'User' : 'Agent'}: ${msg.content}`,
     );
 
-    // Use only user-provided attachments (no session accumulation)
-    const allAttachments = [...(chatRequest.attachments || [])].map((a) => ({
-      file_path: a.file_path,
-      chunks: [...(a.chunks || [])],
-    }));
+    const resolvedAttachments = await this.resolveFileRefs(
+      chatRequest.attachments || [],
+    );
+    const resolvedFilter = await this.resolveSearchFilter(chatRequest.filter);
+    const enrichedContext = await this.buildAttachmentContext(resolvedAttachments);
+
+    this.logger.debug(
+      `Prepared search-flow payload with ${resolvedAttachments.length} attachment(s) and context length ${enrichedContext.length}`,
+    );
 
     return {
-      query:
-        lastUserMessage?.content ||
-        chatRequest.messages.slice(-1)[0]?.content ||
-        '',
-      title: sessionTitle,
-      history: historyStrings,
-      ...(mode ? { mode } : {}),
-      attachments: allAttachments.map((att) => ({
-        file_path: att.file_path,
-        chunks: (att.chunks || []).map((chunk: any) => {
-          const cleanChunk: any = {
-            chunk_number: chunk.chunk_number,
-            page_number: chunk.page_number,
-          };
-          if (chunk.score !== undefined) cleanChunk.score = chunk.score;
-          return cleanChunk;
-        }),
-      })),
+      payload: {
+        query:
+          lastUserMessage?.content ||
+          chatRequest.messages.slice(-1)[0]?.content ||
+          '',
+        title: sessionTitle,
+        history: historyStrings,
+        ...(mode ? { mode } : {}),
+        ...(resolvedAttachments.length > 0
+          ? { attachments: resolvedAttachments }
+          : {}),
+        ...(enrichedContext ? { context: enrichedContext } : {}),
+        ...(resolvedFilter ? { filter: resolvedFilter } : {}),
+      },
+      persistedAttachments: resolvedAttachments,
+      persistedFilter: this.buildPersistedSearchFilter(
+        chatRequest.filter,
+        resolvedFilter,
+      ),
     };
+  }
+
+  private buildPersistedSearchFilter(
+    originalFilter?: Record<string, any>,
+    resolvedFilter?: Record<string, any>,
+  ): Record<string, any> | undefined {
+    if (!originalFilter && !resolvedFilter) return undefined;
+
+    const nextFilter = { ...(originalFilter || {}) };
+    if (resolvedFilter?.exclude) {
+      nextFilter.exclude = resolvedFilter.exclude;
+    }
+
+    return Object.keys(nextFilter).length > 0 ? nextFilter : undefined;
+  }
+
+  private async resolveSearchFilter(
+    filter?: Record<string, any>,
+  ): Promise<Record<string, any> | undefined> {
+    if (!filter) return undefined;
+
+    const excludeFileIds = Array.isArray(filter.exclude_file_ids)
+      ? filter.exclude_file_ids.filter(
+          (value: unknown): value is string =>
+            typeof value === 'string' && value.trim().length > 0,
+        )
+      : [];
+    const directExcludePaths = Array.isArray(filter.exclude)
+      ? filter.exclude.filter(
+          (value: unknown): value is string =>
+            typeof value === 'string' && value.trim().length > 0,
+        )
+      : [];
+
+    const resolvedExcludePaths = Array.from(
+      new Set([
+        ...directExcludePaths,
+        ...Array.from((await this.resolveFilePathsByIds(excludeFileIds)).values()),
+      ]),
+    );
+
+    const nextFilter = { ...filter };
+    if (excludeFileIds.length > 0) {
+      nextFilter.exclude_file_ids = Array.from(new Set(excludeFileIds));
+    } else {
+      delete nextFilter.exclude_file_ids;
+    }
+    if (resolvedExcludePaths.length > 0) {
+      nextFilter.exclude = resolvedExcludePaths;
+    } else {
+      delete nextFilter.exclude;
+    }
+
+    return Object.keys(nextFilter).length > 0 ? nextFilter : undefined;
+  }
+
+  private async resolveFileRefs(fileRefs: any[]): Promise<ResolvedFileRef[]> {
+    if (!Array.isArray(fileRefs) || fileRefs.length === 0) {
+      return [];
+    }
+
+    const fileIdsToResolve = Array.from(
+      new Set(
+        fileRefs
+          .filter(
+            (fileRef) =>
+              fileRef?.file_id &&
+              !fileRef?.file_path &&
+              typeof fileRef.file_id === 'string',
+          )
+          .map((fileRef) => fileRef.file_id),
+      ),
+    );
+    const resolvedPathMap = await this.resolveFilePathsByIds(fileIdsToResolve);
+
+    return fileRefs
+      .map((fileRef) => {
+        const filePath =
+          fileRef?.file_path ||
+          (fileRef?.file_id ? resolvedPathMap.get(fileRef.file_id) : undefined);
+
+        if (!filePath) {
+          this.logger.warn(
+            `Skipping unresolved attachment${fileRef?.file_id ? ` for file_id=${fileRef.file_id}` : ''}`,
+          );
+          return null;
+        }
+
+        return {
+          ...(fileRef?.file_id ? { file_id: fileRef.file_id } : {}),
+          file_path: filePath,
+          chunks: Array.isArray(fileRef?.chunks)
+            ? fileRef.chunks.map((chunk: any) => {
+                const cleanChunk: ResolvedChunkRef = {
+                  chunk_number: chunk.chunk_number,
+                  page_number: chunk.page_number,
+                };
+                if (chunk.score !== undefined) cleanChunk.score = chunk.score;
+                if (chunk.content !== undefined) cleanChunk.content = chunk.content;
+                return cleanChunk;
+              })
+            : [],
+        } satisfies ResolvedFileRef;
+      })
+      .filter((value): value is ResolvedFileRef => value !== null);
+  }
+
+  private async resolveFilePathsByIds(
+    fileIds: string[],
+  ): Promise<Map<string, string>> {
+    const pendingIds = new Set(fileIds.filter(Boolean));
+    const resolved = new Map<string, string>();
+
+    if (pendingIds.size === 0) {
+      return resolved;
+    }
+
+    const embeddingUrl = this.getEmbeddingServiceUrl();
+    const pageSize = 1000;
+    let offset = 0;
+
+    while (pendingIds.size > 0) {
+      const response = await firstValueFrom(
+        this.httpService.get(`${embeddingUrl}/v1/documents`, {
+          params: { limit: pageSize, offset },
+        }),
+      );
+      const documents: any[] = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.documents ?? response.data?.items ?? []);
+
+      if (!documents.length) {
+        break;
+      }
+
+      for (const document of documents) {
+        const metadata = document?.metadata ?? {};
+        const fileId = metadata.file_id;
+        const filePath = document?.file_path ?? metadata.file_path;
+        if (
+          typeof fileId === 'string' &&
+          typeof filePath === 'string' &&
+          filePath &&
+          pendingIds.has(fileId)
+        ) {
+          resolved.set(fileId, filePath);
+          pendingIds.delete(fileId);
+        }
+      }
+
+      if (documents.length < pageSize) {
+        break;
+      }
+
+      offset += pageSize;
+    }
+
+    if (pendingIds.size > 0) {
+      this.logger.warn(
+        `Could not resolve file paths for file IDs: ${Array.from(pendingIds).join(', ')}`,
+      );
+    }
+
+    return resolved;
+  }
+
+  private async resolveFileIdsByPaths(
+    filePaths: string[],
+  ): Promise<Map<string, string>> {
+    const pendingPaths = new Set(filePaths.filter(Boolean));
+    const resolved = new Map<string, string>();
+
+    if (pendingPaths.size === 0) {
+      return resolved;
+    }
+
+    const embeddingUrl = this.getEmbeddingServiceUrl();
+    const pageSize = 1000;
+    let offset = 0;
+
+    while (pendingPaths.size > 0) {
+      const response = await firstValueFrom(
+        this.httpService.get(`${embeddingUrl}/v1/documents`, {
+          params: { limit: pageSize, offset },
+        }),
+      );
+      const documents: any[] = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.documents ?? response.data?.items ?? []);
+
+      if (!documents.length) {
+        break;
+      }
+
+      for (const document of documents) {
+        const metadata = document?.metadata ?? {};
+        const fileId = metadata.file_id;
+        const filePath = document?.file_path ?? metadata.file_path;
+        if (
+          typeof fileId === 'string' &&
+          typeof filePath === 'string' &&
+          fileId &&
+          filePath &&
+          pendingPaths.has(filePath)
+        ) {
+          resolved.set(filePath, fileId);
+          pendingPaths.delete(filePath);
+        }
+      }
+
+      if (documents.length < pageSize) {
+        break;
+      }
+
+      offset += pageSize;
+    }
+
+    if (pendingPaths.size > 0) {
+      this.logger.warn(
+        `Could not resolve file IDs for file paths: ${Array.from(pendingPaths).join(', ')}`,
+      );
+    }
+
+    return resolved;
+  }
+
+  private async buildAttachmentContext(
+    attachments: ResolvedFileRef[],
+  ): Promise<string> {
+    if (attachments.length === 0) {
+      return '';
+    }
+
+    const files = attachments.map((attachment) => {
+      const pagesMap = new Map<
+        number,
+        Array<{ chunk_number: number; score?: number }>
+      >();
+
+      for (const chunk of attachment.chunks) {
+        const pageNumber = chunk.page_number ?? 0;
+        if (!pagesMap.has(pageNumber)) {
+          pagesMap.set(pageNumber, []);
+        }
+        pagesMap.get(pageNumber)?.push({
+          chunk_number: chunk.chunk_number,
+          ...(chunk.score !== undefined ? { score: chunk.score } : {}),
+        });
+      }
+
+      return {
+        file_path: attachment.file_path,
+        pages: Array.from(pagesMap.entries()).map(([page_number, chunks]) => ({
+          page_number,
+          chunks,
+        })),
+      };
+    });
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.getEmbeddingServiceUrl()}/v1/text-by-file-reference`,
+          { files },
+          { validateStatus: () => true },
+        ),
+      );
+
+      if (response.status !== 200 || !response.data?.result) {
+        this.logger.warn(
+          `text-by-file-reference returned status: ${response.status}`,
+        );
+        return '';
+      }
+
+      return response.data.result as string;
+    } catch (error: any) {
+      this.logger.warn(`Failed to enrich request attachments: ${error.message}`);
+      return '';
+    }
   }
 
   private async handlePostChatActions(
@@ -555,10 +912,11 @@ export class ChatService {
     existingSummary: string,
     sentAttachments?: any[],
     responseTitle?: string,
-    availableCitations?: any[],
+    parentMessageId?: string | null,
+    searchFilter?: any,
   ): Promise<void> {
     this.logger.debug(
-      `Post-chat actions for session: ${sessionId}, user: ${userId}`,
+      `Post-chat actions for session: ${sessionId}, user: ${userId}, parentMessageId: ${parentMessageId ?? 'root'}`,
     );
 
     const assistantContent =
@@ -568,31 +926,29 @@ export class ChatService {
     this.logger.verbose(`User query: ${userQueryContent.substring(0, 50)}...`);
     this.logger.verbose(`Assistant content length: ${assistantContent.length}`);
 
-    // Persist the pre-computed cumulative citations to the session row.
-    // All merging is done by computeMergedCitations before this point.
-    if (availableCitations && availableCitations.length > 0) {
-      this.chatHistoryService.updateSessionAvailableCitations(
-        sessionId,
-        availableCitations,
-      );
-    }
-
-    // Save messages to history
+    // Save messages to history — respecting the tree structure
+    let savedUserMessage: any;
+    let savedAssistantMessage: any;
     try {
-      await this.chatHistoryService.addMessage(
+      savedUserMessage = await this.chatHistoryService.addMessage(
         sessionId,
         userId,
         'user',
         userQueryContent,
         undefined,
         sentAttachments && sentAttachments.length > 0 ? sentAttachments : null,
+        parentMessageId,
+        searchFilter ?? null,
       );
-      await this.chatHistoryService.addMessage(
+      // Assistant message's parent is the user message we just saved
+      savedAssistantMessage = await this.chatHistoryService.addMessage(
         sessionId,
         userId,
         'assistant',
         assistantContent,
         transformedResponse.citations,
+        undefined,
+        savedUserMessage?.id ?? null,
       );
     } catch (err: any) {
       this.logger.error(
@@ -608,9 +964,15 @@ export class ChatService {
     }
 
     // Trigger summarization if needed
+    // Resolve the path up to the new assistant message for summarization context
+    const activePath = savedAssistantMessage
+      ? this.chatHistoryService.getActivePath(sessionId, savedAssistantMessage.id)
+      : undefined;
+
     const unsummarized = await this.chatHistoryService.getUnsummarizedMessages(
       sessionId,
       lastSummarizedMessageId,
+      activePath,
     );
 
     this.logger.debug(`Unsummarized message count: ${unsummarized.length}`);
@@ -620,51 +982,18 @@ export class ChatService {
         sessionId,
         unsummarized,
         existingSummary,
+        savedAssistantMessage?.id,
       ).catch((err: any) =>
         this.logger.error(`Summarization failed for ${sessionId}:`, err),
       );
     }
   }
 
-  /**
-   * Reads the current accumulated citations from the session, merges `incoming`
-   * into them (deduplicating chunks by chunk_number), and returns the result.
-   * Does NOT write to the DB — callers are responsible for persisting.
-   */
-  private computeMergedCitations(sessionId: string, incoming: any[]): any[] {
-    const previous =
-      this.chatHistoryService.getSessionAvailableCitations(sessionId);
-    const byId = new Map<string, any>();
-    for (const c of previous) {
-      byId.set(c.id, { ...c, chunks: c.chunks ? [...c.chunks] : [] });
-    }
-    for (const c of incoming) {
-      if (!c?.id) continue;
-      const prev = byId.get(c.id);
-      if (!prev) {
-        byId.set(c.id, { ...c, chunks: c.chunks ? [...c.chunks] : [] });
-      } else {
-        if (c.chunks?.length) {
-          const seen = new Set(
-            (prev.chunks as any[]).map((ch: any) => ch.chunk_number),
-          );
-          const novel = c.chunks.filter(
-            (ch: any) => !seen.has(ch.chunk_number),
-          );
-          prev.chunks = [...prev.chunks, ...novel].sort(
-            (a: any, b: any) => a.chunk_number - b.chunk_number,
-          );
-        }
-        if (!prev.content && c.content) prev.content = c.content;
-      }
-    }
-    return Array.from(byId.values());
-  }
-
   private async summarizeAndSaveSession(
     sessionId: string,
     messages: any[],
     existingSummary: string,
+    branchTipMessageId?: string,
   ): Promise<void> {
     const newFullSummary = await this.summarizeContext(
       messages,
@@ -672,12 +1001,23 @@ export class ChatService {
     );
     if (newFullSummary) {
       const lastId = messages[messages.length - 1].id;
-      await this.chatHistoryService.updateSessionSummary(
-        sessionId,
-        newFullSummary,
-        lastId,
-      );
-      this.logger.log(`Session ${sessionId} summarized.`);
+      if (branchTipMessageId) {
+        // Save per-path summary on the tip message node for branch isolation
+        await this.chatHistoryService.updatePathSummary(
+          branchTipMessageId,
+          newFullSummary,
+          lastId,
+        );
+        this.logger.log(`Branch tip ${branchTipMessageId} summarized.`);
+      } else {
+        // Save on the session row (default / main path)
+        await this.chatHistoryService.updateSessionSummary(
+          sessionId,
+          newFullSummary,
+          lastId,
+        );
+        this.logger.log(`Session ${sessionId} summarized.`);
+      }
     }
   }
 
@@ -902,6 +1242,7 @@ export class ChatService {
             .join('\n\n');
           citations.push({
             id: source.file_path,
+            ...(source.file_id ? { file_id: source.file_id } : {}),
             title: fileName,
             platform: 'AI Engine',
             content: allContent,
@@ -918,6 +1259,7 @@ export class ChatService {
         // Handle generic object
         citations.push({
           id: source.id || `citation-${index}`,
+          ...(source.file_id ? { file_id: source.file_id } : {}),
           title:
             source.title ||
             source.name ||

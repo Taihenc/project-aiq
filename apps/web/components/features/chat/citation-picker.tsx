@@ -24,6 +24,13 @@ import {
   Paperclip,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  createAttachmentFileRef,
+  getAttachmentFileId,
+  getCitationDisplayName,
+  getCitationFileId,
+  getFileExtensionFromName,
+} from '@/lib/utils/file-identity';
 import type { Citation, ChunkMetadata, FileRef } from '@/types/api';
 import { FileExtBadge } from './attachment-pill';
 import { ChunkContentPopover } from './chunk-content-popover';
@@ -43,13 +50,13 @@ export function CitationPickerItem({
   attachedChunks: ChunkMetadata[];
   onToggleAll: () => void;
   onToggleChunk: (chunk: ChunkMetadata) => void;
-  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk?: (fileId: string, chunkNumber: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const filename =
-    citation.id.split('/').pop() || citation.title || citation.id;
-  const ext = filename.split('.').pop()?.toLowerCase();
+  const fileId = getCitationFileId(citation);
+  const filename = getCitationDisplayName(citation);
+  const ext = getFileExtensionFromName(filename, fileId);
   const allChunks: ChunkMetadata[] = citation.chunks ?? [];
 
   const attachedNums = new Set(attachedChunks.map((c) => c.chunk_number));
@@ -127,7 +134,7 @@ export function CitationPickerItem({
             attachedChunks={attachedChunks}
             filename={filename}
             ext={ext}
-            filePath={citation.id}
+            filePath={fileId}
             onRemoveChunk={onRemoveChunk}
           />
         )}
@@ -253,12 +260,14 @@ export function CitationPicker({
   onAddAttachment,
   onRemoveAttachment,
   onRemoveChunk,
+  disabled = false,
 }: {
   availableCitations: Citation[];
   attachments: FileRef[];
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
-  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk?: (fileId: string, chunkNumber: number) => void;
+  disabled?: boolean;
 }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
@@ -276,16 +285,20 @@ export function CitationPicker({
     return availableCitations.filter(
       (c) =>
         c.title?.toLowerCase().includes(q) ||
-        c.id.toLowerCase().includes(q) ||
+        getCitationFileId(c).toLowerCase().includes(q) ||
         c.platform?.toLowerCase().includes(q),
     );
   }, [availableCitations, search]);
 
   const getAttachedChunks = (citation: Citation): ChunkMetadata[] =>
-    attachments.find((a) => a.file_path === citation.id)?.chunks ?? [];
+    attachments.find(
+      (a) => getAttachmentFileId(a) === getCitationFileId(citation),
+    )?.chunks ?? [];
 
   const handleToggleAll = (citation: Citation) => {
-    const idx = attachments.findIndex((a) => a.file_path === citation.id);
+    const fileId = getCitationFileId(citation);
+    const filePath = citation.id;
+    const idx = attachments.findIndex((a) => getAttachmentFileId(a) === fileId);
     const allChunks = citation.chunks ?? [];
     const attached = idx !== -1 ? attachments[idx] : null;
     const isAllAttached =
@@ -297,19 +310,25 @@ export function CitationPicker({
     if (isAllAttached) {
       onRemoveAttachment?.(idx);
     } else {
-      onAddAttachment?.({ file_path: citation.id, chunks: allChunks });
+      onAddAttachment?.(
+        createAttachmentFileRef({ fileId, filePath, chunks: allChunks }),
+      );
     }
   };
 
   const handleToggleChunk = (citation: Citation, chunk: ChunkMetadata) => {
+    const fileId = getCitationFileId(citation);
+    const filePath = citation.id;
     const isAttached = attachments
-      .find((a) => a.file_path === citation.id)
+      .find((a) => getAttachmentFileId(a) === fileId)
       ?.chunks.some((c) => c.chunk_number === chunk.chunk_number);
 
     if (isAttached) {
-      onRemoveChunk?.(citation.id, chunk.chunk_number);
+      onRemoveChunk?.(fileId, chunk.chunk_number);
     } else {
-      onAddAttachment?.({ file_path: citation.id, chunks: [chunk] });
+      onAddAttachment?.(
+        createAttachmentFileRef({ fileId, filePath, chunks: [chunk] }),
+      );
     }
   };
 
@@ -336,9 +355,10 @@ export function CitationPicker({
                   open
                     ? 'bg-[var(--brand-link)]/10 text-[var(--brand-link)]'
                     : 'text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]',
-                  !hasAnyCitations && 'opacity-40 cursor-not-allowed',
+                  (!hasAnyCitations || disabled) &&
+                    'opacity-40 cursor-not-allowed',
                 )}
-                disabled={!hasAnyCitations}
+                disabled={!hasAnyCitations || disabled}
                 aria-label="Attach from sources"
               >
                 <Paperclip className="h-4 w-4" />
@@ -370,7 +390,7 @@ export function CitationPicker({
         <div className="flex items-center justify-between border-b border-[var(--brand-source-border)] px-4 pt-3.5 pb-3">
           <div className="flex items-center gap-2">
             <FileText className="h-3.5 w-3.5 text-[var(--brand-link)]" />
-            <span className="text-sm font-semibold text-[var(--brand-source-text)]">
+            <span className="text-xs font-semibold text-[var(--brand-source-text)]">
               Attach from sources
             </span>
           </div>
@@ -388,7 +408,7 @@ export function CitationPicker({
         </div>
 
         {/* Search */}
-        <div className="border-b border-[var(--brand-source-border)] px-3 py-2">
+        <div className="px-3 pb-2 pt-3">
           <div className="flex items-center gap-2 rounded-lg bg-[var(--brand-new-chat-bg)] px-3 py-1.5">
             <Search className="h-3.5 w-3.5 shrink-0 text-[var(--brand-source-time)]" />
             <input
@@ -412,7 +432,7 @@ export function CitationPicker({
         </div>
 
         {/* Citation list */}
-        <div className="flex max-h-72 flex-col gap-1 overflow-y-auto p-2">
+        <div className="flex max-h-72 flex-col gap-1 overflow-y-auto custom-scrollbar p-2">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 px-4 text-center">
               <Search className="h-6 w-6 text-[var(--brand-source-time)]/50" />

@@ -2,9 +2,9 @@
 Reconciliation watchdog for stuck INDEXING files — lives in FSS.
 Every `interval_seconds` the worker:
   1. Queries the local SQLite DB directly for files stuck in INDEXING status
-     longer than `stuck_threshold_minutes`.
-  2. Calls the embedding service (GET /v1/file-status?file_name=...) to check
-     whether Qdrant actually holds vectors for the file.
+      longer than `stuck_threshold_minutes`.
+  2. Calls the embedding service (GET /v1/file-status?file_id=...) to check
+      whether Qdrant actually holds vectors for the file.
   3. Writes the corrected status directly via the local update_status():
        - vectors found  → INDEXED
        - no vectors     → INDEX_FAILED
@@ -112,7 +112,7 @@ class ReconciliationWorker:
             with httpx.Client() as http:
                 resp = http.get(
                     f"{self.embedding_url}/v1/file-status",
-                    params={"file_name": file_name},
+                    params={"file_id": file_id, "file_name": file_name},
                     timeout=10.0,
                 )
                 resp.raise_for_status()

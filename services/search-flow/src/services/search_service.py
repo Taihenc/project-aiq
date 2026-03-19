@@ -1,37 +1,65 @@
 import asyncio
-from typing import List
+from typing import Optional
 from src.dtos.request import SearchChatRequest
 from src.models.state import FlowResponse
-from src.models.search import FileRef, ChunkMetadata
-from src.dtos.embedding import (
-    EmbeddingChunk,
-    EmbeddingPage,
-    EmbeddingFile,
-    FileReferenceRequest,
-    FileReferenceResponse,
-)
 import json
 from src.services.crew.callbacks import create_agent_step_callback
 from src.services.crew.flow import SearchCrewFlow
-import httpx
-from src.config.settings import settings
 
 from langfuse import observe
 
 
 class SearchFlowService:
+    def _build_search_filter(self, request: SearchChatRequest) -> Optional[dict]:
+        """Build search filter dict preferring file_id exclusions with file_path fallback."""
+        search_filter = (
+            request.filter.model_dump(exclude_none=True) if request.filter else {}
+        )
+
+        exclude_file_ids = []
+        if isinstance(search_filter.get("exclude_file_ids"), list):
+            exclude_file_ids.extend(
+                file_id
+                for file_id in search_filter["exclude_file_ids"]
+                if isinstance(file_id, str) and file_id.strip()
+            )
+        exclude_file_ids.extend(
+            ref.file_id
+            for ref in request.exclude
+            if getattr(ref, "file_id", None)
+        )
+
+        exclude_paths = []
+        if isinstance(search_filter.get("exclude"), list):
+            exclude_paths.extend(
+                file_path
+                for file_path in search_filter["exclude"]
+                if isinstance(file_path, str) and file_path.strip()
+            )
+        exclude_paths.extend(ref.file_path for ref in request.exclude if ref.file_path)
+
+        if exclude_file_ids:
+            search_filter["exclude_file_ids"] = list(dict.fromkeys(exclude_file_ids))
+        else:
+            search_filter.pop("exclude_file_ids", None)
+        if exclude_paths:
+            search_filter["exclude"] = list(dict.fromkeys(exclude_paths))
+        else:
+            search_filter.pop("exclude", None)
+        return search_filter or None
+
     @observe(name="search_flow", as_type="generation")
     async def execute_workflow(self, request: SearchChatRequest) -> FlowResponse:
         flow = SearchCrewFlow(stream_llm=False)
-        enriched_context_str = await self._enrich_attachments(request.attachments)
 
         inputs = {
             "query": request.query,
-            "context": enriched_context_str,
+            "context": request.context or "",
             "history": request.history,
             "mode": request.mode,
             "metadata": request.metadata,
             "title": request.title,
+            "search_filter": self._build_search_filter(request),
         }
         try:
             result = await flow.kickoff_async(inputs=inputs)
@@ -60,15 +88,14 @@ class SearchFlowService:
         step_callback = create_agent_step_callback(report_status)
         flow = SearchCrewFlow(step_callback=step_callback)
 
-        enriched_context_str = await self._enrich_attachments(request.attachments)
-
         inputs = {
             "query": request.query,
-            "context": enriched_context_str,
+            "context": request.context or "",
             "history": request.history,
             "mode": request.mode,
             "metadata": request.metadata,
             "title": request.title,
+            "search_filter": self._build_search_filter(request),
         }
 
         state = {"buf": "", "in_response": False, "done": False}
@@ -172,76 +199,3 @@ class SearchFlowService:
             if event is None:
                 break
             yield json.dumps(event, ensure_ascii=False) + "\n"
-
-    async def _enrich_attachments(self, attachments: List[FileRef]) -> str:
-        """
-        Converts raw attachments into FileContent objects enriched with text content
-        by fetching real text content from the embedding-service.
-        """
-        # 1. Transform attachments to EmbeddingFile structure
-        embedding_files = []
-
-        for att in attachments:
-            try:
-                # Parse to FileRef (same as before)
-                if isinstance(att, dict):
-                    chunks_data = att.get("chunks", [])
-                    chunks = [ChunkMetadata(**c) for c in chunks_data]
-                    ref = FileRef(file_path=att.get("file_path", ""), chunks=chunks)
-                elif isinstance(att, FileRef):
-                    ref = att
-                else:
-                    print(f"⚠️ Invalid attachment type: {type(att)}")
-                    continue
-
-                # Group chunks by page
-                pages_map = {}
-                for chunk in ref.chunks:
-                    if chunk.page_number not in pages_map:
-                        pages_map[chunk.page_number] = []
-
-                    pages_map[chunk.page_number].append(
-                        EmbeddingChunk(
-                            chunk_number=chunk.chunk_number, score=chunk.score
-                        )
-                    )
-
-                # Create EmbeddingPage objects
-                embedding_pages = []
-                for page_num, page_chunks in pages_map.items():
-                    embedding_pages.append(
-                        EmbeddingPage(page_number=page_num, chunks=page_chunks)
-                    )
-
-                # Create EmbeddingFile object
-                embedding_files.append(
-                    EmbeddingFile(file_path=ref.file_path, pages=embedding_pages)
-                )
-
-            except Exception as e:
-                print(f"⚠️ Failed to parse attachment for enriching: {e}")
-                continue
-
-        if not embedding_files:
-            return ""
-
-        # 2. Call Embedding Service
-        base_url = settings.embedding_service_url
-        try:
-            # Prepare request payload directly from pydantic models
-            payload = FileReferenceRequest(files=embedding_files).model_dump()
-
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    f"{base_url}/v1/text-by-file-reference", json=payload
-                )
-                resp.raise_for_status()
-                data = resp.json()
-
-                # Parse response
-                result = FileReferenceResponse(**data)
-                return result.result
-
-        except Exception as e:
-            print(f"❌ Failed to enrich attachments via embedding-service: {e}")
-            return ""

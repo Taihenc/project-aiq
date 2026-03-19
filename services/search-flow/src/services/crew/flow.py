@@ -75,7 +75,10 @@ class SearchCrewFlow(Flow[FlowState]):
         self.reporter.report("Connecting to knowledge services...")
         from src.services.crew.tools.proxies import get_proxy_tools
 
-        all_tools = get_proxy_tools(self.reporter.report)
+        all_tools = get_proxy_tools(
+            status_callback=self.reporter.report,
+            search_filter=self.state.search_filter,
+        )
         search_documents_proxy, get_pages_proxy, get_chunks_proxy = all_tools
 
         mode = self.state.mode

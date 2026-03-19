@@ -23,6 +23,7 @@ export type {
   Citation,
   ChunkMetadata,
   FileRef,
+  SearchFilter,
   ChatCompletionsRequest,
   ChatCompletionsResponse,
   ChatRequest,
