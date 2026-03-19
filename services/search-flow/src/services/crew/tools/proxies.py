@@ -46,26 +46,32 @@ def generate_hyde_answer(query: str, status_callback: Optional[Callable] = None)
         return query
 
 
-def get_proxy_tools(status_callback: Optional[Callable] = None, exclude_paths: Optional[List[str]] = None) -> List:
+def get_proxy_tools(
+    status_callback: Optional[Callable] = None,
+    search_filter: Optional[dict] = None,
+) -> List:
     """
     Creates and returns a list of proxy tools bound to the given status callback.
 
     Each proxy acts as a middleware between CrewAI Agent and MCP Tool:
     - Agent sees the PROXY signature (can differ from MCP tool params)
     - Proxy builds the actual params dict and calls the MCP tool
+    - top_k, top_n, search_filter are injected via closure (not visible to LLM)
     """
 
     @tool("proxy_search_documents")
     def search_documents(query: str) -> str:
         """Search the knowledge base for documents based on a query."""
         enhanced_query = generate_hyde_answer(query, status_callback)
-        params: dict = {"query": enhanced_query}
-        if exclude_paths:
-            params["filter"] = {"exclude": exclude_paths}
+        params: dict = {
+            "query": enhanced_query,
+            "top_k": settings.search_top_k,
+            "top_n": settings.search_top_n,
+        }
+        if search_filter:
+            params["filter"] = search_filter
         return run_mcp_sync(
-            execute_mcp_operation(
-                "search_documents", params, status_callback
-            )
+            execute_mcp_operation("search_documents", params, status_callback)
         )
 
     @tool("proxy_get_pages")
