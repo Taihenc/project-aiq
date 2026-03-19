@@ -35,13 +35,6 @@ import json
 
 router = APIRouter()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-)
-logger = logging.getLogger(__name__)
-
-
 @router.post("/query", response_model=QueryResponse)
 async def get_embedding(query_request: QueryRequest):
     return await service_tools.get_embedding(query_request)

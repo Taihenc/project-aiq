@@ -25,7 +25,9 @@ from app.models.models import (
     ChunkContextRequest,
     ChunkContextResponse,
     FileReferenceRequest,
-    FileReferenceResponse
+    FileReferenceResponse,
+    FilterIn,
+    FilterOut
 )
 
 from app.services.qdrant.qdrant_service import qdrant_service
@@ -64,7 +66,8 @@ class Tools:
                 query=search_request.query,
                 limit=search_request.top_k,
                 score_threshold=search_request.score_threshold,
-                query_filter=search_request.filter
+                filter_in=search_request.filter_in,
+                filter_out=search_request.filter_out
             )
 
             document = [DocumentResponse(
