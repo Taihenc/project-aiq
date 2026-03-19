@@ -12,6 +12,7 @@ class SearchFilter(BaseModel):
     team: Optional[str] = Field(default=None, description="Team filter")
     project: Optional[str] = Field(default=None, description="Project filter")
     tags: Optional[List[str]] = Field(default=None, description="Tags filter")
+    exclude_file_ids: Optional[List[str]] = Field(default=None, description="Stable file IDs to exclude from search results")
     exclude: Optional[List[str]] = Field(default=None, description="File paths to exclude from search results")
 
 
@@ -19,6 +20,7 @@ class SearchChatRequest(BaseModel):
     title: Optional[str] = Field(default=None)
     query: str
     history: List[str] = []
+    context: Optional[str] = Field(default="")
     attachments: List[FileRef] = Field(default=[])
     exclude: List[FileRef] = Field(default=[])
     filter: Optional[SearchFilter] = Field(default=None)

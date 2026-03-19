@@ -14,6 +14,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { CitationPicker } from './citation-picker';
 import { FileExtBadge } from './attachment-pill';
+import {
+  getAttachmentDisplayName,
+  getFileExtensionFromName,
+} from '@/lib/utils/file-identity';
 
 // ── EditAttachmentPill ────────────────────────────────────────────────────────
 // Pill with preview popover (same as SentCitationPill) + floating × remove.
@@ -26,8 +30,8 @@ function EditAttachmentPill({
   onRemove: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const filename = att.file_path.split('/').pop() || att.file_path;
-  const ext = att.file_path.split('.').pop()?.toLowerCase();
+  const filename = getAttachmentDisplayName(att);
+  const ext = getFileExtensionFromName(filename, att.file_path);
 
   const pageMap = new Map<number, ChunkMetadata[]>();
   for (const chunk of att.chunks) {

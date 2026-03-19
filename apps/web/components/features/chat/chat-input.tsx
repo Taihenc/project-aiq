@@ -34,6 +34,7 @@ import { ExcludeFilesPicker } from './exclude-files-picker';
 import { SearchFilterPicker } from './search-filter-picker';
 import { useExcludeStore } from '@/hooks/useExcludeStore';
 import { useSearchFilterStore } from '@/hooks/useSearchFilterStore';
+import { getAttachmentFileId } from '@/lib/utils/file-identity';
 
 // ── Mode config ──────────────────────────────────────────────────────────────
 
@@ -79,7 +80,11 @@ export function ChatInput({
   const [mode, setMode] = useState<SearchMode>('auto');
   const [isSending, setIsSending] = useState(false);
   const [sendPulse, setSendPulse] = useState(false);
-  const { excludedPaths, remove: removeExcluded } = useExcludeStore();
+  const {
+    excludedPaths,
+    excludedFileIds,
+    remove: removeExcluded,
+  } = useExcludeStore();
   const { department, team, project, tags, file_type } = useSearchFilterStore();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -95,7 +100,14 @@ export function ChatInput({
   const handleSubmit = () => {
     if (message.trim() && !disabled && !isSending) {
       const metaFilter: Partial<SearchFilter> = {
-        ...(excludedPaths.length > 0 ? { exclude: excludedPaths } : {}),
+        ...(excludedPaths.length > 0 || excludedFileIds.length > 0
+          ? {
+              ...(excludedPaths.length > 0 ? { exclude: excludedPaths } : {}),
+              ...(excludedFileIds.length > 0
+                ? { exclude_file_ids: excludedFileIds }
+                : {}),
+            }
+          : {}),
         ...(file_type ? { file_type } : {}),
         ...(department ? { department } : {}),
         ...(team ? { team } : {}),
@@ -123,7 +135,7 @@ export function ChatInput({
 
   // When a file is attached, auto-remove it from the exclude list
   const handleAddAttachment = (attachment: import('@/types/api').FileRef) => {
-    removeExcluded(attachment.file_path);
+    removeExcluded(getAttachmentFileId(attachment), attachment.file_path);
     onAddAttachment?.(attachment);
   };
 
@@ -150,7 +162,7 @@ export function ChatInput({
             <div className="flex flex-wrap gap-1.5 px-2">
               {attachments.map((att, index) => (
                 <AttachmentPill
-                  key={att.file_path || `att-${index}`}
+                  key={att.file_id || att.file_path || `att-${index}`}
                   att={att}
                   index={index}
                   onRemove={onRemoveAttachment}

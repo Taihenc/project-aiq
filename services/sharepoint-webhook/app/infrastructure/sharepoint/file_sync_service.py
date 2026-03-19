@@ -4,15 +4,26 @@ from __future__ import annotations
 
 import shutil
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.infrastructure.logging import get_logger
 from app.infrastructure.graph.ms_graph_client import GraphAPIClient
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class FileSyncResult:
+    sharepoint_item_id: str
+    file_name: str
+    action: str
+    status: str
+    detail: Optional[str] = None
 
 
 class FileSyncService:
@@ -28,29 +39,106 @@ class FileSyncService:
         self.file_storage_url = os.getenv("FILE_STORAGE_URL", "http://127.0.0.1:8007")
         logger.info("File Storage Service URL: %s", self.file_storage_url)
 
-    def sync_changes(self, changes: list[dict], drive_id: str) -> None:
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    def _get_existing_file_record(self, item_id: str) -> Optional[dict[str, Any]]:
+        try:
+            response = requests.get(f"{self.file_storage_url}/files/source/{item_id}", timeout=5)
+            if response.status_code == 200:
+                return response.json()
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+        except Exception as exc:
+            logger.error("Error checking file status for %s: %s", item_id, exc)
+            raise exc
+
+    def _is_same_remote_version(self, existing_record: dict[str, Any], item_metadata: dict[str, Any]) -> bool:
+        existing_metadata = existing_record.get("metadata") or {}
+        current_etag = item_metadata.get("eTag") or item_metadata.get("cTag")
+        existing_etag = existing_metadata.get("eTag") or existing_metadata.get("cTag")
+        if current_etag and existing_etag:
+            return current_etag == existing_etag
+
+        current_modified = item_metadata.get("lastModifiedDateTime")
+        existing_modified = existing_metadata.get("lastModifiedDateTime")
+        return bool(current_modified and existing_modified and current_modified == existing_modified)
+
+    def _should_skip_file(self, item_id: str, item_metadata: dict[str, Any]) -> tuple[bool, Optional[str]]:
+        existing_record = self._get_existing_file_record(item_id)
+        if not existing_record:
+            return False, None
+
+        existing_status = existing_record.get("status")
+        if existing_status not in {"COMPLETED", "INDEXED"}:
+            return False, None
+
+        if self._is_same_remote_version(existing_record, item_metadata):
+            return True, f"Unchanged remote version already stored with status {existing_status}"
+
+        return False, None
+
+    def sync_changes(self, changes: list[dict], drive_id: str) -> list[FileSyncResult]:
         if not changes:
-            return
+            return []
 
         logger.info("Processing %s changes...", len(changes))
+        results: list[FileSyncResult] = []
         for item in changes:
             name = item.get("name", "Unknown")
+            item_id = item.get("id", "")
 
             if "deleted" in item:
-                item_id = item.get("id", "")
                 logger.info("Processing deleted item: %s (ID: %s)", name, item_id)
-                self._delegate_delete(item_id, name)
+                deleted = self._delegate_delete(item_id, name)
+                results.append(
+                    FileSyncResult(
+                        sharepoint_item_id=item_id,
+                        file_name=name,
+                        action="DELETED",
+                        status="DELEGATED" if deleted else "FAILED",
+                    )
+                )
                 continue
 
             if "file" in item:
+                should_skip, detail = self._should_skip_file(item_id, item)
+                if should_skip:
+                    logger.info("Skipping already processed file: %s", name)
+                    results.append(
+                        FileSyncResult(
+                            sharepoint_item_id=item_id,
+                            file_name=name,
+                            action=self._determine_file_action(item),
+                            status="SKIPPED",
+                            detail=detail,
+                        )
+                    )
+                    continue
+
                 size = item.get("size", 0)
                 if size > 0:
-                    item_id = item.get("id", "")
-                    # Use delegation by default
-                    self._delegate_download(drive_id, item_id, name, item)
+                    delegated = self._delegate_download(drive_id, item_id, name, item)
+                    results.append(
+                        FileSyncResult(
+                            sharepoint_item_id=item_id,
+                            file_name=name,
+                            action=self._determine_file_action(item),
+                            status="DELEGATED" if delegated else "FAILED",
+                        )
+                    )
             elif "folder" in item:
                 logger.info("Skipping folder: %s", name)
 
+        return results
+
+    def _determine_file_action(self, item: dict) -> str:
+        created = item.get("createdDateTime")
+        modified = item.get("lastModifiedDateTime")
+        if created and modified and created == modified:
+            return "CREATED"
+        return "MODIFIED"
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     def _delegate_download(self, drive_id: str, item_id: str, file_name: str, item_metadata: dict) -> bool:
         token = self.graph_client.get_access_token()
         if not token:
@@ -73,10 +161,12 @@ class FileSyncService:
                 return True
             logger.warning("Failed to delegate %s: HTTP %s", file_name, response.status_code)
             logger.warning("Response: %s", response.text)
+            return False
         except Exception as exc:
             logger.error("Error delegating %s: %s", file_name, exc)
-        return False
+            raise exc
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     def _delegate_delete(self, item_id: str, file_name: str) -> bool:
         try:
             # Delete by Source ID (SharePoint Item ID)
@@ -89,9 +179,10 @@ class FileSyncService:
                 return True
 
             logger.warning("Failed to delegate deletion for %s: HTTP %s", file_name, response.status_code)
+            return False
         except Exception as exc:
             logger.error("Error delegating deletion for %s: %s", file_name, exc)
-        return False
+            raise exc
 
     # --- Legacy Local Download Methods (Preserved but unused) ---
 

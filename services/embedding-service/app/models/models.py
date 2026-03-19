@@ -16,6 +16,8 @@ class MetaData(BaseModel):
     columns: Optional[List[str]] = Field(default=None, description="columns", nullable=True)
     created_at: Optional[str] = Field(default="", description="created time", nullable=True)
     checksum: Optional[str] = Field(default="", description="checksum of byte", nullable=True)
+    file_id: Optional[str] = Field(default=None, description="stable file id", nullable=True)
+    source_id: Optional[str] = Field(default=None, description="stable upstream source id", nullable=True)
 
 class Chunk(BaseModel):
     chunk_number: int = Field(...)
@@ -58,6 +60,7 @@ class Filter(BaseModel):
     file_name: Optional[str] = Field(default="",description="File name filter",nullable=True)
     file_path: Optional[str] = Field(default="",description="Path filter",nullable=True)
     file_type: Optional[str] = Field(default="",description="File type filter",nullable=True)
+    exclude_file_ids: Optional[List[str]] = Field(default=[],description="List of stable file ids to exclude",nullable=True)
     exclude: Optional[List[str]] = Field(default=[],description="List of document path to exclude",nullable=True)
     pages: Optional[List[int]] = Field(default=[],description="Page filter",nullable=True)
     department: Optional[str] = Field(default="",description="Department filter",nullable=True)

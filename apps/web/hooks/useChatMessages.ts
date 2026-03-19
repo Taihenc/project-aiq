@@ -590,10 +590,17 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       const parentOfRegen = userMsg.parentId ?? null;
 
       // Build the current active filter from both stores
-      const { excludedPaths } = useExcludeStore.getState();
+      const { excludedPaths, excludedFileIds } = useExcludeStore.getState();
       const { department, team, project, tags, file_type } = useSearchFilterStore.getState();
       const metaFilter: Partial<SearchFilter> = {
-        ...(excludedPaths.length > 0 ? { exclude: excludedPaths } : {}),
+        ...((excludedPaths.length > 0 || excludedFileIds.length > 0)
+          ? {
+              ...(excludedPaths.length > 0 ? { exclude: excludedPaths } : {}),
+              ...(excludedFileIds.length > 0
+                ? { exclude_file_ids: excludedFileIds }
+                : {}),
+            }
+          : {}),
         ...(file_type ? { file_type } : {}),
         ...(department ? { department } : {}),
         ...(team ? { team } : {}),

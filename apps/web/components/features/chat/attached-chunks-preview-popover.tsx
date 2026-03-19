@@ -23,7 +23,7 @@ export function AttachedChunksPreviewPopover({
   filename: string;
   ext: string | undefined;
   filePath: string;
-  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk?: (fileId: string, chunkNumber: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);

@@ -17,6 +17,11 @@ export class CitationDto {
   @IsString()
   id!: string;
 
+  @ApiPropertyOptional({ description: 'Stable file identifier for the cited source' })
+  @IsOptional()
+  @IsString()
+  file_id?: string;
+
   @ApiProperty({ description: 'Title of the cited source' })
   @IsString()
   title!: string;

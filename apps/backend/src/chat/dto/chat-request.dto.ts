@@ -46,6 +46,15 @@ export class SearchFilterDto {
   @IsArray()
   @IsString({ each: true })
   exclude?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Stable file IDs to exclude from search results',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  exclude_file_ids?: string[];
 }
 
 // Search-flow FileRef DTOs
@@ -66,8 +75,13 @@ export class ChunkMetadataDto {
 }
 
 export class FileRefDto {
+  @IsOptional()
   @IsString()
-  file_path!: string;
+  file_id?: string;
+
+  @IsOptional()
+  @IsString()
+  file_path?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

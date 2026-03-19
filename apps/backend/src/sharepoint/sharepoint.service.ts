@@ -12,6 +12,18 @@ export interface StatusEvent {
   file_name?: string;
 }
 
+type IndexedDocument = {
+  file_path?: string;
+  file_id?: string;
+  source_id?: string;
+  metadata?: {
+    file_path?: string;
+    file_id?: string;
+    source_id?: string;
+    file?: string;
+  };
+};
+
 @Injectable()
 export class SharePointService implements OnModuleDestroy {
   private readonly webhookUrl: string;
@@ -112,20 +124,80 @@ export class SharePointService implements OnModuleDestroy {
     }
   }
 
+  private getDocumentFilePath(doc: IndexedDocument): string {
+    return doc.file_path ?? doc.metadata?.file_path ?? '';
+  }
+
+  private getDocumentFileId(doc: IndexedDocument): string | undefined {
+    return doc.file_id ?? doc.metadata?.file_id;
+  }
+
+  private getDocumentSourceId(doc: IndexedDocument): string | undefined {
+    return doc.source_id ?? doc.metadata?.source_id;
+  }
+
+  private matchesDocumentIdentifier(
+    doc: IndexedDocument,
+    identifier: string,
+  ): boolean {
+    const filePath = this.getDocumentFilePath(doc);
+    const fileId = this.getDocumentFileId(doc);
+    const sourceId = this.getDocumentSourceId(doc);
+    return (
+      filePath === identifier ||
+      fileId === identifier ||
+      sourceId === identifier
+    );
+  }
+
+  private async resolveDocumentIdentity(identifier: string): Promise<{
+    filePath?: string;
+    fileId?: string;
+    sourceId?: string;
+  }> {
+    const docs = await this.fetchAllDocuments();
+    const match = docs.find((doc) =>
+      this.matchesDocumentIdentifier(doc as IndexedDocument, identifier),
+    ) as IndexedDocument | undefined;
+
+    if (!match) {
+      return {};
+    }
+
+    return {
+      filePath: this.getDocumentFilePath(match) || undefined,
+      fileId: this.getDocumentFileId(match),
+      sourceId: this.getDocumentSourceId(match),
+    };
+  }
+
   /** Returns a deduplicated list of every file that has been indexed in the embedding service. */
-  async getIndexedFiles(): Promise<{ file_path: string; name: string; ext: string }[]> {
+  async getIndexedFiles(): Promise<{
+    file_path: string;
+    file_id?: string;
+    name: string;
+    ext: string;
+  }[]> {
     try {
       const docs = await this.fetchAllDocuments();
 
       const seen = new Set<string>();
-      const files: { file_path: string; name: string; ext: string }[] = [];
+      const files: {
+        file_path: string;
+        file_id?: string;
+        name: string;
+        ext: string;
+      }[] = [];
       for (const doc of docs) {
-        const filePath: string = doc.file_path ?? doc.metadata?.file_path ?? '';
-        if (!filePath || seen.has(filePath)) continue;
-        seen.add(filePath);
-        const name: string = doc.metadata?.file ?? filePath.split('/').pop() ?? filePath;
+        const indexedDoc = doc as IndexedDocument;
+        const filePath = this.getDocumentFilePath(indexedDoc);
+        const fileId = this.getDocumentFileId(indexedDoc);
+        const dedupeKey = fileId ?? filePath;
+        if (!filePath || !dedupeKey || seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        const name: string = indexedDoc.metadata?.file ?? filePath.split('/').pop() ?? filePath;
         const ext: string = name.split('.').pop()?.toLowerCase() ?? '';
-        files.push({ file_path: filePath, name, ext });
+        files.push({ file_path: filePath, ...(fileId ? { file_id: fileId } : {}), name, ext });
       }
       return files;
     } catch (error) {
@@ -159,14 +231,14 @@ export class SharePointService implements OnModuleDestroy {
   }
 
   /**
-   * Fetch all chunks for a given file_path from the embedding service.
-   * Paginates through GET /v1/documents (max 1000 per page) and filters by file_path.
+   * Fetch all chunks for a given file identifier from the embedding service.
+   * Accepts file_path, file_id, or source_id.
    */
-  async getFileChunks(filePath: string): Promise<any[]> {
+  async getFileChunks(identifier: string): Promise<any[]> {
     try {
       const docs = await this.fetchAllDocuments();
-      return docs.filter(
-        (d) => d.file_path === filePath || d.metadata?.file_path === filePath,
+      return docs.filter((doc) =>
+        this.matchesDocumentIdentifier(doc as IndexedDocument, identifier),
       );
     } catch (error) {
       this.handleError(error, 'Failed to fetch file chunks');
@@ -198,26 +270,42 @@ export class SharePointService implements OnModuleDestroy {
 
   /**
    * Get a presigned download URL for a file.
-   * Resolution order:
-   *   1. Try FSS GET /files/source/{sourceId} (works for SharePoint files where source_id is set)
-   *   2. Fall back to FSS GET /files/by-name/{basename} (works for directly-uploaded files
-   *      where file_path from the embedding service is a temp path like /tmp/xxx/name.pdf)
+   * Accepts file_id, source_id, or file_path.
    */
-  async getFileDownloadUrl(sourceId: string): Promise<{ url: string; file_name: string }> {
+  async getFileDownloadUrl(identifier: string): Promise<{ url: string; file_name: string }> {
     try {
-      // Step 1: try resolved source_id
-      let fileId: string | undefined;
-      const statusRes = await firstValueFrom(
-        this.httpService.get(`${this.fileStorageUrl}/files/source/${sourceId}`),
+      // Step 1: direct file_id lookup.
+      const directDownload = await firstValueFrom(
+        this.httpService.get(`${this.fileStorageUrl}/files/${identifier}/download`),
       ).catch((err) => {
         if (err.response?.status === 404) return { data: null };
         throw err;
       });
-      fileId = statusRes.data?.file_id;
 
-      // Step 2: fall back to lookup by basename (handles temp-path file_paths)
+      if (directDownload.data?.download_url) {
+        return {
+          url: directDownload.data.download_url as string,
+          file_name: directDownload.data.file_name as string,
+        };
+      }
+
+      const { filePath, sourceId } = await this.resolveDocumentIdentity(identifier);
+
+      // Step 2: try resolved source_id.
+      let fileId: string | undefined;
+      if (sourceId) {
+        const statusRes = await firstValueFrom(
+          this.httpService.get(`${this.fileStorageUrl}/files/source/${sourceId}`),
+        ).catch((err) => {
+          if (err.response?.status === 404) return { data: null };
+          throw err;
+        });
+        fileId = statusRes.data?.file_id;
+      }
+
+      // Step 3: fall back to lookup by basename (handles temp-path file_paths)
       if (!fileId) {
-        const basename = sourceId.split('/').filter(Boolean).pop() ?? sourceId;
+        const basename = (filePath ?? identifier).split('/').filter(Boolean).pop() ?? identifier;
         const nameRes = await firstValueFrom(
           this.httpService.get(`${this.fileStorageUrl}/files/by-name/${encodeURIComponent(basename)}`),
         ).catch((err) => {
@@ -231,7 +319,7 @@ export class SharePointService implements OnModuleDestroy {
         throw new HttpException('File not found in storage', HttpStatus.NOT_FOUND);
       }
 
-      // Step 3: get presigned download URL
+      // Step 4: get presigned download URL
       const dlRes = await firstValueFrom(
         this.httpService.get(`${this.fileStorageUrl}/files/${fileId}/download`),
       );

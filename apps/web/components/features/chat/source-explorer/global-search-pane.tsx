@@ -8,6 +8,10 @@ import { FileExtBadge } from '../attachment-pill';
 import type { ChunkMetadata, SourceFile } from '@/types/api';
 import { highlightSegments } from '@/lib/utils/highlight';
 import { extractExcerpt } from '@/lib/utils/excerpt';
+import {
+  getSourceFileDisplayName,
+  getSourceFileId,
+} from '@/lib/utils/file-identity';
 import { HighlightText } from './highlight-text';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -121,7 +125,8 @@ function FileGroup({
   onSelectChunk: (fp: string, chunk: ChunkMetadata) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const counts = fileCountMap.get(file.file_path) ?? {
+  const fileId = getSourceFileId(file);
+  const counts = fileCountMap.get(fileId) ?? {
     citedCount: 0,
     attachedCount: 0,
   };
@@ -143,7 +148,7 @@ function FileGroup({
         <FileExtBadge ext={file.ext ?? ''} />
         <span className="min-w-0 flex-1 truncate text-left">
           <HighlightText
-            text={file.name}
+            text={getSourceFileDisplayName(file)}
             query={query}
             className="text-[12px] font-medium"
           />
@@ -166,7 +171,7 @@ function FileGroup({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onSelectFile(file.file_path);
+              onSelectFile(fileId);
             }}
             className="rounded-md border border-border/60 bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:border-[var(--brand-btn-primary)]/40 hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-accent)] transition-colors"
           >
@@ -188,7 +193,7 @@ function FileGroup({
           >
             <div className="flex flex-col gap-1.5 border-t border-border/40 p-2">
               {matchingChunks.map((chunk) => {
-                const fileCounts = fileCountMap.get(file.file_path) ?? {
+                const fileCounts = fileCountMap.get(fileId) ?? {
                   citedCount: 0,
                   attachedCount: 0,
                 };
@@ -201,7 +206,7 @@ function FileGroup({
                     query={query}
                     isCited={false}
                     isAttached={false}
-                    onClick={() => onSelectChunk(file.file_path, chunk)}
+                    onClick={() => onSelectChunk(fileId, chunk)}
                   />
                 );
               })}
@@ -265,7 +270,7 @@ export function GlobalSearchPane({
     if (!q) return [];
     const groups: { file: SourceFile; chunks: ChunkMetadata[] }[] = [];
     for (const file of fileList) {
-      const cached = chunksCache[file.file_path];
+      const cached = chunksCache[getSourceFileId(file)];
       if (!cached || cached.length === 0) continue;
       const matching = cached.filter(
         (c) =>
@@ -353,20 +358,21 @@ export function GlobalSearchPane({
                 </div>
                 <div className="flex flex-col gap-1">
                   {fileNameMatches.map((file) => {
-                    const counts = fileCountMap.get(file.file_path) ?? {
+                    const fileId = getSourceFileId(file);
+                    const counts = fileCountMap.get(fileId) ?? {
                       citedCount: 0,
                       attachedCount: 0,
                     };
                     return (
                       <button
-                        key={file.file_path}
-                        onClick={() => onSelectFile(file.file_path)}
+                        key={fileId}
+                        onClick={() => onSelectFile(fileId)}
                         className="flex w-full items-center gap-2 rounded-xl border border-border/40 bg-muted/20 px-3 py-2 text-left transition-colors hover:bg-muted/60"
                       >
                         <FileExtBadge ext={file.ext ?? ''} />
                         <span className="min-w-0 flex-1 truncate">
                           <HighlightText
-                            text={file.name}
+                            text={getSourceFileDisplayName(file)}
                             query={debouncedQuery}
                             className="text-[12px] font-medium"
                           />

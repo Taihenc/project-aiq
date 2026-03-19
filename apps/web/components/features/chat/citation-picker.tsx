@@ -24,6 +24,13 @@ import {
   Paperclip,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  createAttachmentFileRef,
+  getAttachmentFileId,
+  getCitationDisplayName,
+  getCitationFileId,
+  getFileExtensionFromName,
+} from '@/lib/utils/file-identity';
 import type { Citation, ChunkMetadata, FileRef } from '@/types/api';
 import { FileExtBadge } from './attachment-pill';
 import { ChunkContentPopover } from './chunk-content-popover';
@@ -43,13 +50,13 @@ export function CitationPickerItem({
   attachedChunks: ChunkMetadata[];
   onToggleAll: () => void;
   onToggleChunk: (chunk: ChunkMetadata) => void;
-  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk?: (fileId: string, chunkNumber: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const filename =
-    citation.id.split('/').pop() || citation.title || citation.id;
-  const ext = filename.split('.').pop()?.toLowerCase();
+  const fileId = getCitationFileId(citation);
+  const filename = getCitationDisplayName(citation);
+  const ext = getFileExtensionFromName(filename, fileId);
   const allChunks: ChunkMetadata[] = citation.chunks ?? [];
 
   const attachedNums = new Set(attachedChunks.map((c) => c.chunk_number));
@@ -127,7 +134,7 @@ export function CitationPickerItem({
             attachedChunks={attachedChunks}
             filename={filename}
             ext={ext}
-            filePath={citation.id}
+            filePath={fileId}
             onRemoveChunk={onRemoveChunk}
           />
         )}
@@ -259,7 +266,7 @@ export function CitationPicker({
   attachments: FileRef[];
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
-  onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  onRemoveChunk?: (fileId: string, chunkNumber: number) => void;
   disabled?: boolean;
 }) {
   const [search, setSearch] = useState('');
@@ -278,16 +285,20 @@ export function CitationPicker({
     return availableCitations.filter(
       (c) =>
         c.title?.toLowerCase().includes(q) ||
-        c.id.toLowerCase().includes(q) ||
+        getCitationFileId(c).toLowerCase().includes(q) ||
         c.platform?.toLowerCase().includes(q),
     );
   }, [availableCitations, search]);
 
   const getAttachedChunks = (citation: Citation): ChunkMetadata[] =>
-    attachments.find((a) => a.file_path === citation.id)?.chunks ?? [];
+    attachments.find(
+      (a) => getAttachmentFileId(a) === getCitationFileId(citation),
+    )?.chunks ?? [];
 
   const handleToggleAll = (citation: Citation) => {
-    const idx = attachments.findIndex((a) => a.file_path === citation.id);
+    const fileId = getCitationFileId(citation);
+    const filePath = citation.id;
+    const idx = attachments.findIndex((a) => getAttachmentFileId(a) === fileId);
     const allChunks = citation.chunks ?? [];
     const attached = idx !== -1 ? attachments[idx] : null;
     const isAllAttached =
@@ -299,19 +310,25 @@ export function CitationPicker({
     if (isAllAttached) {
       onRemoveAttachment?.(idx);
     } else {
-      onAddAttachment?.({ file_path: citation.id, chunks: allChunks });
+      onAddAttachment?.(
+        createAttachmentFileRef({ fileId, filePath, chunks: allChunks }),
+      );
     }
   };
 
   const handleToggleChunk = (citation: Citation, chunk: ChunkMetadata) => {
+    const fileId = getCitationFileId(citation);
+    const filePath = citation.id;
     const isAttached = attachments
-      .find((a) => a.file_path === citation.id)
+      .find((a) => getAttachmentFileId(a) === fileId)
       ?.chunks.some((c) => c.chunk_number === chunk.chunk_number);
 
     if (isAttached) {
-      onRemoveChunk?.(citation.id, chunk.chunk_number);
+      onRemoveChunk?.(fileId, chunk.chunk_number);
     } else {
-      onAddAttachment?.({ file_path: citation.id, chunks: [chunk] });
+      onAddAttachment?.(
+        createAttachmentFileRef({ fileId, filePath, chunks: [chunk] }),
+      );
     }
   };
 
