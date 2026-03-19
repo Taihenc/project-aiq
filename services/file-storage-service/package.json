@@ -12,7 +12,9 @@
     "migrate:gen": "uv run alembic revision --autogenerate -m",
     "migrate:current": "uv run alembic current",
     "migrate:history": "uv run alembic history --verbose",
-    "migrate:downgrade": "uv run alembic downgrade -1"
+    "migrate:downgrade": "uv run alembic downgrade -1",
+    "db:migrate": "pnpm run migrate",
+    "db:reset": "rm -f file_metadata.db && pnpm run db:migrate"
   },
   "keywords": [
     "file-storage",
