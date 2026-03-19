@@ -10,8 +10,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { FileRef, ChunkMetadata } from '@/types';
+import type { FileRef, ChunkMetadata, SearchFilter } from '@/types';
 import { FileExtBadge } from './attachment-pill';
+import { ExcludeFilesCircle, SearchFilterCircle } from './message-filter-pills';
 
 import { PILL_VISIBLE_DEFAULT } from '@/constants/chat';
 
@@ -19,13 +20,23 @@ import { PILL_VISIBLE_DEFAULT } from '@/constants/chat';
 
 export function SentAttachmentsPillRow({
   attachments,
+  searchFilter,
 }: {
   attachments: FileRef[];
+  searchFilter?: SearchFilter;
 }) {
   const [showAll, setShowAll] = useState(false);
   const hidden = attachments.length - PILL_VISIBLE_DEFAULT;
   const always = attachments.slice(0, PILL_VISIBLE_DEFAULT);
   const extra = attachments.slice(PILL_VISIBLE_DEFAULT);
+
+  const { exclude: excludeList, ...filterOnly } = searchFilter ?? {};
+  const hasFilter = Object.values(filterOnly).some(
+    (v) =>
+      v !== undefined &&
+      v !== null &&
+      (Array.isArray(v) ? v.length > 0 : String(v).trim() !== ''),
+  );
 
   const pillVariants = {
     hidden: { opacity: 0, scale: 0.75, y: 4 },
@@ -35,6 +46,13 @@ export function SentAttachmentsPillRow({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {/* Filter circles — always first */}
+      {excludeList && excludeList.length > 0 && (
+        <ExcludeFilesCircle exclude={excludeList} />
+      )}
+      {hasFilter && <SearchFilterCircle filter={filterOnly} />}
+
+      {/* Attachment pills */}
       {always.map((att) => (
         <SentCitationPill key={att.file_path} att={att} />
       ))}
@@ -155,7 +173,7 @@ export function SentCitationPill({ att }: { att: FileRef }) {
         {/* Pages → Chunks (read-only) */}
         <div
           className={cn(
-            'flex flex-col gap-0 overflow-y-auto transition-[max-height] duration-300 ease-in-out',
+            'flex flex-col gap-0 overflow-y-auto custom-scrollbar transition-[max-height] duration-300 ease-in-out',
             expanded ? 'max-h-[60vh]' : 'max-h-52',
           )}
         >

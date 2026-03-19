@@ -177,12 +177,33 @@ def get_file_record(file_id: str) -> File | None:
         return session.get(File, file_id)
 
 
-def find_file_by_source_id(source_id: str) -> File | None:
-    """O(1) lookup via indexed source_id column."""
+def find_files_by_source_id(source_id: str) -> list[File]:
+    """Return all non-deleted records for a given source_id, newest first."""
     with _new_session() as session:
-        statement = select(File).where(
-            File.source_id == source_id,
-            File.status != "DELETED",
+        statement = (
+            select(File)
+            .where(
+                File.source_id == source_id,
+                File.status != "DELETED",
+            )
+            .order_by(File.status_updated_at.desc())  # type: ignore[arg-type]
+        )
+        return list(session.exec(statement).all())
+
+
+def find_file_by_source_id(source_id: str) -> File | None:
+    """Lookup via indexed source_id column, returning the most recently updated non-deleted record."""
+    records = find_files_by_source_id(source_id)
+    return records[0] if records else None
+
+
+def find_file_by_name(file_name: str) -> File | None:
+    """Lookup by original file_name — returns the most recently created non-deleted record."""
+    with _new_session() as session:
+        statement = (
+            select(File)
+            .where(File.file_name == file_name, File.status != "DELETED")
+            .order_by(File.status_updated_at.desc())  # type: ignore[arg-type]
         )
         return session.exec(statement).first()
 
@@ -300,6 +321,28 @@ async def get_download_url(file_id: str):
 
     return {"download_url": url, "file_name": record.file_name}
 
+@app.get("/files/by-name/{file_name:path}")
+async def get_by_file_name(file_name: str):
+    """Look up a file record by its original file name (basename)."""
+    record = find_file_by_name(file_name)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    metadata = {}
+    try:
+        if record.file_metadata:
+            metadata = json.loads(record.file_metadata)
+    except Exception:
+        pass
+
+    return {
+        "file_id": record.id,
+        "file_name": record.file_name,
+        "status": record.status,
+        "metadata": metadata,
+    }
+
+
 @app.get("/files/source/{source_id}")
 async def get_by_source_id(source_id: str):
     """Get file metadata based on its source ID (e.g. SharePoint ID)."""
@@ -323,18 +366,19 @@ async def get_by_source_id(source_id: str):
 
 @app.delete("/files/source/{source_id}")
 async def delete_by_source_id(source_id: str):
-    """Delete a file based on its source ID (e.g. SharePoint ID)."""
+    """Delete all file records for the given source ID (e.g. SharePoint item ID)."""
     print(f"Request to delete file with source_id: {source_id}")
-    record = find_file_by_source_id(source_id)
-    if not record:
-        # If not found, we can assume it's already deleted or never existed.
-        # Return 404 to be explicit, or 200 to be idempotent.
-        # Let's return 404 so the caller knows.
+    records = find_files_by_source_id(source_id)
+    if not records:
         raise HTTPException(status_code=404, detail="File not found")
 
-    file_id = record.id
-    print(f"Found file_id: {file_id} for source_id: {source_id}")
-    update_status(file_id, "DELETED")
-    _notify_webhook(file_id, source_id, "DELETED", record.file_name or "")
-    await message_publisher.publish_file_deleted(file_id, source_id)
-    return {"status": "DELETED", "file_id": file_id}
+    deleted_ids = []
+    for record in records:
+        file_id = record.id
+        print(f"Marking file_id: {file_id} as DELETED (source_id: {source_id})")
+        update_status(file_id, "DELETED")
+        _notify_webhook(file_id, source_id, "DELETED", record.file_name or "")
+        await message_publisher.publish_file_deleted(file_id, source_id)
+        deleted_ids.append(file_id)
+
+    return {"status": "DELETED", "file_ids": deleted_ids}

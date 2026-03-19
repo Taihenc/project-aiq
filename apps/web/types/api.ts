@@ -53,8 +53,51 @@ export interface FileRef {
   content?: string;
 }
 
+/** A file that has been ingested into the knowledge base */
+export interface SourceFile {
+  /** Canonical path / identifier — matches Citation.id and FileRef.file_path */
+  file_path: string;
+  /** Human-readable filename */
+  name: string;
+  /** File extension (pdf, docx, …) */
+  ext?: string;
+  /** Platform/source label (SharePoint, Upload, …) */
+  platform?: string;
+  /** Last modified ISO string */
+  updated_at?: string;
+}
+
 // Search mode for the search-flow service
 export type SearchMode = 'auto' | 'search' | 'lookup' | 'chat';
+
+/** Distinct metadata values across all indexed chunks — used to populate filter pickers */
+export interface FilterOptions {
+  department: string[];
+  team: string[];
+  project: string[];
+  tags: string[];
+  file_type: string[];
+}
+
+// Filter for MCP search_documents — mirrors the backend Filter/SearchFilter Pydantic models
+export interface SearchFilter {
+  /** Exact file-name match */
+  file_name?: string;
+  /** Exact file-path match */
+  file_path?: string;
+  /** File type filter (e.g. "pdf", "docx") */
+  file_type?: string;
+  /** Department metadata filter — exact match */
+  department?: string;
+  /** Team metadata filter — exact match */
+  team?: string;
+  /** Project metadata filter — exact match */
+  project?: string;
+  /** Tag metadata filters */
+  tags?: string[];
+  /** Document file paths to exclude from search results */
+  exclude?: string[];
+}
 
 // OpenAI-compatible chat completions request
 export interface ChatCompletionsRequest {
@@ -76,6 +119,19 @@ export interface ChatCompletionsRequest {
   attachments?: FileRef[];
   /** Search mode forwarded to search-flow service */
   mode?: SearchMode;
+  /** Filter applied at the MCP/Qdrant layer (e.g. file-path exclusions) */
+  filter?: SearchFilter;
+  /**
+   * ID of the parent message when branching.
+   * Set to the message BEFORE the edited/regenerated point so the new messages
+   * are attached as siblings in the tree.
+   */
+  parent_message_id?: string;
+  /**
+   * ID of the assistant message to regenerate.
+   * Frontend sets this so the UI can track which bubble triggered the regen.
+   */
+  regenerate_from_id?: string;
 }
 
 // OpenAI-compatible chat completions response
@@ -139,8 +195,6 @@ export interface ChatSession {
   title: string;
   createdAt: number;
   updatedAt: number;
-  /** Accumulated available citations for the session (JSON-parsed by Drizzle) */
-  availableCitations?: unknown[] | null;
 }
 
 export interface BackendMessage {
@@ -150,6 +204,12 @@ export interface BackendMessage {
   createdAt: number;
   citations?: string;
   sentAttachments?: string | unknown[];
+  /** Search filter that was active when the user sent this message */
+  searchFilter?: string | SearchFilter;
+  /** ID of the parent message in the tree; null = this is the session root */
+  parentId?: string | null;
+  /** Sibling order under the same parent (0-based) */
+  branchIndex?: number;
 }
 
 // Paginated responses

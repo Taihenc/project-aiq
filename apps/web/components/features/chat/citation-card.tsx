@@ -8,8 +8,9 @@ import {
 } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, Copy, Check, Sparkles } from 'lucide-react';
+import { ChevronDown, Copy, Check, Sparkles, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSourceExplorerStore } from '@/hooks/useSourceExplorer';
 import type { Citation } from '@/types';
 import type { ChunkMetadata } from '@/types/api';
 import { FileExtBadge } from './attachment-pill';
@@ -70,6 +71,7 @@ export function CitationCard({
   const isSearching = query.trim().length > 0;
   const [isOpen, setIsOpen] = useState(false);
   const [copiedChunk, setCopiedChunk] = useState<number | null>(null);
+  const { open: openExplorer, selectFile } = useSourceExplorerStore();
 
   const ext = citation.id.split('.').pop()?.toLowerCase();
   const allChunks: ChunkMetadata[] = citation.chunks ?? [];
@@ -141,6 +143,17 @@ export function CitationCard({
 
           {/* Action buttons */}
           <div className="flex shrink-0 items-center gap-1">
+            {/* Open in Source Explorer */}
+            <button
+              onClick={() => {
+                openExplorer();
+                selectFile(citation.id);
+              }}
+              className="flex h-6 w-6 items-center justify-center rounded-full opacity-0 transition-opacity group-hover/header:opacity-100 text-[var(--brand-source-icon)] hover:bg-[var(--brand-source-attach-bg)] hover:text-[var(--brand-link)]"
+              title="Open chunk heatmap"
+            >
+              <LayoutGrid className="h-3 w-3" />
+            </button>
             {onShowSimilar && !isSearching && (
               <button
                 onClick={() => onShowSimilar(citation)}

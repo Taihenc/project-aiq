@@ -253,12 +253,14 @@ export function CitationPicker({
   onAddAttachment,
   onRemoveAttachment,
   onRemoveChunk,
+  disabled = false,
 }: {
   availableCitations: Citation[];
   attachments: FileRef[];
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
   onRemoveChunk?: (filePath: string, chunkNumber: number) => void;
+  disabled?: boolean;
 }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
@@ -336,9 +338,10 @@ export function CitationPicker({
                   open
                     ? 'bg-[var(--brand-link)]/10 text-[var(--brand-link)]'
                     : 'text-[var(--brand-source-icon)] hover:bg-[var(--brand-new-chat-bg)]',
-                  !hasAnyCitations && 'opacity-40 cursor-not-allowed',
+                  (!hasAnyCitations || disabled) &&
+                    'opacity-40 cursor-not-allowed',
                 )}
-                disabled={!hasAnyCitations}
+                disabled={!hasAnyCitations || disabled}
                 aria-label="Attach from sources"
               >
                 <Paperclip className="h-4 w-4" />
@@ -370,7 +373,7 @@ export function CitationPicker({
         <div className="flex items-center justify-between border-b border-[var(--brand-source-border)] px-4 pt-3.5 pb-3">
           <div className="flex items-center gap-2">
             <FileText className="h-3.5 w-3.5 text-[var(--brand-link)]" />
-            <span className="text-sm font-semibold text-[var(--brand-source-text)]">
+            <span className="text-xs font-semibold text-[var(--brand-source-text)]">
               Attach from sources
             </span>
           </div>
@@ -388,7 +391,7 @@ export function CitationPicker({
         </div>
 
         {/* Search */}
-        <div className="border-b border-[var(--brand-source-border)] px-3 py-2">
+        <div className="px-3 pb-2 pt-3">
           <div className="flex items-center gap-2 rounded-lg bg-[var(--brand-new-chat-bg)] px-3 py-1.5">
             <Search className="h-3.5 w-3.5 shrink-0 text-[var(--brand-source-time)]" />
             <input
@@ -412,7 +415,7 @@ export function CitationPicker({
         </div>
 
         {/* Citation list */}
-        <div className="flex max-h-72 flex-col gap-1 overflow-y-auto p-2">
+        <div className="flex max-h-72 flex-col gap-1 overflow-y-auto custom-scrollbar p-2">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 px-4 text-center">
               <Search className="h-6 w-6 text-[var(--brand-source-time)]/50" />

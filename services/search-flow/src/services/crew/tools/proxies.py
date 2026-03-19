@@ -46,7 +46,7 @@ def generate_hyde_answer(query: str, status_callback: Optional[Callable] = None)
         return query
 
 
-def get_proxy_tools(status_callback: Optional[Callable] = None) -> List:
+def get_proxy_tools(status_callback: Optional[Callable] = None, exclude_paths: Optional[List[str]] = None) -> List:
     """
     Creates and returns a list of proxy tools bound to the given status callback.
 
@@ -59,9 +59,12 @@ def get_proxy_tools(status_callback: Optional[Callable] = None) -> List:
     def search_documents(query: str) -> str:
         """Search the knowledge base for documents based on a query."""
         enhanced_query = generate_hyde_answer(query, status_callback)
+        params: dict = {"query": enhanced_query}
+        if exclude_paths:
+            params["filter"] = {"exclude": exclude_paths}
         return run_mcp_sync(
             execute_mcp_operation(
-                "search_documents", {"query": enhanced_query}, status_callback
+                "search_documents", params, status_callback
             )
         )
 

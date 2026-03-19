@@ -11,16 +11,37 @@ export function ChatMessage({
   status,
   statusHistory,
   isEmpty,
+  isStreaming,
   sentAttachments,
+  searchFilter,
   onAddAttachment,
   onRemoveAttachment,
   onRemoveChunk,
   attachments,
+  messageId,
+  branchIndex,
+  siblingCount,
+  onNavigateBranch,
+  onEditMessage,
+  onRegenerate,
+  availableCitations,
+  isLoading,
 }: ChatMessageProps) {
   if (role === 'user') {
     return (
       <div className="flex justify-end">
-        <UserChatBubble content={content} sentAttachments={sentAttachments} />
+        <UserChatBubble
+          content={content}
+          sentAttachments={sentAttachments}
+          searchFilter={searchFilter}
+          messageId={messageId}
+          branchIndex={branchIndex}
+          siblingCount={siblingCount}
+          onNavigateBranch={onNavigateBranch}
+          onEditMessage={onEditMessage}
+          availableCitations={availableCitations}
+          isLoading={isLoading}
+        />
       </div>
     );
   }
@@ -31,11 +52,17 @@ export function ChatMessage({
       status={status}
       statusHistory={statusHistory}
       isEmpty={isEmpty}
+      isStreaming={isStreaming}
       citations={citations}
       onAddAttachment={onAddAttachment}
       onRemoveAttachment={onRemoveAttachment}
       onRemoveChunk={onRemoveChunk}
       attachments={attachments}
+      messageId={messageId}
+      branchIndex={branchIndex}
+      siblingCount={siblingCount}
+      onNavigateBranch={onNavigateBranch}
+      onRegenerate={onRegenerate}
     />
   );
 }

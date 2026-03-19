@@ -9,7 +9,7 @@ import {
   ChevronRight,
   Upload,
   Loader2,
-  Image,
+  Image as ImageIcon,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ function getFileIcon(name: string) {
   if (['xlsx', 'xls', 'csv'].includes(ext))
     return <FileSpreadsheet className="h-4 w-4 text-emerald-400 shrink-0" />;
   if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext))
-    return <Image className="h-4 w-4 text-sky-400 shrink-0" />;
+    return <ImageIcon className="h-4 w-4 text-sky-400 shrink-0" aria-hidden />;
   if (ext === 'pdf')
     return <FileText className="h-4 w-4 text-red-400 shrink-0" />;
   if (['doc', 'docx'].includes(ext))

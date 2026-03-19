@@ -10,6 +10,7 @@ from app.models.models import (
     DocumentUploadRequest,
     DocumentUploadResponse,
     FileStatusResponse,
+    FilterOptionsResponse,
     SearchRequest,
     DocumentResponse,
     SearchResponse,
@@ -193,3 +194,16 @@ async def get_file_index_status(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to query file status: {str(e)}")
+
+
+@router.get("/filter-options", response_model=FilterOptionsResponse)
+async def get_filter_options():
+    """
+    Return the distinct metadata values for every filterable dimension
+    (department, team, project, tags, file_type) across all indexed chunks.
+    Used by the frontend filter picker to show real, data-driven options.
+    """
+    try:
+        return qdrant_service.get_filter_options()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve filter options: {str(e)}")

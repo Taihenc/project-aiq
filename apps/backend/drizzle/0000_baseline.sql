@@ -4,9 +4,12 @@ CREATE TABLE `chat_messages` (
 	`content` text NOT NULL,
 	`citations` text,
 	`sent_attachments` text,
-	`available_citations` text,
 	`session_id` text NOT NULL,
-	`created_at` integer DEFAULT 1772497151871,
+	`created_at` integer DEFAULT 1772631555685,
+	`parent_id` text,
+	`branch_index` integer DEFAULT 0 NOT NULL,
+	`path_summary` text,
+	`path_last_summarized_id` text,
 	FOREIGN KEY (`session_id`) REFERENCES `chat_sessions`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -14,8 +17,8 @@ CREATE TABLE `chat_sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
 	`user_id` text NOT NULL,
-	`created_at` integer DEFAULT 1772497151871,
-	`updated_at` integer DEFAULT 1772497151871,
+	`created_at` integer DEFAULT 1772631555685,
+	`updated_at` integer DEFAULT 1772631555685,
 	`summary` text,
 	`last_summarized_message_id` text,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
@@ -29,7 +32,7 @@ CREATE TABLE `users` (
 	`provider_id` text,
 	`display_name` text,
 	`refresh_token` text,
-	`created_at` integer DEFAULT 1772497151871
+	`created_at` integer DEFAULT 1772631555685
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);

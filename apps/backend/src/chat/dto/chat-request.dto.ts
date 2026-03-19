@@ -37,6 +37,44 @@ export class MessageDto {
   tool_call_id?: string;
 }
 
+export class SearchFilterDto {
+  @ApiPropertyOptional({
+    description: 'File paths to exclude from search results',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  exclude?: string[];
+}
+
+// Search-flow FileRef DTOs
+export class ChunkMetadataDto {
+  @IsNumber()
+  chunk_number!: number;
+
+  @IsNumber()
+  page_number!: number;
+
+  @IsOptional()
+  @IsNumber()
+  score?: number;
+
+  @IsOptional()
+  @IsString()
+  content?: string;
+}
+
+export class FileRefDto {
+  @IsString()
+  file_path!: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChunkMetadataDto)
+  chunks!: ChunkMetadataDto[];
+}
+
 // OpenAI-compatible chat completions request
 export class ChatCompletionsRequestDto {
   @ApiProperty({
@@ -127,33 +165,29 @@ export class ChatCompletionsRequestDto {
   @IsOptional()
   @IsString()
   mode?: string;
-}
 
-// Search-flow FileRef DTOs
-export class ChunkMetadataDto {
-  @IsNumber()
-  chunk_number!: number;
-
-  @IsNumber()
-  page_number!: number;
-
-  @IsOptional()
-  @IsNumber()
-  score?: number;
-
+  @ApiPropertyOptional({
+    description: 'ID of the parent user message when branching (edit or regenerate). If provided the history path is resolved from this message upward.',
+  })
   @IsOptional()
   @IsString()
-  content?: string;
-}
+  parent_message_id?: string;
 
-export class FileRefDto {
+  @ApiPropertyOptional({
+    description: 'ID of an assistant message to regenerate. When set, a new sibling assistant response is created under the same parent user message.',
+  })
+  @IsOptional()
   @IsString()
-  file_path!: string;
+  regenerate_from_id?: string;
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ChunkMetadataDto)
-  chunks!: ChunkMetadataDto[];
+  @ApiPropertyOptional({
+    description: 'Search filter applied at the MCP/Qdrant layer (e.g. file-path exclusions)',
+    type: () => SearchFilterDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SearchFilterDto)
+  filter?: SearchFilterDto;
 }
 
 // Legacy DTOs for backward compatibility with AI service

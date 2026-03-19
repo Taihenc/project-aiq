@@ -58,11 +58,21 @@ class Filter(BaseModel):
     file_name: Optional[str] = Field(default="",description="File name filter",nullable=True)
     file_path: Optional[str] = Field(default="",description="Path filter",nullable=True)
     file_type: Optional[str] = Field(default="",description="File type filter",nullable=True)
+    exclude: Optional[List[str]] = Field(default=[],description="List of document path to exclude",nullable=True)
     pages: Optional[List[int]] = Field(default=[],description="Page filter",nullable=True)
     department: Optional[str] = Field(default="",description="Department filter",nullable=True)
     team: Optional[str] = Field(default="",description="Team filter",nullable=True)
     project: Optional[str] = Field(default="",description="Project filter",nullable=True)
     tags: Optional[List[str]] = Field(default=[],description="Tags filter",nullable=True)
+
+
+class FilterOptionsResponse(BaseModel):
+    """Unique metadata values present in the Qdrant collection — used to populate filter pickers."""
+    department: List[str] = Field(default_factory=list, description="Distinct department values")
+    team: List[str] = Field(default_factory=list, description="Distinct team values")
+    project: List[str] = Field(default_factory=list, description="Distinct project values")
+    tags: List[str] = Field(default_factory=list, description="Distinct tag values (flattened across all chunks)")
+    file_type: List[str] = Field(default_factory=list, description="Distinct file_type values")
 
 
 class FileStatusResponse(BaseModel):

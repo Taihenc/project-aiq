@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "afb6328b-5349-422e-9e56-20b8c9034d38",
-  "prevId": "51174afe-d7c8-48d5-9393-49e78cad10bf",
+  "id": "33b0dd36-3fd5-4fb5-a111-87f500b98e5a",
+  "prevId": "c05cd3c4-e197-4936-9b5c-40c6751ab980",
   "tables": {
     "chat_messages": {
       "name": "chat_messages",
@@ -54,8 +54,43 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "branch_index": {
+          "name": "branch_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
           "autoincrement": false,
-          "default": 1772498835235
+          "default": 0
+        },
+        "path_summary": {
+          "name": "path_summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "path_last_summarized_id": {
+          "name": "path_last_summarized_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "search_filter": {
+          "name": "search_filter",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -107,16 +142,14 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": 1772498835235
+          "autoincrement": false
         },
         "updated_at": {
           "name": "updated_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": 1772498835235
+          "autoincrement": false
         },
         "summary": {
           "name": "summary",
@@ -127,13 +160,6 @@
         },
         "last_summarized_message_id": {
           "name": "last_summarized_message_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "available_citations": {
-          "name": "available_citations",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -218,8 +244,7 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": 1772498835234
+          "autoincrement": false
         }
       },
       "indexes": {

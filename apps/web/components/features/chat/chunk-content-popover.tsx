@@ -111,7 +111,7 @@ export function ChunkContentPopover({
         {/* Content */}
         <div
           className={cn(
-            'overflow-y-auto px-3 py-2.5 transition-[max-height] duration-300 ease-in-out',
+            'overflow-y-auto custom-scrollbar px-3 py-2.5 transition-[max-height] duration-300 ease-in-out',
             expanded ? 'max-h-[60vh]' : 'max-h-40',
           )}
         >
