@@ -16,6 +16,7 @@ Layout:
   - SCORE (Task/Tool)
 
 Usage:
+  run embedding / search-flow first
   uv run --with requests --with python-dotenv --with ragas --with deepeval --with langfuse --with pandas --with datasets --with openai --with langchain-openai --with langchain-huggingface --with sentence-transformers scripts/evaluate_agent.py
 """
 
@@ -186,6 +187,9 @@ def fetch_trace_tools(query: str):
     except Exception as e: return [], f"Error: {e}", "        (Error fetching timeline)"
 
 def calculate_ragas_metrics(rows):
+    if not rows:
+        import pandas as pd
+        return pd.DataFrame([{"faithfulness": "xxx", "factual_correctness": "xxx", "context_precision": "xxx", "context_recall": "xxx"}])
     from datasets import Dataset
     from ragas import evaluate
     from langchain_openai import AzureChatOpenAI
@@ -330,7 +334,7 @@ def main():
     for i, res in enumerate(results):
         r_row = rdf.iloc[i].to_dict() if i < len(rdf) else {}
         res["faithfulness"] = r_row.get('faithfulness')
-        res["factual_correctness"] = r_row.get('factual_correctness')
+        res["factual_correctness"] = r_row.get('answer_correctness')
         res["context_precision"] = r_row.get('context_precision')
         res["context_recall"] = r_row.get('context_recall')
         print(f"{i+1:<3} | {res['question'][:30]:<30} | {fmt(res.get('task_completion')):<5} | {fmt(res.get('tool_correctness')):<5} | "
