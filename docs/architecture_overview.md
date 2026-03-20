@@ -45,13 +45,17 @@ The monorepo contains 8 major services categorized by their bounded contexts.
 
 ### 3.3 Search Flow / AI Engine (`services/search-flow`)
 - **Role**: The core multi-agent reasoning engine.
-- **Tech Stack**: Python (FastAPI), CrewAI, Langfuse (for LLM observability).
+- **Tech Stack**: Python (FastAPI), CrewAI, Langfuse (for LLM observability), `uv` (dependency management).
 - **Responsibilities**:
   - Receives user queries and conversation history from the Backend.
-  - Orchestrates complex reasoning tasks using autonomous CrewAI agents:
-    - **Orchestrator Agent**: Analyzes intent (General Query vs. Document Search) and routes requests.
-    - **RAG Analyzer Agent**: Extracts search intents, automatically generates optimal search queries, and calls the Embedding Service to retrieve documents.
-    - **Chat Responder Agent**: Synthesizes the retrieved context and generates the final natural-language response.
+  - Orchestrates complex reasoning tasks using **SearchCrewFlow** (CrewAI Flow) with dynamic mode selection:
+    - **[AUTO]**: Autonomous mode that analyzes intent and selects the best tool/action.
+    - **[SEARCH]**: Semantic search mode using vector retrieval.
+    - **[LOOKUP]**: Direct document reading mode using specific page/chunk identifiers.
+    - **[CHAT]**: Pure conversational mode based on attachments or general domain knowledge.
+  - **Agents**:
+    - **Search Agent (AINGO)**: The primary analytical and friendly agent that handles the main task, uses tools, and formulates the final response.
+    - **HyDE Agent**: A specialized domain expert agent used internally by search tools to generate hypothetical answers, improving retrieval accuracy.
 
 ### 3.4 Data Ingestion Pipeline (`services/data-ingestion`)
 - **Role**: The ETL pipeline that transforms raw unstructured files into searchable vector embeddings.
@@ -87,10 +91,6 @@ The monorepo contains 8 major services categorized by their bounded contexts.
   - Monitors specific SharePoint folders for additions, mutations, or deletions.
   - Automatically fetches the files from SharePoint and pushes them into the AINGO File Storage / Ingestion pipeline.
 
-### 3.8 MCP Fast (`services/mcp-fast`)
-- **Role**: A central hub serving the Model Context Protocol (MCP).
-- **Responsibilities**: Serves as a standard interface layer allowing LLMs to seamlessly access unified tools and dynamic contexts across the various internal resources securely.
-
 ---
 
 ## 4. Key Data Flows
@@ -104,12 +104,12 @@ The monorepo contains 8 major services categorized by their bounded contexts.
 
 ### B. Intelligent Chat Retrieval Flow (RAG)
 1. **Query**: The user asks a question via the Frontend.
-2. **Orchestration**: The `backend` retrieves the user's session history and forwards the query to the `search-flow` AI Engine.
-3. **Reasoning**: The *Orchestrator Agent* evaluates the user's request. If it senses a document-based question, it hands off to the *RAG Agent*.
-4. **Retrieval**: The *RAG Agent* extracts dense keywords and autonomously queries the `embedding-service`.
-5. **Search**: The `embedding-service` performs a cosine similarity search in Qdrant, reranks the matched chunks, and returns the highest precision contexts.
-6. **Synthesis**: The *Chat Responder Agent* receives the documents, evaluates their relevance, and generates a natural, conversational answer incorporating the retrieved facts.
-7. **Response**: The final answer is passed back through the API Gateway to the user's screen.
+2. **Orchestration**: The `backend` retrieves the user's session history and forwards the query to the `search-flow` service.
+3. **Reasoning**: **SearchCrewFlow** initializes the state and determines the execution mode. It prepares a context block (History + Attachments) and assigns tools.
+4. **Retrieval (HyDE Enhanced)**: If searching is required, the **Search Agent** calls the `proxy_search_documents` tool. This tool first invokes the **HyDE Agent** to generate a hypothetical answer, which is then used to query the `embedding-service`.
+5. **Search**: The `embedding-service` performs a cosine similarity search in Qdrant and returns the relevant document chunks.
+6. **Synthesis**: The **Search Agent** receives the retrieved data, synthesizes it with the conversation history and attachments, and generates a structured Markdown response with citations.
+7. **Streaming**: Tokens are parsed in real-time and streamed back through the Backend to the Client via SSE (Server-Sent Events).
 
 ---
 
