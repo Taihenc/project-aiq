@@ -82,6 +82,30 @@ export function UserChatBubble({
     }
   }, [content, isExpanded]);
 
+  // ── Height animation via ResizeObserver + CSS transition ──────────────
+  const swapContentRef = useRef<HTMLDivElement>(null);
+  const [swapHeight, setSwapHeight] = useState<number | undefined>(undefined);
+  const isFirstMeasure = useRef(true);
+
+  useEffect(() => {
+    const el = swapContentRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const box = entries[0];
+      const h = box?.borderBoxSize?.[0]?.blockSize ?? box?.contentRect.height;
+      if (h != null) setSwapHeight(h);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Skip CSS transition on the very first measurement
+  useEffect(() => {
+    if (swapHeight !== undefined && isFirstMeasure.current) {
+      isFirstMeasure.current = false;
+    }
+  }, [swapHeight]);
+
   const contentText =
     typeof content === 'string' ? content : JSON.stringify(content);
 
@@ -114,9 +138,17 @@ export function UserChatBubble({
           <Pencil className="size-3.5" />
         </motion.button>
 
-        {/* Bubble / edit card */}
-        <div className="flex w-full max-w-sm flex-col items-end gap-2">
-          <AnimatePresence mode="wait" initial={false}>
+        {/* Bubble / edit card — height animated via CSS transition */}
+        <div
+          className="w-full max-w-sm overflow-hidden"
+          style={{
+            height: swapHeight !== undefined ? swapHeight : 'auto',
+            transition: isFirstMeasure.current
+              ? 'none'
+              : 'height 0.2s cubic-bezier(0.25, 0.1, 0.25, 1)',
+          }}
+        >
+          <div ref={swapContentRef}>
             {isEditing ? (
               <EditMessageCard
                 key="edit-card"
@@ -138,14 +170,7 @@ export function UserChatBubble({
               />
             ) : (
               /* ── Message bubble ──────────────────────────────────────── */
-              <motion.div
-                key="bubble"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.12 }}
-                className="flex w-full flex-col items-end gap-2"
-              >
+              <div className="flex w-full flex-col items-end gap-2">
                 <div
                   ref={msgRef}
                   className="relative overflow-hidden bg-gradient-purple-message shadow-message rounded-bubble rounded-tr-sm px-5 py-3 text-sm font-medium text-white transition-all duration-300 ease-in-out"
@@ -177,44 +202,63 @@ export function UserChatBubble({
                     )}
                   </button>
                 )}
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </div>
         </div>
         {/* end bubble column */}
       </div>
       {/* end pencil+bubble row */}
 
-      {/* Sent attachments + filter circles — hidden while editing */}
-      {!isEditing && (sentAttachments?.length || searchFilter) && (
-        <SentAttachmentsPillRow
-          attachments={sentAttachments ?? []}
-          searchFilter={searchFilter}
-        />
-      )}
+      {/* Sent attachments + filter circles — animated out when editing */}
+      <AnimatePresence initial={false}>
+        {!isEditing && (sentAttachments?.length || searchFilter) && (
+          <motion.div
+            key="sent-attachments"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+          >
+            <SentAttachmentsPillRow
+              attachments={sentAttachments ?? []}
+              searchFilter={searchFilter}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Branch navigation — hidden while editing */}
-      {!isEditing && siblingCount > 1 && messageId && onNavigateBranch && (
-        <div className="flex items-center gap-0.5 text-xs text-[var(--brand-fg-secondary)]">
-          <button
-            onClick={() => onNavigateBranch(messageId, 'prev')}
-            disabled={branchIndex === 0}
-            className="rounded p-0.5 transition-colors hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)] disabled:opacity-30"
+      {/* Branch navigation — animated out when editing */}
+      <AnimatePresence initial={false}>
+        {!isEditing && siblingCount > 1 && messageId && onNavigateBranch && (
+          <motion.div
+            key="branch-nav"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className="flex items-center gap-0.5 text-xs text-[var(--brand-fg-secondary)]"
           >
-            <ChevronLeft className="size-3.5" />
-          </button>
-          <span className="min-w-[2.5rem] text-center font-medium">
-            {branchIndex + 1}/{siblingCount}
-          </span>
-          <button
-            onClick={() => onNavigateBranch(messageId, 'next')}
-            disabled={branchIndex === siblingCount - 1}
-            className="rounded p-0.5 transition-colors hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)] disabled:opacity-30"
-          >
-            <ChevronRight className="size-3.5" />
-          </button>
-        </div>
-      )}
+            <button
+              onClick={() => onNavigateBranch(messageId, 'prev')}
+              disabled={branchIndex === 0}
+              className="rounded p-0.5 transition-colors hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)] disabled:opacity-30"
+            >
+              <ChevronLeft className="size-3.5" />
+            </button>
+            <span className="min-w-[2.5rem] text-center font-medium">
+              {branchIndex + 1}/{siblingCount}
+            </span>
+            <button
+              onClick={() => onNavigateBranch(messageId, 'next')}
+              disabled={branchIndex === siblingCount - 1}
+              className="rounded p-0.5 transition-colors hover:bg-[var(--brand-surface-purple)] hover:text-[var(--brand-fg-light)] disabled:opacity-30"
+            >
+              <ChevronRight className="size-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
