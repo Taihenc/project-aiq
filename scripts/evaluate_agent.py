@@ -27,6 +27,13 @@ import requests
 import pandas as pd
 import numpy as np
 import warnings
+import subprocess
+
+def get_git_commit_hash():
+    try:
+        return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
+    except Exception:
+        return "unknown"
 
 # Suppress noisy deprecation warnings from RAGAS/Langchain
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -76,6 +83,15 @@ LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
 LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
 LANGFUSE_BASE_URL   = os.getenv("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
 
+try:
+    from langfuse import Langfuse
+    lf = Langfuse(public_key=LANGFUSE_PUBLIC_KEY, secret_key=LANGFUSE_SECRET_KEY, host=LANGFUSE_BASE_URL)
+    # DISCONNECT AUTO-INSTRUMENTATION: Prevent DeepEval and RAGAS from creating untagged ghost traces
+    os.environ.pop("LANGFUSE_PUBLIC_KEY", None)
+    os.environ.pop("LANGFUSE_SECRET_KEY", None)
+except ImportError:
+    lf = None
+
 class AzureEvalModel(DeepEvalBaseLLM):
     def __init__(self, model_name=AZURE_DEPLOYMENT):
         self.model_name = model_name
@@ -89,10 +105,19 @@ class AzureEvalModel(DeepEvalBaseLLM):
     async def a_generate(self, prompt: str) -> str: return self.generate(prompt)
     def get_model_name(self): return f"Azure {self.model_name}"
 
-def run_query(question: str) -> dict:
-    resp = requests.post(f"{SEARCH_FLOW_URL}/api/v1/completions", json={"query": question, "mode": "search"}, timeout=120)
+import datetime
+def run_query(question: str) -> tuple[dict, str]:
+    # Capture exact API call time to guarantee we find the fresh trace
+    start_time_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    
+    payload = {
+        "query": question, 
+        "mode": "search",
+        "title": f"Eval_Session_{time.time()}"
+    }
+    resp = requests.post(f"{SEARCH_FLOW_URL}/api/v1/completions", json=payload, timeout=120)
     resp.raise_for_status()
-    return resp.json().get("data", {})
+    return resp.json().get("data", {}), start_time_iso
 
 def fetch_structured_chunks(citations: list) -> list:
     if not citations: return []
@@ -117,18 +142,32 @@ def fetch_structured_chunks(citations: list) -> list:
         return resp.json().get("files", [])
     except Exception: return citations
 
-def fetch_trace_tools(query: str):
+def fetch_trace_tools(query: str, start_time_iso: str = ""):
     """Fetch tool calls with full input/output details from Langfuse trace.
     Returns: (tool_calls: list[dict], trace_id: str)
     Each tool_call dict has: {name, input_args, output}
     """
-    time.sleep(15)
-    try:
-        resp = requests.get(f"{LANGFUSE_BASE_URL}/api/public/traces?limit=30", auth=(LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY), timeout=30)
-        traces = resp.json().get("data", [])
-        trace_id = next((t["id"] for t in traces if query[:25] in str(t.get("input", ""))), None)
-        if not trace_id: return [], "Trace Not Found"
+    trace_id = None
+    for attempt in range(5): # Wait up to 25s for trace to index
+        time.sleep(5)
+        try:
+            resp = requests.get(f"{LANGFUSE_BASE_URL}/api/public/traces?limit=50", auth=(LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY), timeout=30)
+            traces = resp.json().get("data", [])
+            for t in traces:
+                t_time = t.get("timestamp") or t.get("createdAt")
+                if not start_time_iso or (t_time and t_time >= start_time_iso):
+                    if query[:50] in str(t.get("input", "")):
+                        trace_id = t["id"]
+                        break
+            if trace_id:
+                time.sleep(2) # Give it 2s to flush spans
+                break
+        except Exception:
+            pass
+            
+    if not trace_id: return [], "Trace Not Found", "        (No trace found after waiting 25s)"
 
+    try:
         obs_resp = requests.get(f"{LANGFUSE_BASE_URL}/api/public/observations?traceId={trace_id}&limit=100", auth=(LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY), timeout=30)
         obs_list = obs_resp.json().get("data", [])
 
@@ -189,7 +228,7 @@ def fetch_trace_tools(query: str):
 def calculate_ragas_metrics(rows):
     if not rows:
         import pandas as pd
-        return pd.DataFrame([{"faithfulness": "xxx", "factual_correctness": "xxx", "context_precision": "xxx", "context_recall": "xxx"}])
+        return pd.DataFrame([{"faithfulness": "xxx", "factual_correctness": "xxx"}])
     from datasets import Dataset
     from ragas import evaluate
     from langchain_openai import AzureChatOpenAI
@@ -215,12 +254,12 @@ def calculate_ragas_metrics(rows):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         try:
-            res = evaluate(ds, metrics=[faithfulness, factual_correctness, context_precision, context_recall], llm=LangchainLLMWrapper(llm), embeddings=LangchainEmbeddingsWrapper(emb), run_config=config)
+            res = evaluate(ds, metrics=[faithfulness, factual_correctness], llm=LangchainLLMWrapper(llm), embeddings=LangchainEmbeddingsWrapper(emb), run_config=config)
             return res.to_pandas()
         except Exception: 
             import traceback
             traceback.print_exc()
-            return pd.DataFrame([{"faithfulness": "xxx", "factual_correctness": "xxx", "context_precision": "xxx", "context_recall": "xxx"}] * len(rows))
+            return pd.DataFrame([{"faithfulness": "xxx", "factual_correctness": "xxx"}] * len(rows))
 
 def main():
     if not os.path.exists(INPUT_FILE): return
@@ -234,10 +273,10 @@ def main():
         print(f"\n[Case {i+1}] {q}")
         try:
             # 1. Pipeline
-            flow = run_query(q)
+            flow, start_time_iso = run_query(q)
             ans = flow.get("response", "")
             citations = fetch_structured_chunks(flow.get("citations") or [])
-            tools, tid, timeline = fetch_trace_tools(q)
+            tools, tid, timeline = fetch_trace_tools(q, start_time_iso)
 
             # Extract chunks with scores and sort by relevance
             all_chunks = []
@@ -311,7 +350,8 @@ def main():
 
             results.append({
                 "question": q, "answer": ans, "ground_truth": entry["expected_answer"],
-                "citations": citations, "task_completion": task_m.score or 0.0, "tool_correctness": tool_score
+                "citations": citations, "task_completion": task_m.score or 0.0, "tool_correctness": tool_score,
+                "trace_id": tid
             })
         except Exception as e:
             print(f"   ❌ Case {i+1} Failed: {e}")
@@ -328,18 +368,30 @@ def main():
         except:
             return "xxx"
 
-    print("\n" + "="*120)
-    print(f"{'#':<3} | {'Question':<30} | {'Task':<5} | {'Tool':<5} | {'Faith':<5} | {'Fact':<5} | {'Cont_P':<6} | {'Cont_R':<6}")
-    print("-" * 105)
+    git_version = get_git_commit_hash()
+    print(f"\n🏷️  Pushing tracked evaluation scores to Langfuse under version tag: {git_version}")
+    print("="*95)
+    print(f"{'#':<3} | {'Question':<30} | {'Task':<5} | {'Tool':<5} | {'Faith':<5} | {'Fact':<5}")
+    print("-" * 95)
     for i, res in enumerate(results):
         r_row = rdf.iloc[i].to_dict() if i < len(rdf) else {}
         res["faithfulness"] = r_row.get('faithfulness')
         res["factual_correctness"] = r_row.get('answer_correctness')
-        res["context_precision"] = r_row.get('context_precision')
-        res["context_recall"] = r_row.get('context_recall')
+        
+        tid = res.get("trace_id")
+        if lf and tid and tid != "None":
+            for m_name, m_key in [("Task Completion", "task_completion"), ("Tool Correctness", "tool_correctness"), ("Faithfulness", "faithfulness"), ("Factual Correctness", "factual_correctness")]:
+                m_val = res.get(m_key)
+                if not (pd.isna(m_val) or m_val is None or m_val == "" or m_val == "xxx"):
+                    try:
+                        lf.create_score(trace_id=tid, name=m_name, value=float(m_val), comment=f"Version: {git_version}")
+                    except Exception as e:
+                        print(f"Langfuse error for score {m_name}: {e}")
+                    
         print(f"{i+1:<3} | {res['question'][:30]:<30} | {fmt(res.get('task_completion')):<5} | {fmt(res.get('tool_correctness')):<5} | "
-              f"{fmt(res.get('faithfulness')):<5} | {fmt(res.get('factual_correctness')):<5} | "
-              f"{fmt(res.get('context_precision')):<6} | {fmt(res.get('context_recall')):<6}")
-    print("="*120)
+              f"{fmt(res.get('faithfulness')):<5} | {fmt(res.get('factual_correctness')):<5}")
+    print("="*95)
+    if lf:
+        lf.flush()
 
 if __name__ == "__main__": main()

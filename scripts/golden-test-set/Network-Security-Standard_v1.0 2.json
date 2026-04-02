@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is the primary purpose of the SCBX Group Network Security Standard?",
+    "answer": "The purpose is to provide guidance to establish secure networks and infrastructure to protect system usage and access for staff and permitted IT third parties.",
+    "source": "The purpose of this standard is to provide guidance to employees and relevant parties to establish secure network and infrastructure to protect the security of system usage and access to be adopted by staff, and IT third party permitted to access SCBX Group network and computer systems"
+  },
+  {
+    "question": "Who does the Network Security Standard apply to within SCBX Group?",
+    "answer": "It applies to all entities under SCBX Group management control, including business units, staff, contractors, board members, and third parties.",
+    "source": "This standard applies to SCBX Group for which SCBX Group has management control. This includes but is not limited to, business units, board members, permanent staff, contractors, and third parties"
+  },
+  {
+    "question": "What are the consequences for violating the Network Security Standard?",
+    "answer": "Violations are treated as offenses against the code of conduct and may result in disciplinary action, regardless of whether damage occurred.",
+    "source": "any individual who violates any provisions of this standard... will be regarded as committing an offense against code of conduct and will be subject to any disciplinary action imposed by SCBX Group"
+  },
+  {
+    "question": "What encryption requirement applies to data sent over public networks?",
+    "answer": "All confidential and highly restricted data sent over public networks must be encrypted, unless already encrypted by the application layer such as HTTPS.",
+    "source": "All data within SCBX Group... sent over public networks, such as VPNs, must be in encrypted format. If the data is encrypted by an application, such as HTTPS, additional encryption is not required at the network layer."
+  },
+  {
+    "question": "What is the required approach for protecting internet-facing systems?",
+    "answer": "Internet-facing systems must be protected using DMZs, firewalls, and restricted inbound and outbound traffic controls.",
+    "source": "DMZ (Demilitarized Zone) must be implemented to restrict inbound traffic to only system components that provide authorized publicly accessible services... Additional firewalls or routers must be implemented to control inbound and outbound traffic."
+  },
+  {
+    "question": "What roles are responsible for managing and securing SCBX Group networks?",
+    "answer": "Network Security and Infrastructure Security are primarily responsible for managing network performance, security, and protection against threats.",
+    "source": "Network Security and Infrastructure Security are primarily responsible for managing network belonging to SCBX Group in terms of performance and security"
+  },
+  {
+    "question": "What authentication requirements apply to remote network access?",
+    "answer": "Remote access requires user ID, multi-factor authentication, and encrypted channels in accordance with relevant standards.",
+    "source": "Employees, system administrators, and relevant IT third party requiring remote access must use user ID, multi-factor authentication, and encrypted channels to access the network."
+  },
+  {
+    "question": "How must production and test environments be handled in terms of network segmentation?",
+    "answer": "Production environments must be separated from test environments using suitable segmentation such as firewalls, unless an approved exemption exists.",
+    "source": "Assets in production environments must be separated from test environments using suitable segmentations such as firewall, except for systems needed to be operated together"
+  },
+  {
+    "question": "What backup requirements apply to critical network configuration data?",
+    "answer": "Critical data and configuration information must be backed up regularly, with off-site storage implemented where applicable.",
+    "source": "Critical data, such as databases and IT Infrastructure Management System configurations, must be backed up on a regular basis... Off-site storage where applicable must be implemented for backup media"
+  },
+  {
+    "question": "What change control process is required for modifications to the network?",
+    "answer": "All network changes must be authorized through the Change Management Process and tested before deployment.",
+    "source": "Changes to the network must be made only after proper authorization... Any change in the access control list of network devices must be tested before deployment"
+  }
+]

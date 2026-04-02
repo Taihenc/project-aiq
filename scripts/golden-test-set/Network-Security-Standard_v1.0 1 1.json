@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is the main purpose of the SCBX Group Network Security Standard?",
+    "answer": "The purpose is to provide guidance to establish secure networks and infrastructure to protect system usage and access for staff and permitted third parties.",
+    "source": "The purpose of this standard is to provide guidance to employees and relevant parties to establish secure network and infrastructure to protect the security of system usage and access to be adopted by staff, and IT third party permitted to access SCBX Group network and computer systems"
+  },
+  {
+    "question": "Which entities and assets are covered under the scope of this Network Security Standard?",
+    "answer": "The standard applies to all SCBX Group entities and covers information, software, physical assets, and services, including those at third-party locations.",
+    "source": "This standard shall cover all the assets belonging to SCBX Group, whether at SCBX Group's premises or at IT third party locations. It includes: Information assets, Software assets, Physical assets, Services"
+  },
+  {
+    "question": "What happens if an employee violates the Network Security Standard?",
+    "answer": "Any violation is treated as an offense against the code of conduct and may result in disciplinary action, regardless of whether damage occurred.",
+    "source": "any individual who violates any provisions of this standard... will be regarded as committing an offense against code of conduct and will be subject to any disciplinary action imposed by SCBX Group"
+  },
+  {
+    "question": "What are the responsibilities of the Network Security role according to the standard?",
+    "answer": "The Network Security role is responsible for monitoring, designing, configuring, and managing secure network devices and protecting networks from threats.",
+    "source": "Monitor, design, and install network devices... Determine network device configuration standards... Manage performance and security of networks... Design, manage, protect, monitor potential threats and intrusion"
+  },
+  {
+    "question": "What encryption requirement applies to confidential data sent over public networks?",
+    "answer": "All confidential and highly restricted data sent over public networks must be encrypted, unless already encrypted at the application layer such as HTTPS.",
+    "source": "All data within SCBX Group, including confidential and highly restricted... information of all related systems sent over public networks... must be in encrypted format. If the data is encrypted by an application, such as HTTPS, additional encryption is not required at the network layer"
+  },
+  {
+    "question": "What network controls are required to protect publicly accessible services?",
+    "answer": "A DMZ must be implemented to restrict inbound traffic to authorized system components, services, protocols, and ports.",
+    "source": "DMZ (Demilitarized Zone) must be implemented to restrict inbound traffic to only system components that provide authorized publicly accessible services, protocols, and ports"
+  },
+  {
+    "question": "Where must IPS/IDS systems inspect network traffic at a minimum?",
+    "answer": "IPS/IDS must inspect inbound and outbound traffic, client-to-site VPN connections, and site-to-site VPN connections before encapsulation.",
+    "source": "IPS/IDS must, at a minimum, inspect network traffic at the following locations: Inbound and outbound traffic... Personnel Virtual Private Network (VPN)... Site-to-site VPN connections"
+  },
+  {
+    "question": "What requirements apply to remote access for employees and third parties?",
+    "answer": "Remote access requires user ID, multi-factor authentication, encrypted channels, and compliance with Identity and Access Management standards.",
+    "source": "Employees, system administrators, and relevant IT third party requiring remote access must use user ID, multi-factor authentication, and encrypted channels to access the network"
+  },
+  {
+    "question": "How must production and test environments be handled under network segmentation requirements?",
+    "answer": "Production environments must be separated from test environments using suitable segmentation such as firewalls, unless an approved exemption exists.",
+    "source": "Assets in production environments must be separated from test environments using suitable segmentations such as firewall... Where, it is necessary to seek exemption, approval shall be sought"
+  },
+  {
+    "question": "What change control requirements apply when modifying the network?",
+    "answer": "All network changes must be authorized, tested before deployment, documented, and processed through the Change Management Process.",
+    "source": "Changes to the network must be made only after proper authorization... Any change in the access control list of network devices must be tested before deployment... Those responsible for changing network systems must first seek approval from the Change Management Process"
+  }
+]

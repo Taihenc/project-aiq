@@ -56,6 +56,7 @@ def get_proxy_tools(status_callback: Optional[Callable] = None) -> List:
     """
 
     @tool("proxy_search_documents")
+    @observe(name="search_documents", as_type="generation")
     def search_documents(query: str) -> str:
         """Search the knowledge base for documents based on a query."""
         enhanced_query = generate_hyde_answer(query, status_callback)
@@ -66,6 +67,7 @@ def get_proxy_tools(status_callback: Optional[Callable] = None) -> List:
         )
 
     @tool("proxy_get_pages")
+    @observe(name="get_pages", as_type="generation")
     def get_pages(file_path: str, start_page: int, end_page: int) -> str:
         """Retrieve pages from a document by specifying a page range."""
         # MCP params: file_path (str), start_page (int), end_page (int)
@@ -77,6 +79,7 @@ def get_proxy_tools(status_callback: Optional[Callable] = None) -> List:
         return run_mcp_sync(execute_mcp_operation("get_pages", params, status_callback))
 
     @tool("proxy_get_chunks")
+    @observe(name="get_chunks", as_type="generation")
     def get_chunks(
         file_path: str, chunk_number: int, backward: int, forward: int
     ) -> str:

@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is the primary purpose of the Identity and Access Management Standard?",
+    "answer": "The purpose is to provide technical security requirements to protect the confidentiality of data, systems, applications, and networks owned or held by SCBX Group and manage information risks.",
+    "source": "The purpose of this standard is to provide a comprehensive set of technical security requirements to protect and maintain confidentiality of data, systems, applications, and networks owned or held by SCBX Group, and other IT third party information."
+  },
+  {
+    "question": "Who does the Identity and Access Management Standard apply to within SCBX Group?",
+    "answer": "It applies to SCBX Group entities under management control, including business units, board members, permanent staff, contractors, and third parties.",
+    "source": "This standard applies to SCBX Group for which SCBX Group has management control. This includes but is not limited to, business units, board members, permanent staff, contractors, and third parties that exchange data, provide, or consume a service or technology as part of a contract."
+  },
+  {
+    "question": "What are the requirements for disabling dormant or inactive accounts?",
+    "answer": "Dormant accounts must be disabled after 30 calendar days of inactivity and revoked after 60 calendar days.",
+    "source": "Dormant accounts must be identified through monthly checks and reviews and must be disabled/locked when remained inactive/unused for more than 30 calendar days in all information systems and technology infrastructure (critical and non-critical systems) and revoked after 60 calendar days."
+  },
+  {
+    "question": "What is the minimum password length for memorized secret credentials?",
+    "answer": "Memorized secret passwords must be at least 8 characters long.",
+    "source": "Memorized Secret Password Strength must be a minimum of 8 characters in length and lookup secret password must be a minimum of 20 characters in length."
+  },
+  {
+    "question": "How many failed login attempts trigger an account lockout for standard systems?",
+    "answer": "An account is locked after six consecutive failed login attempts.",
+    "source": "The system being accessed must lock out attempted account username after six (6) consecutive failed login attempts to prevent brute force attempts to compromise the password."
+  },
+  {
+    "question": "What conditions apply to the use of emergency accounts?",
+    "answer": "Emergency accounts are for short-term use during crisis situations, must have limited permissions, be monitored, and be disabled after the expiration period.",
+    "source": "Emergency accounts must be established in response to crisis situations and with the need for rapid account activation... Emergency accounts must be disabled on set expiration account request period and must be deleted when no longer needed."
+  },
+  {
+    "question": "What authentication method is required for remote access to internal systems?",
+    "answer": "Multi-factor authentication (MFA) is required for all remote users accessing internal systems and applications.",
+    "source": "All remote users must use MFA to access internal systems and applications."
+  },
+  {
+    "question": "How frequently must user access reviews be conducted for critical systems?",
+    "answer": "User access for critical systems must be reviewed quarterly.",
+    "source": "All accounts in critical systems Quarterly"
+  },
+  {
+    "question": "What is the maximum inactivity period before a session must be locked?",
+    "answer": "Sessions must be locked after a maximum inactivity period of 15 minutes.",
+    "source": "Sessions must be locked after a maximum inactivity period of 15 minutes. Users must re-authenticate to unlock the session."
+  },
+  {
+    "question": "What principle must be applied when granting access rights to users?",
+    "answer": "Access rights must follow the principle of least privilege, ensuring users only have access necessary for their role.",
+    "source": "All users should only be granted access rights on a need-to-know and need-to-use basis."
+  }
+]
