@@ -1,0 +1,12 @@
+.venv
+.env
+__pycache__
+*.pyc
+*.pyo
+.DS_Store
+node_modules
+dist
+.next
+.turbo
+*.db
+.python-version

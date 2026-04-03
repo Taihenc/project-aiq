@@ -1,0 +1,46 @@
+name: CD - Auto-Deploy AINGO Product
+
+# Trigger on every push to the 'main' branch
+on:
+  push:
+    branches:
+      - main
+  # Allow manual trigger from the GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Azure VM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy Code via Rsync
+        uses: easingthemes/ssh-deploy@v5.1.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_USER: ${{ secrets.SSH_USER }}
+          # Path on the VM
+          TARGET: "~/AINGO"
+          # Files to exclude from rsync
+          EXCLUDE: "/.git/, /node_modules/, /**/node_modules/, .env, .DS_Store, .claude/, .gemini/"
+          # Port is optional, defaults to 22
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          # Clean old files on the VM that are not in the repo (careful with this!)
+          # ARGS: "-avz --delete" # Uncomment if you want to sync deletions
+
+      - name: Execute Docker Compose Restart via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            # 1. Ensure the deployment script on the VM is executable
+            chmod +x ~/AINGO/deploy/deploy.sh
+            # 2. Run the deployment script (handles docker compose build & up)
+            ~/AINGO/deploy/deploy.sh

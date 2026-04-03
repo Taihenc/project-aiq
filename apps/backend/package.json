@@ -18,7 +18,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "rebuild:sqlite": "pnpm rebuild better-sqlite3",
-    "db:reset": "rm -f sqlite.db && pnpm drizzle-kit push"
+    "db:migrate": "drizzle-kit push",
+    "db:reset": "rm -f sqlite.db && pnpm db:migrate"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.2",

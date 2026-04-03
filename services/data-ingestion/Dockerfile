@@ -1,8 +1,13 @@
-FROM python:3.12.9-alpine
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_PYTHON_DOWNLOADS=never
+ENV UV_HTTP_TIMEOUT=60
 
-RUN apt-get update && apt-get install -y \
+# Install system dependencies for PDF/OCR processing with a retry loop to bypass flaky proxies/mirrors
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     libmagic1 \
     poppler-utils \
     tesseract-ocr \
@@ -13,11 +18,24 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY services/data-ingestion /app/services/data-ingestion
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
 
-WORKDIR /app/services/data-ingestion
-RUN pip install --no-cache-dir --default-timeout=1000 -e .
+# Install dependencies before code to leverage Docker layer caching
+RUN uv sync --frozen --no-install-project --no-dev
+
+# Copy application code
+COPY . .
+
+# Install the project itself
+RUN uv sync --frozen --no-dev
+
+# Place executables at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
+
+EXPOSE 8002
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')" || exit 1
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
-
-

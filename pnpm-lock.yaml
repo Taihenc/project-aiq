@@ -311,10 +311,6 @@ importers:
         specifier: ^5
         version: 5.9.3
 
-  services/ai-engine: {}
-
-  services/ai-engine[archive]: {}
-
   services/data-ingestion: {}
 
   services/embedding-service: {}

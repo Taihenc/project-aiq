@@ -16,20 +16,38 @@ project-aiq-mvp/
 │  ├─ web/                 # Streamlit chat UI
 │  └─ backend/             # NestJS orchestrator API (REST + session & history)
 ├─ services/
-│  ├─ ai-engine/           # AI Engine (CrewAI reasoning, reranker)
-│  └─ embedding-service/   # Embedding Service (chunking, embedding, Qdrant)
+│  ├─ search-flow/         # Search Flow (CrewAI + HyDE + MCP orchestration)
+│  ├─ embedding-service/   # Embedding Service (BGE-M3, Qdrant, reranking)
+│  ├─ data-ingestion/      # Data Ingestion (Docling PDF/DOCX extraction)
+│  └─ ai-engine/           # AI Engine (legacy CrewAI reasoning)
+├─ docs/
+│  └─ deployment.md        # Production deployment guide
 ├─ docker-compose.yml
 └─ README.md
 ```
 
 ## Getting Started
 
-To start all services (backend, frontend, AI Engine, Embedding Service) in parallel, run the following command from the root of the monorepo:
+### Local Development
 
 ```bash
 pnpm i -r
 pnpm dev
 ```
+
+### Docker (Production)
+
+```bash
+# Configure env files (see .env.example in each service)
+docker compose up --build -d
+
+# Verify
+curl http://localhost:8003/health   # embedding-service
+curl http://localhost:8002/health   # data-ingestion
+curl http://localhost:8000/         # search-flow
+```
+
+See [docs/deployment.md](docs/deployment.md) for full deployment guide.
 
 ## System Architecture Overview
 

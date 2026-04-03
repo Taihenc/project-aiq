@@ -68,7 +68,7 @@ Detailed architectural and system diagrams can be found in the [docs/](docs/) di
 2. Install the project dependencies using `uv`:
 
 ```bash
-uv sync
+uv run python client.py
 ```
 
 ### Configuration

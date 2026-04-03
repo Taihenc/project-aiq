@@ -1,0 +1,150 @@
+{
+    "description": "Ground-truth QA dataset for E2E search-flow evaluation. Queries map to expected source docs and expected answer keywords.",
+    "queries": [
+        {
+            "id": "e2e-q1",
+            "query": "What was the company's annual revenue in 2024 and what drove the growth?",
+            "expected_source_files": [
+                "/docs/annual_report_2024.pdf"
+            ],
+            "expected_keywords": [
+                "2.3 billion",
+                "15%",
+                "cloud services",
+                "32%"
+            ],
+            "category": "finance"
+        },
+        {
+            "id": "e2e-q2",
+            "query": "What security training is required for new hires and when must it be completed?",
+            "expected_source_files": [
+                "/docs/hr_handbook.pdf"
+            ],
+            "expected_keywords": [
+                "first week",
+                "security training",
+                "VPN",
+                "IT orientation"
+            ],
+            "category": "hr"
+        },
+        {
+            "id": "e2e-q3",
+            "query": "Explain the Kubernetes auto-scaling configuration including thresholds and limits.",
+            "expected_source_files": [
+                "/docs/infra_guide.pdf"
+            ],
+            "expected_keywords": [
+                "70%",
+                "5 minutes",
+                "50",
+                "HPA",
+                "Horizontal Pod Autoscaler"
+            ],
+            "category": "infrastructure"
+        },
+        {
+            "id": "e2e-q4",
+            "query": "What are the PDPA data retention requirements and how long do we have to process deletion requests?",
+            "expected_source_files": [
+                "/docs/compliance_guide.pdf"
+            ],
+            "expected_keywords": [
+                "7 years",
+                "PDPA",
+                "anonymized",
+                "30 days"
+            ],
+            "category": "compliance"
+        },
+        {
+            "id": "e2e-q5",
+            "query": "What embedding model and vector database does the RAG pipeline use, and how does the retrieval work?",
+            "expected_source_files": [
+                "/docs/architecture_doc.pdf"
+            ],
+            "expected_keywords": [
+                "BGE-M3",
+                "1024",
+                "Qdrant",
+                "cosine",
+                "reranking"
+            ],
+            "category": "architecture"
+        },
+        {
+            "id": "e2e-q6",
+            "query": "How many leave days are employees entitled to per year?",
+            "expected_source_files": [
+                "/docs/hr_handbook.pdf"
+            ],
+            "expected_keywords": [
+                "15",
+                "annual leave",
+                "30",
+                "sick leave",
+                "10",
+                "personal leave"
+            ],
+            "category": "hr"
+        },
+        {
+            "id": "e2e-q7",
+            "query": "What is the API rate limit and what happens when it is exceeded?",
+            "expected_source_files": [
+                "/docs/api_guidelines.pdf"
+            ],
+            "expected_keywords": [
+                "100 requests",
+                "429",
+                "Retry-After"
+            ],
+            "category": "api"
+        },
+        {
+            "id": "e2e-q8",
+            "query": "Describe the quarterly OKR review process and what happens with missed objectives.",
+            "expected_source_files": [
+                "/docs/management_guide.pdf"
+            ],
+            "expected_keywords": [
+                "70%",
+                "leadership",
+                "escalated",
+                "resource reallocation"
+            ],
+            "category": "management"
+        },
+        {
+            "id": "e2e-q9",
+            "query": "What checks must pass before deploying to production?",
+            "expected_source_files": [
+                "/docs/devops_handbook.pdf"
+            ],
+            "expected_keywords": [
+                "unit tests",
+                "linting",
+                "security scans",
+                "two reviewers",
+                "GitHub Actions"
+            ],
+            "category": "devops"
+        },
+        {
+            "id": "e2e-q10",
+            "query": "Break down the Q1 2025 budget by category.",
+            "expected_source_files": [
+                "/docs/budget_q1_2025.pdf"
+            ],
+            "expected_keywords": [
+                "450K",
+                "120K",
+                "180K",
+                "30K",
+                "780K"
+            ],
+            "category": "finance"
+        }
+    ]
+}

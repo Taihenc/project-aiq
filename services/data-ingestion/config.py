@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # SharePoint Integration
     enable_sharepoint_integration: bool = True
 
+    # SSL Verification
+    verify_ssl: bool = True
+
     class Config:
         env_file = ".env"
         case_sensitive = False

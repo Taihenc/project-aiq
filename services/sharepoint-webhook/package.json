@@ -7,7 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "install": "uv sync",
     "dev": "source .venv/bin/activate && python main.py",
-    "start": "source .venv/bin/activate && python main.py"
+    "start": "source .venv/bin/activate && python main.py",
+    "db:migrate": "source .venv/bin/activate && alembic upgrade head",
+    "db:reset": "rm -f sharepoint_webhook.db && pnpm db:migrate"
   },
   "keywords": [
     "sharepoint",

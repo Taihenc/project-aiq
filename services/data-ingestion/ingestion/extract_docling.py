@@ -27,7 +27,7 @@ class DoclingExtractor:
             "explain this image in 5 sentences. Be precise and accurate"
         )
         # --- 2. BUILD FAST CONVERTER (Vision OFF) ---
-        pdf_opts_fast = PdfPipelineOptions(do_ocr=True, do_table_structure=True, do_picture_description=False)
+        pdf_opts_fast = PdfPipelineOptions(do_ocr=False, do_table_structure=True, do_picture_description=False)
         pdf_opts_fast.accelerator_options = accel_options
         # Ensure table matching is on to keep structure
         pdf_opts_fast.table_structure_options.do_cell_matching = True
@@ -51,7 +51,7 @@ class DoclingExtractor:
         )
 
         # --- 3. BUILD SMART CONVERTER (Vision ON) ---
-        pdf_opts_smart = PdfPipelineOptions(do_ocr=True, do_table_structure=True, do_picture_description=True)
+        pdf_opts_smart = PdfPipelineOptions(do_ocr=False, do_table_structure=True, do_picture_description=True)
         pdf_opts_smart.accelerator_options = accel_options
         pdf_opts_smart.picture_description_options = smolvlm_picture_description
         # Critical: Re-apply table structure settings so Pass 2 doesn't lose Pass 1's structure
