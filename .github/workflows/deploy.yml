@@ -21,24 +21,25 @@ jobs:
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
-          REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_USER: ${{ secrets.SSH_USER }}
+          # Use vars. for GitHub Variables (non-secret)
+          REMOTE_HOST: ${{ vars.SSH_HOST }}
+          REMOTE_USER: ${{ vars.SSH_USER }}
           # Path on the VM
           TARGET: "~/AINGO"
           # Files to exclude from rsync
           EXCLUDE: "/.git/, /node_modules/, /**/node_modules/, .env, .DS_Store, .claude/, .gemini/"
-          # Port is optional, defaults to 22
-          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          # Correct input name is REMOTE_PORT
+          REMOTE_PORT: ${{ vars.SSH_PORT || 22 }}
           # Clean old files on the VM that are not in the repo (careful with this!)
           # ARGS: "-avz --delete" # Uncomment if you want to sync deletions
 
       - name: Execute Docker Compose Restart via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          host: ${{ vars.SSH_HOST }}
+          username: ${{ vars.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          port: ${{ vars.SSH_PORT || 22 }}
           script: |
             # 1. Ensure the deployment script on the VM is executable
             chmod +x ~/AINGO/deploy/deploy.sh
