@@ -73,8 +73,15 @@ class ReconciliationWorker:
                 logging.warning("[reconciler] Unexpected error in run_once: %s", exc)
             time.sleep(self.interval)
 
+    def _start_wrapper(self) -> None:
+        """Wrapper to initialize an event loop for the thread."""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.start()
+
     def start_in_thread(self) -> None:
-        t = threading.Thread(target=self.start, daemon=True, name="reconciliation-worker")
+        t = threading.Thread(target=self._start_wrapper, daemon=True, name="reconciliation-worker")
         t.start()
 
     # ── private ───────────────────────────────────────────────────────────────

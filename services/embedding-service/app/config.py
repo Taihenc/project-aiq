@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     search_top_n: int = 5
     search_score_threshold: float = 0.0
 
+    # SSL Verification
+    verify_ssl: bool = True
+
     class Config:
         env_file = ".env"
         case_sensitive = False

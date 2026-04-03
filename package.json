@@ -7,7 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "turbo run dev --parallel",
-    "dev:app": "trap 'pnpm run stop:qdrant; pnpm run stop:minio; pnpm run stop:rabbitmq' EXIT INT TERM; pnpm run dev:qdrant && pnpm run dev:minio && pnpm run dev:rabbitmq && turbo run dev --filter=backend --filter=search-flow-service --filter=data-ingestion --filter=embedding-service --filter=sharepoint-webhook --filter=file-storage-service --parallel",
+    "dev:app": "trap 'pnpm run stop:qdrant; pnpm run stop:minio; pnpm run stop:rabbitmq' EXIT INT TERM; pnpm run dev:qdrant && pnpm run dev:minio && pnpm run dev:rabbitmq && turbo run dev --ui=tui --filter=backend --filter=search-flow-service --filter=data-ingestion --filter=embedding-service --filter=sharepoint-webhook --filter=file-storage-service --parallel",
     "dev:qdrant": "docker compose up -d qdrant && echo 'Qdrant started at http://localhost:6333/dashboard'",
     "stop:qdrant": "docker compose stop qdrant",
     "dev:minio": "docker compose up -d minio && echo 'MinIO started at http://localhost:9001'",

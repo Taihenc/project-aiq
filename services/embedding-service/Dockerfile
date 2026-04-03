@@ -1,22 +1,31 @@
-FROM python:3.12-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_PYTHON_DOWNLOADS=never
+ENV UV_HTTP_TIMEOUT=60
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies with a retry loop to bypass proxy issues
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
   build-essential \
+  zlib1g-dev \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
-COPY services/embedding-service/pyproject.toml /app/services/embedding-service/
+COPY pyproject.toml uv.lock ./
 
-WORKDIR /app/services/embedding-service
-
-# Install dependencies via pip
-RUN pip install --no-cache-dir --default-timeout=1000 .
+# Install dependencies before code to leverage Docker layer caching
+RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy application code
-COPY services/embedding-service /app/services/embedding-service
+COPY . .
+
+# Install the project itself
+RUN uv sync --frozen --no-dev
+
+# Place executables at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8003
 

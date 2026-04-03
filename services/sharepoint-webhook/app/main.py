@@ -98,31 +98,34 @@ def main() -> None:
     )
     drive_id = subscription_service.register_subscription(ctx, webhook_url)
     if not drive_id:
-        _log_error_and_exit("Subscription creation failed", ["Check Azure/SharePoint configuration."])
-        return
+        logger.warning("Subscription creation failed - service will run in limited mode without SharePoint sync")
+        drive_id = None
 
     fastapi_app.state.drive_id = drive_id
     notification_service.set_drive_id(drive_id)
 
-    if delta_tracker.has_baseline(drive_id):
-        logger.info("Existing delta baseline found for drive %s.", drive_id)
-    else:
-        logger.info("Establishing initial delta baseline for drive %s...", drive_id)
-        baseline_data = delta_tracker.get_drive_changes(drive_id)
-        if not baseline_data or not delta_tracker.has_baseline(drive_id):
-            _log_error_and_exit(
-                "Delta baseline initialization failed",
-                [
-                    "The service could not establish an initial SharePoint delta link.",
-                    "Run the service again after fixing Graph API connectivity or permissions.",
-                ],
-            )
-            return
+    if drive_id is not None:
+        if delta_tracker.has_baseline(drive_id):
+            logger.info("Existing delta baseline found for drive %s.", drive_id)
+        else:
+            logger.info("Establishing initial delta baseline for drive %s...", drive_id)
+            baseline_data = delta_tracker.get_drive_changes(drive_id)
+            if not baseline_data or not delta_tracker.has_baseline(drive_id):
+                _log_error_and_exit(
+                    "Delta baseline initialization failed",
+                    [
+                        "The service could not establish an initial SharePoint delta link.",
+                        "Run the service again after fixing Graph API connectivity or permissions.",
+                    ],
+                )
+                return
 
-        logger.info(
-            "Initial delta baseline established with %s items. Startup will not ingest this baseline snapshot.",
-            len(baseline_data.get("value", [])),
-        )
+            logger.info(
+                "Initial delta baseline established with %s items. Startup will not ingest this baseline snapshot.",
+                len(baseline_data.get("value", [])),
+            )
+    else:
+        logger.warning("Skipping delta baseline initialization - no SharePoint drive connected")
 
     logger.info("*" * 50)
     logger.info("System ready! Webhook endpoint: %s", webhook_url)

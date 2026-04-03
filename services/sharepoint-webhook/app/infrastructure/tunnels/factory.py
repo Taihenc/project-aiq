@@ -24,8 +24,6 @@ class TunnelFactory:
         if tunnel_type == "ngrok":
             return NgrokTunnel(auth_token=ngrok_auth_token, manual_url=ngrok_url)
         if tunnel_type == "cloudflare":
-            if not cloudflare_url:
-                raise ValueError("Cloudflare tunnel URL is required")
             return CloudflareTunnel(tunnel_url=cloudflare_url)
         raise ValueError(f"Invalid tunnel type: {tunnel_type}")
 

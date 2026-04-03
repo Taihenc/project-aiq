@@ -45,11 +45,8 @@ class IngestionWorker:
         try:
             print(f"Extractor...")
             result = self.extractor.convert(file_path)
-            # print(doc_dict)
-            # print(elements)
-            raw = self.extractor.convert(file_path,'text')
             if not chunking:
-                return raw
+                return result.export_to_text()
 
             print(f"Chunker...")
             summarized_chunks = self.chunker.chunk(result)
@@ -80,9 +77,27 @@ class IngestionWorker:
         """
         Trigger ingestion process for a file from File Storage Service.
         Updates FSS status: INDEXING → INDEXED on success, INDEX_FAILED on error.
+        Handles idempotency: if file is already INDEXING, proceeds without error.
         """
         print(f"Starting ingestion for file_id: {file_id}")
-        self._update_fss_status(file_id, "INDEXING")
+
+        # Ensure we are in INDEXING state (idempotent check)
+        try:
+            current_status = self._get_fss_status(file_id)
+            if current_status == "INDEXING":
+                print(f"File {file_id} already in INDEXING state, proceeding")
+            elif current_status == "COMPLETED":
+                self._update_fss_status(file_id, "INDEXING")
+            else:
+                # Unexpected state; try to transition anyway
+                print(f"File {file_id} in state {current_status}, attempting to set INDEXING")
+                self._update_fss_status(file_id, "INDEXING")
+        except Exception as e:
+            print(f"Failed to get/update status to INDEXING for {file_id}: {e}")
+            # If we cannot determine or set status, we should fail
+            self._update_fss_status(file_id, "INDEX_FAILED")
+            return
+
         try:
             self._download_and_process(file_id)
             self._update_fss_status(file_id, "INDEXED")
@@ -142,6 +157,13 @@ class IngestionWorker:
                 print(f"Cleared existing vectors using {params}")
             except Exception as e:
                 print(f"Warning: could not delete existing vectors using {params}: {e}")
+
+    def _get_fss_status(self, file_id: str) -> str:
+        """Get current file status from FSS."""
+        fss_url = os.getenv("FILE_STORAGE_URL", "http://127.0.0.1:8007")
+        resp = requests.get(f"{fss_url}/files/{file_id}/meta", timeout=5)
+        resp.raise_for_status()
+        return resp.json()["status"]
 
     def _update_fss_status(self, file_id: str, status: str) -> None:
         """Push a status update back to FSS with exponential-backoff retry (Fix 4)."""

@@ -1,9 +1,13 @@
-FROM python:3.12-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_PYTHON_DOWNLOADS=never
+ENV UV_HTTP_TIMEOUT=60
 
-# Install system dependencies for PDF/OCR processing
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies for PDF/OCR processing with a retry loop to bypass flaky proxies/mirrors
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     libmagic1 \
     poppler-utils \
     tesseract-ocr \
@@ -15,15 +19,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
-COPY services/data-ingestion/pyproject.toml /app/services/data-ingestion/
+COPY pyproject.toml uv.lock ./
 
-WORKDIR /app/services/data-ingestion
-
-# Install dependencies via pip
-RUN pip install --no-cache-dir --default-timeout=1000 .
+# Install dependencies before code to leverage Docker layer caching
+RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy application code
-COPY services/data-ingestion /app/services/data-ingestion
+COPY . .
+
+# Install the project itself
+RUN uv sync --frozen --no-dev
+
+# Place executables at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8002
 

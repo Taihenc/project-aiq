@@ -1,110 +1,320 @@
 services:
+  # ==================== STATELESS SERVICES ====================
+
   backend:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./apps/backend:/app/apps/backend
-      - ./package.json:/app/package.json
-      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
-      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
-      - ./turbo.json:/app/turbo.json
+    restart: unless-stopped
+    env_file:
+      - ./apps/backend/.env
     environment:
-      - NODE_ENV=production
-      - PORT=3000
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_PATH=/data/backend/sqlite.db
       - AI_ENGINE_BASE_URL=http://search-flow:8000
-    command: pnpm start
-    depends_on:
-      - search-flow
+      - SHAREPOINT_WEBHOOK_URL=http://sharepoint-webhook:8004
+      - FILE_STORAGE_URL=http://file-storage-service:8004
+    volumes:
+      - backend_data:/data/backend
     networks:
       - aingo-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    ports:
+      - "3000:3000"
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    ports:
-      - "3001:3001"
-    volumes:
-      - ./apps/web:/app/apps/web
-      - ./package.json:/app/package.json
-      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
-      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
-      - ./turbo.json:/app/turbo.json
+      args:
+        - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-http://localhost:3000}
+        - INTERNAL_BACKEND_URL=http://backend:3000
+    restart: unless-stopped
+    env_file:
+      - ./apps/web/.env
     environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_BACKEND_URL=http://backend:3000
-    command: pnpm dev
-    depends_on:
-      - backend
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-http://localhost:3000}
+      - INTERNAL_BACKEND_URL=http://backend:3000
     networks:
       - aingo-net
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "3001:3001"
 
   search-flow:
     build:
-      context: .
-      dockerfile: services/search-flow/Dockerfile
-    ports:
-      - '8000:8000'
+      context: ./services/search-flow
+      dockerfile: Dockerfile
+    restart: unless-stopped
     env_file:
       - ./services/search-flow/.env
     environment:
       - PYTHONUNBUFFERED=1
       - MCP_SERVER_URL=http://embedding-service:8003/v1/mcp/sse
       - EMBEDDING_SERVICE_URL=http://embedding-service:8003
-    depends_on:
-      - embedding-service
     networks:
       - aingo-net
-
-  data-ingestion:
-    build:
-      context: .
-      dockerfile: services/data-ingestion/Dockerfile
+    depends_on:
+      embedding-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     ports:
-      - '8002:8002'
-    env_file:
-      - ./services/data-ingestion/.env
-    environment:
-      - PYTHONUNBUFFERED=1
-      - API_URL=http://embedding-service:8003/v1/upload
-    depends_on:
-      - embedding-service
-    networks:
-      - aingo-net
+      - "8000:8000"
 
   embedding-service:
     build:
-      context: .
-      dockerfile: services/embedding-service/Dockerfile
-    ports:
-      - '8003:8003'
+      context: ./services/embedding-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
     env_file:
       - ./services/embedding-service/.env
     environment:
       - PYTHONUNBUFFERED=1
       - QDRANT_URL=http://qdrant:6333
-    depends_on:
-      - qdrant
     networks:
       - aingo-net
+    volumes:
+      - embedding_cache:/data/embeddings
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "8003:8003"
+
+  data-ingestion:
+    build:
+      context: ./services/data-ingestion
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./services/data-ingestion/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - API_URL=http://embedding-service:8003/v1/upload
+      - RABBITMQ_HOST=rabbitmq
+      - FILE_STORAGE_URL=http://file-storage-service:8004
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8003
+    networks:
+      - aingo-net
+    volumes:
+      - data_ingestion_uploads:/data/uploaded-files
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      embedding-service:
+        condition: service_healthy
+      file-storage-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      replicas: 1
+    ports:
+      - "8002:8002"
+
+  sharepoint-webhook:
+    build:
+      context: ./services/sharepoint-webhook
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./services/sharepoint-webhook/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVER_PORT=8004
+      - FILE_STORAGE_URL=http://file-storage-service:8004
+    networks:
+      - aingo-net
+    volumes:
+      - sharepoint_sync:/data/synced_files
+      - sharepoint_logs:/var/log
+    depends_on:
+      file-storage-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "8004:8004"
+
+  file-storage-service:
+    build:
+      context: ./services/file-storage-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./services/file-storage-service/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - S3_ENDPOINT=http://aingo-minio:9000
+      - S3_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - S3_BUCKET=ingestion-bucket
+      - RABBITMQ_HOST=rabbitmq
+      - DB_PATH=/data/file_metadata.db
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8003
+      - NESTJS_WEBHOOK_URL=http://backend:3000/api/file-storage/webhook
+    networks:
+      - aingo-net
+    volumes:
+      - file_storage_data:/data
+      - file_storage_db:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      aingo-minio:
+        condition: service_healthy
+      embedding-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "8007:8004"
+
+  # ==================== STATEFUL SERVICES ====================
+
+  aingo-minio:
+    image: minio/minio:latest
+    container_name: aingo-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001" --address ":9000"
+    networks:
+      - aingo-net
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    networks:
+      - aingo-net
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5672:5672"
+      - "15672:15672"
 
   qdrant:
-    image: qdrant/qdrant
+    image: qdrant/qdrant:latest
     container_name: qdrant
+    restart: unless-stopped
+    networks:
+      - aingo-net
+    volumes:
+      - qdrant_data:/qdrant/storage
+      - qdrant_snapshots:/qdrant/snapshots
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "6333:6333"
       - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    networks:
-      - aingo-net
 
-volumes:
-  qdrant_data:
+  # ==================== REVERSE PROXY (Optional) ====================
+  # Uncomment below to use nginx as reverse proxy in production
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: aingo-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/conf.d:/etc/nginx/conf.d:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #     - ./nginx/logs:/var/log/nginx
+  #   networks:
+  #     - aingo-net
+  #   depends_on:
+  #     - web
+  #     - backend
 
 networks:
   aingo-net:
     driver: bridge
+
+volumes:
+  backend_data:
+    driver: local
+  file_storage_data:
+    driver: local
+  file_storage_db:
+    driver: local
+  minio_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  qdrant_snapshots:
+    driver: local
+  embedding_cache:
+    driver: local
+  data_ingestion_uploads:
+    driver: local
+  sharepoint_sync:
+    driver: local
+  sharepoint_logs:
+    driver: local

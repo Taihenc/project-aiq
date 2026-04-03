@@ -22,7 +22,7 @@ export const DRIZZLE = 'DRIZZLE';
 
         // Run migrations on startup
         try {
-          const migrationsFolder = path.resolve(__dirname, '../../drizzle');
+          const migrationsFolder = path.resolve(__dirname, '../../../drizzle');
           migrate(db, { migrationsFolder });
           logger.log('Database migrations applied successfully');
         } catch (err: any) {

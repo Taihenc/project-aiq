@@ -120,7 +120,7 @@ client.interceptors.response.use(
 const BACKEND_URL_DIRECT =
   (typeof window !== 'undefined'
     ? process.env.NEXT_PUBLIC_BACKEND_URL
-    : process.env.NEXT_PUBLIC_BACKEND_URL) || 'http://localhost:3000';
+    : process.env.INTERNAL_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL) || 'http://localhost:3000';
 
 export const streamFetch = async (endpoint: string, body: object): Promise<ReadableStream<Uint8Array> | null> => {
   const attemptFetch = async (token: string | undefined) => {
