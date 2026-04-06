@@ -142,6 +142,7 @@ class SearchCrewFlow(Flow[FlowState]):
             tracing=settings.crew_tracing,
             task_callback=self.reporter.report_task_completion,
             step_callback=self.reporter.report,
+            max_rpm=settings.crew_max_rpm,
             stream=self.stream_llm,
         )
 

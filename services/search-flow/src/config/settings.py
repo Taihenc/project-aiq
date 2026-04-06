@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     crew_verbose: bool = Field(False, validation_alias="CREW_VERBOSE")
     crew_max_iter: int = Field(5, validation_alias="CREW_MAX_ITER")
+    crew_max_rpm: int = Field(100, validation_alias="CREW_MAX_RPM")
+    crew_max_execution_time: int = Field(300, validation_alias="CREW_MAX_EXECUTION_TIME")
     crew_tracing: bool = Field(False, validation_alias="CREWAI_TRACING_ENABLED")
     crew_stream: bool = Field(True, validation_alias="CREWAI_STREAM")
     crew_max_tokens: int = Field(1500, validation_alias="CREW_MAX_TOKENS")

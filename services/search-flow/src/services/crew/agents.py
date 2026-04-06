@@ -26,6 +26,8 @@ def create_search_agent(
         verbose=settings.crew_verbose,
         allow_delegation=False,
         max_iter=settings.crew_max_iter,
+        max_rpm=settings.crew_max_rpm,
+        max_execution_time=settings.crew_max_execution_time,
         step_callback=step_callback,
     )
 
