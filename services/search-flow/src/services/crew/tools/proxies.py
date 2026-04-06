@@ -61,7 +61,12 @@ def get_proxy_tools(
 
     @tool("proxy_search_documents")
     def search_documents(query: str) -> str:
-        """Search the knowledge base for documents based on a query."""
+        """Search the knowledge base for documents based on a query.
+        IMPORTANT: The query MUST be a fully summarized and self-contained question that includes all relevant context from previous conversation history.
+        If the user mentions a specific proper noun, technical term, or project name, you MUST understand it and briefly explain what it is within the query.
+        If you DO NOT know what the specific term refers to, DO NOT use this tool. Instead, reply to the user and ask them to clarify what that term means.
+        Do NOT just pass the user's latest message verbatim, as the underlying generate_hyde_answer and search engine do not have access to conversation history.
+        """
         enhanced_query = generate_hyde_answer(query, status_callback)
         params: dict = {
             "query": enhanced_query,
