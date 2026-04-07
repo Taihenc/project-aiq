@@ -4,7 +4,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 RUN npm config set strict-ssl false && npm install -g pnpm@8.15.6
-RUN apk add --no-cache python3 py3-setuptools make g++
+RUN apk add --no-cache python3 py3-setuptools make g++ curl
 ENV PYTHON=python3
 
 # Dependencies stage
@@ -29,7 +29,7 @@ RUN find . -name ".env" -type f -delete
 RUN pnpm --filter web build
 
 # Runner stage
-FROM node:20.19.5-alpine AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV production
 ENV PORT 3001

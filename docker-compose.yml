@@ -272,24 +272,21 @@ services:
       - "6333:6333"
       - "6334:6334"
 
-  # ==================== REVERSE PROXY (Optional) ====================
-  # Uncomment below to use nginx as reverse proxy in production
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: aingo-nginx
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx/conf.d:/etc/nginx/conf.d:ro
-  #     - ./nginx/ssl:/etc/nginx/ssl:ro
-  #     - ./nginx/logs:/var/log/nginx
-  #   networks:
-  #     - aingo-net
-  #   depends_on:
-  #     - web
-  #     - backend
+  # ==================== REVERSE PROXY ====================
+  nginx:
+    image: nginx:alpine
+    container_name: aingo-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/logs:/var/log/nginx
+    networks:
+      - aingo-net
+    depends_on:
+      - web
+      - backend
 
 networks:
   aingo-net:

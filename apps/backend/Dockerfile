@@ -29,10 +29,12 @@ COPY apps/backend/package.json ./apps/backend/
 RUN npm pkg delete scripts.prepare && pnpm install --filter backend --prod --frozen-lockfile
 
 # Runner stage
-FROM node:20.19.5-alpine AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV production
 ENV PORT 3000
+# Improve DNS reliability in Docker
+ENV NODE_OPTIONS="--dns-result-order=ipv4first"
 
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=prod-deps /app/apps/backend/node_modules ./apps/backend/node_modules

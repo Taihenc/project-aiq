@@ -16,6 +16,7 @@ RUN apt-get update && \
     libsm6 \
     libxext6 \
     libxrender-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files

@@ -5,6 +5,11 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_PYTHON_DOWNLOADS=never
 ENV UV_HTTP_TIMEOUT=60
 
+# Install curl for healthcheck
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
 

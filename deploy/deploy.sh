@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-PROJECT_DIR="~/AINGO"
+PROJECT_DIR="$HOME/AINGO"
 
 # Check for Docker Compose version (v2 uses 'docker compose', v1 uses 'docker-compose')
 if docker compose version >/dev/null 2>&1; then
