@@ -22,7 +22,7 @@ def generate_hyde_answer(query: str, status_callback: Optional[Callable] = None)
         hyde_crew = Crew(
             agents=[hyde_agent],
             tasks=[hyde_task],
-            verbose=settings.crew_hyde_verbose,
+            verbose=settings.verbose,
         )
 
         result = hyde_crew.kickoff()
@@ -49,15 +49,19 @@ def generate_hyde_answer(query: str, status_callback: Optional[Callable] = None)
 def get_proxy_tools(
     status_callback: Optional[Callable] = None,
     search_filter: Optional[dict] = None,
+    tool_results_store: Optional[list] = None,
 ) -> List:
     """
     Creates and returns a list of proxy tools bound to the given status callback.
 
-    Each proxy acts as a middleware between CrewAI Agent and MCP Tool:
-    - Agent sees the PROXY signature (can differ from MCP tool params)
-    - Proxy builds the actual params dict and calls the MCP tool
-    - top_k, top_n, search_filter are injected via closure (not visible to LLM)
+    Each proxy acts as a middleware between CrewAI Agent and MCP Tool.
     """
+
+    def _intercept_mcp(mcp_output_str: str) -> str:
+
+        logger.debug(f"[PROXY] Raw MCP Output Result:\n{mcp_output_str}\n{'=' * 40}")
+
+        return mcp_output_str
 
     @tool("proxy_search_documents")
     def search_documents(query: str) -> str:
@@ -66,6 +70,7 @@ def get_proxy_tools(
         If the user mentions a specific proper noun, technical term, or project name, you MUST understand it and briefly explain what it is within the query.
         If you DO NOT know what the specific term refers to, DO NOT use this tool. Instead, reply to the user and ask them to clarify what that term means.
         Do NOT just pass the user's latest message verbatim, as the underlying generate_hyde_answer and search engine do not have access to conversation history.
+        CRITICAL CONSTRAINT: Do NOT rely on "Attachments" to skip searching. You MUST trigger this tool to fetch fresh content if the intent is to search.
         """
         enhanced_query = generate_hyde_answer(query, status_callback)
         params: dict = {
@@ -75,26 +80,32 @@ def get_proxy_tools(
         }
         if search_filter:
             params["filter"] = search_filter
-        return run_mcp_sync(
+        res = run_mcp_sync(
             execute_mcp_operation("search_documents", params, status_callback)
         )
+        return _intercept_mcp(res)
 
     @tool("proxy_get_pages")
     def get_pages(file_path: str, start_page: int, end_page: int) -> str:
-        """Retrieve pages from a document by specifying a page range."""
+        """Retrieve pages from a document by specifying a page range.
+        CRITICAL CONSTRAINT: The user query MUST contain the specific file path AND page number required. You MUST know BOTH to proceed. If missing, ask the user.
+        """
         # MCP params: file_path (str), start_page (int), end_page (int)
         params = {
             "file_path": file_path,
             "start_page": start_page,
             "end_page": end_page,
         }
-        return run_mcp_sync(execute_mcp_operation("get_pages", params, status_callback))
+        res = run_mcp_sync(execute_mcp_operation("get_pages", params, status_callback))
+        return _intercept_mcp(res)
 
     @tool("proxy_get_chunks")
     def get_chunks(
         file_path: str, chunk_number: int, backward: int, forward: int
     ) -> str:
-        """Retrieve context chunks around a specific chunk number."""
+        """Retrieve context chunks around a specific chunk number.
+        CRITICAL CONSTRAINT: The user query MUST contain the specific file path AND chunk number required. You MUST know BOTH to proceed. If missing, ask the user.
+        """
         # MCP params: file_path (str), chunk_number (int), backward (int), forward (int)
         params = {
             "file_path": file_path,
@@ -102,8 +113,7 @@ def get_proxy_tools(
             "backward": backward,
             "forward": forward,
         }
-        return run_mcp_sync(
-            execute_mcp_operation("get_chunks", params, status_callback)
-        )
+        res = run_mcp_sync(execute_mcp_operation("get_chunks", params, status_callback))
+        return _intercept_mcp(res)
 
     return [search_documents, get_pages, get_chunks]

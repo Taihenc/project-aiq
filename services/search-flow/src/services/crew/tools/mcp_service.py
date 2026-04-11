@@ -130,10 +130,8 @@ async def execute_mcp_operation(
 def run_mcp_sync(coro):
     """Helper to run async code synchronously in CrewAI tools."""
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            return asyncio.run_coroutine_threadsafe(coro, loop).result()
-        return asyncio.run(coro)
+        loop = asyncio.get_running_loop()
+        return asyncio.run_coroutine_threadsafe(coro, loop).result()
     except RuntimeError:
         return asyncio.run(coro)
 

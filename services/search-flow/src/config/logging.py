@@ -44,7 +44,7 @@ def setup_logging():
 
     # Custom colors for levels
     logger.level("INFO", color="<cyan>")
-    logger.level("DEBUG", color="<red>")
+    logger.level("DEBUG", color="<blue>")
 
     if settings.app_env == "production":
         # JSON logs for production
