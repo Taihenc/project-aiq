@@ -1,13 +1,14 @@
 import json
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from loguru import logger
 from crewai.flow.flow import Flow, start
 from crewai import Crew
 
 from src.config.settings import settings
-from src.models.state import FlowState
+from src.models.state import AISearchResponse, ChatResponse, FlowState, SearchResponse
+from src.models.search import ChunkMetadata, FileRef
 from src.services.crew.agents import create_search_agent
 from src.services.crew.tasks import create_task
 from src.services.crew.status_reporter import FlowStatusReporter
@@ -79,6 +80,79 @@ class SearchCrewFlow(Flow[FlowState]):
         }
         return mode_tool_map.get(mode, [])
 
+    # ── Citation resolution ─────────────────────────────────────────
+
+    def _resolve_citations(self, ai_response: AISearchResponse) -> Optional[List[FileRef]]:
+        """
+        Map AI-selected indices back to actual FileRef citations using the
+        raw documents stored in tool_results_store during the search tool call.
+        Returns None if no valid selection or no store available.
+        """
+        store = self.state.tool_results_store
+        selected = ai_response.selected_indices
+
+        logger.debug(
+            f"[FLOW] _resolve_citations called | "
+            f"store_size={len(store)} | selected_indices={selected}"
+        )
+
+        if not selected or not store:
+            logger.warning(
+                f"[FLOW] _resolve_citations early return | "
+                f"selected={selected!r} | store_empty={not store}"
+            )
+            return None
+
+        # Build file_path → page_number → chunks mapping from selected indices
+        file_map: dict = {}
+        for idx in selected:
+            if not (0 <= idx < len(store)):
+                logger.warning(f"[FLOW] AI selected out-of-range index {idx} (store size={len(store)}), skipping")
+                continue
+
+            doc = store[idx]
+            meta = doc.get("metadata") or {}
+            file_path = meta.get("file_path", "unknown")
+            file_id = meta.get("file_id") or None
+            page_number = (meta.get("pages") or [0])[0]
+            chunk_number = meta.get("order", 0)
+            score = doc.get("reranking_score") or doc.get("similarity_score")
+            content = doc.get("text")
+
+            if file_path not in file_map:
+                file_map[file_path] = {"file_id": file_id, "pages": {}}
+            if page_number not in file_map[file_path]["pages"]:
+                file_map[file_path]["pages"][page_number] = []
+
+            file_map[file_path]["pages"][page_number].append(
+                ChunkMetadata(
+                    chunk_number=chunk_number,
+                    page_number=page_number,
+                    score=score,
+                    content=content,
+                )
+            )
+
+        if not file_map:
+            logger.warning("[FLOW] _resolve_citations: file_map is empty after processing all indices")
+            return None
+
+        citations: List[FileRef] = []
+        for file_path in sorted(file_map.keys()):
+            entry = file_map[file_path]
+            chunks: List[ChunkMetadata] = []
+            for page_num in sorted(entry["pages"].keys()):
+                page_chunks = sorted(entry["pages"][page_num], key=lambda c: c.chunk_number)
+                chunks.extend(page_chunks)
+            citations.append(FileRef(
+                file_path=file_path,
+                file_id=entry["file_id"],
+                chunks=chunks,
+            ))
+
+        logger.info(f"[FLOW] Resolved {len(citations)} file citation(s) from {len(selected)} selected index(es)")
+        return citations
+
     # ── Main flow ───────────────────────────────────────────────────
 
     @start()
@@ -149,4 +223,48 @@ class SearchCrewFlow(Flow[FlowState]):
 
         # Async execution
         self.reporter.report(f'Sending query "{query_preview}"')
-        return await crew.kickoff_async()
+        crew_output = await crew.kickoff_async()
+
+        # ── Post-processing for non-streaming mode only ──
+        # (Streaming mode post-processing happens in search_service._run_flow_and_emit
+        #  after the full text is available via get_full_text())
+        ai_pydantic = getattr(crew_output, "pydantic", None)
+
+        logger.debug(
+            f"[FLOW] Post-processing | "
+            f"crew_output type={type(crew_output).__name__} | "
+            f"ai_pydantic type={type(ai_pydantic).__name__} | "
+            f"tool_results_store size={len(self.state.tool_results_store)}"
+        )
+
+        if isinstance(ai_pydantic, AISearchResponse):
+            logger.debug(
+                f"[FLOW] AISearchResponse detected | "
+                f"selected_indices={ai_pydantic.selected_indices}"
+            )
+            citations = self._resolve_citations(ai_pydantic)
+            final_response = SearchResponse(
+                title=ai_pydantic.title,
+                response=ai_pydantic.response,
+                citations=citations,
+            )
+            logger.debug(
+                f"[FLOW] Final SearchResponse built | "
+                f"citations={[c.file_path for c in citations] if citations else None}"
+            )
+            return final_response
+        elif isinstance(ai_pydantic, ChatResponse):
+            # Chat mode — no citations needed, wrap in SearchResponse without citations
+            return SearchResponse(
+                title=ai_pydantic.title,
+                response=ai_pydantic.response,
+                citations=None,
+            )
+        else:
+            # Streaming mode: pydantic not yet set on CrewStreamingOutput — return raw output
+            # search_service._run_flow_and_emit will handle citation resolution via get_full_text()
+            logger.debug(
+                f"[FLOW] Returning raw crew_output (type={type(crew_output).__name__}) — "
+                f"likely streaming mode, post-processing deferred to search_service"
+            )
+            return crew_output

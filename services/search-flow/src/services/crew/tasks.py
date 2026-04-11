@@ -1,6 +1,6 @@
 from crewai import Task, Agent
 from src.config.prompts import TaskPrompts, MODE_PROMPTS, HyDEPrompts
-from src.models.state import SearchResponse, ChatResponse, HyDEResponse
+from src.models.state import AISearchResponse, ChatResponse, HyDEResponse
 
 
 def create_task(
@@ -32,11 +32,13 @@ def create_task(
         task_core=formatted_task_core,
     ).strip()
 
-    # Determine schema based on mode
+    # Determine schema based on mode:
+    # - chat: ChatResponse (no citations, no indices)
+    # - search/lookup/auto: AISearchResponse (AI selects indices; system maps to citations post-processing)
     if mode == "chat":
         output_pydantic = ChatResponse
     else:
-        output_pydantic = SearchResponse
+        output_pydantic = AISearchResponse
 
     expected_output = TaskPrompts.BASE_OUTPUT_TEMPLATE.format(
         query=query, output_scenarios=prompt_config.output_scenarios

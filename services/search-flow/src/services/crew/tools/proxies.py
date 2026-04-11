@@ -1,4 +1,5 @@
-from typing import List, Callable, Optional
+import json
+from typing import List, Callable, Optional, Dict, Any
 from crewai.tools import tool
 from crewai import Crew
 from loguru import logger
@@ -57,10 +58,48 @@ def get_proxy_tools(
     Each proxy acts as a middleware between CrewAI Agent and MCP Tool.
     """
 
+    def _format_search_results_with_indices(documents: List[Dict[str, Any]]) -> str:
+        """
+        Format search result documents with [index] numbers for AI selection.
+        Adapted from embedding-service formatter.py — groups by file → page → chunk.
+        The AI uses the [index] numbers to indicate which results it referenced.
+        """
+        # Group by file_path → page_number → list of chunks
+        files: Dict[str, Dict[int, List[Dict]]] = {}
+        for idx, doc in enumerate(documents):
+            meta = doc.get("metadata") or {}
+            file_path = meta.get("file_path", "unknown")
+            page_number = (meta.get("pages") or [0])[0]
+            chunk_number = meta.get("order", 0)
+            text = doc.get("text", "")
+            score = doc.get("reranking_score") or doc.get("similarity_score")
+
+            files.setdefault(file_path, {})
+            files[file_path].setdefault(page_number, [])
+            files[file_path][page_number].append({
+                "global_index": idx,
+                "chunk_number": chunk_number,
+                "text": text,
+                "score": score,
+            })
+
+        lines = []
+        for file_path in sorted(files.keys()):
+            lines.append(f"File: {file_path}")
+            for page_number in sorted(files[file_path].keys()):
+                lines.append(f"\tPage: {page_number}")
+                chunks = sorted(files[file_path][page_number], key=lambda c: c["chunk_number"])
+                for chunk in chunks:
+                    score_str = f" (Score: {chunk['score']:.4f})" if chunk["score"] is not None else ""
+                    lines.append(f"\t\t[{chunk['global_index']}] Chunk: {chunk['chunk_number']}{score_str}")
+                    indented_text = chunk["text"].replace("\n", "\n\t\t\t")
+                    lines.append(f"\t\t\t{indented_text}")
+
+        return "\n".join(lines)
+
     def _intercept_mcp(mcp_output_str: str) -> str:
-
+        """Passthrough logger for non-search tool results (get_pages, get_chunks)."""
         logger.debug(f"[PROXY] Raw MCP Output Result:\n{mcp_output_str}\n{'=' * 40}")
-
         return mcp_output_str
 
     @tool("proxy_search_documents")
@@ -80,10 +119,36 @@ def get_proxy_tools(
         }
         if search_filter:
             params["filter"] = search_filter
-        res = run_mcp_sync(
+        raw_json_str = run_mcp_sync(
             execute_mcp_operation("search_documents", params, status_callback)
         )
-        return _intercept_mcp(res)
+
+        logger.debug(f"[PROXY] Raw MCP search_documents output:\n{raw_json_str}\n{'=' * 40}")
+
+        # Parse structured JSON from embedding service
+        try:
+            search_data = json.loads(raw_json_str)
+            documents = search_data.get("documents", [])
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            logger.warning("[PROXY] Could not parse search JSON — returning raw output as fallback")
+            return raw_json_str
+
+        # Store raw document dicts in state for post-processing index → citation mapping
+        if tool_results_store is not None:
+            tool_results_store.clear()
+            tool_results_store.extend(documents)
+            logger.debug(
+                f"[PROXY] tool_results_store populated: {len(documents)} docs\n"
+                + "\n".join(
+                    f"  [{i}] file={d.get('metadata', {}).get('file_path', '?')} "
+                    f"page={( d.get('metadata', {}).get('pages') or [0])[0]} "
+                    f"chunk={d.get('metadata', {}).get('order', '?')}"
+                    for i, d in enumerate(documents)
+                )
+            )
+
+        # Format with [index] numbers so AI can reference results by index
+        return _format_search_results_with_indices(documents)
 
     @tool("proxy_get_pages")
     def get_pages(file_path: str, start_page: int, end_page: int) -> str:

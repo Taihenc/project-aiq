@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from .search import FileRef
+from .search import FileRef, ChunkMetadata
 
 
 # ── Shared base ──────────────────────────────────────────────────────
@@ -27,12 +27,26 @@ class ChatResponse(BaseResponse):
     pass
 
 
+class AISearchResponse(BaseResponse):
+    """Response schema that the AI fills — uses index selection instead of raw citations."""
+
+    selected_indices: Optional[List[int]] = Field(
+        None,
+        description=(
+            "List of result indices (the numbers shown in brackets like [0], [1], [2], etc.) "
+            "that you referenced or used in your response. Include ALL indices of results you actually used. "
+            "Set to null only if no relevant info was found. "
+            "Constraint: Do NOT answer from 'Attachments' if the user's intent is to search; you MUST trigger the tool first."
+        ),
+    )
+
+
 class SearchResponse(BaseResponse):
-    """Response schema for search/lookup/auto modes — includes citations."""
+    """Final response schema returned to the frontend — includes resolved citations."""
 
     citations: Optional[List[FileRef]] = Field(
         None,
-        description="List of ALL chunks referenced in your response (file_path, page_number, chunk_number). Ensure every piece of information in your response is backed by a citation if possible. Include citations even if they are redundant or translated versions of the same content. Set to null only if no relevant info is found. Constraint: Do NOT answer from 'Attachments' if the user's intent is to use tool to retrieve documents; you MUST trigger the tool. Constraint: Group chunks by file_path and sort by page_number and chunk_number ascending.",
+        description="Resolved citations mapped from AI-selected indices.",
     )
 
 
@@ -58,8 +72,8 @@ class FlowState(BaseModel):
     title: Optional[str] = None
     search_filter: Optional[dict] = None
 
-    # Tracking state
-    tool_results_store: list = Field(default_factory=list)
+    # Tracking state — stores raw document dicts from search tool for index-based resolution
+    tool_results_store: List[Dict[str, Any]] = Field(default_factory=list)
 
     # Final Output Storage
     final_response: Optional[SearchResponse] = None

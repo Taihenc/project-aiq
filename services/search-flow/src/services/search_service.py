@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from langfuse import observe
 
 from src.dtos.request import SearchChatRequest
-from src.models.state import SearchResponse
+from src.models.state import AISearchResponse, SearchResponse
 from src.services.crew.callbacks import AgentStepCallback
 from src.services.crew.flow import SearchCrewFlow
 
@@ -84,9 +84,11 @@ def _parse_raw_to_flow_response(raw: str, title: str | None) -> SearchResponse:
     data = _repair_and_parse(raw)
     if isinstance(data, dict) and "response" in data:
         try:
-            return SearchResponse(
-                **{k: v for k, v in data.items() if k in SearchResponse.model_fields}
-            )
+            # Only pass fields that belong to SearchResponse (exclude AI-only fields like selected_indices)
+            valid_fields = {
+                k: v for k, v in data.items() if k in SearchResponse.model_fields
+            }
+            return SearchResponse(**valid_fields)
         except Exception:
             pass
     return SearchResponse(
@@ -161,10 +163,25 @@ class SearchFlowService:
         try:
             result = await flow.kickoff_async(inputs=inputs)
             logger.info(f"Flow result: {result}")
-            if result and hasattr(result, "pydantic") and result.pydantic:
+
+            # Flow post-processing already returns a SearchResponse directly
+            if isinstance(result, SearchResponse):
+                return result
+            # Fallback: CrewOutput with pydantic model attached
+            elif (
+                result
+                and hasattr(result, "pydantic")
+                and isinstance(result.pydantic, SearchResponse)
+            ):
                 return result.pydantic
             elif result and hasattr(result, "json_dict") and result.json_dict:
-                return SearchResponse(**result.json_dict)
+                return SearchResponse(
+                    **{
+                        k: v
+                        for k, v in result.json_dict.items()
+                        if k in SearchResponse.model_fields
+                    }
+                )
             else:
                 # Last resort: try to repair and parse the raw string output
                 raw = str(result)
@@ -266,19 +283,76 @@ class SearchFlowService:
                         self._parse_stream_token(chunk.content, parse_state, queue)
 
             # 2. Final Result Event
-            final_text = ""
-            if hasattr(output, "get_full_text"):
-                try:
-                    final_text = output.get_full_text()
-                except Exception as e:
-                    logger.warning(f"Could not get full text natively: {e}")
-
-            if final_text:
-                logger.info(f"Final Result Data: {final_text}")
-                result_data = _repair_and_parse(final_text)
+            # Priority: use SearchResponse from flow post-processing (resolved citations, no selected_indices)
+            logger.debug(
+                f"[SERVICE] flow output type={type(output).__name__} | "
+                f"is_SearchResponse={isinstance(output, SearchResponse)} | "
+                f"has_pydantic={hasattr(output, 'pydantic')} | "
+                f"pydantic_type={type(getattr(output, 'pydantic', None)).__name__}"
+            )
+            if isinstance(output, SearchResponse):
+                result_data = output.model_dump()
+                logger.info(
+                    f"Final Result Data: {json.dumps(result_data, ensure_ascii=False, indent=2)}"
+                )
+                await queue.put({"type": "result", "content": result_data})
+            elif hasattr(output, "pydantic") and isinstance(
+                output.pydantic, SearchResponse
+            ):
+                result_data = output.pydantic.model_dump()
+                logger.info(
+                    f"Final Result Data: {json.dumps(result_data, ensure_ascii=False, indent=2)}"
+                )
                 await queue.put({"type": "result", "content": result_data})
             else:
-                await queue.put({"type": "error", "content": "No response generated."})
+                # Streaming mode: CrewStreamingOutput — pydantic not available yet
+                # Use get_full_text() to get the raw AI output, then do citation resolution here
+                final_text = ""
+                if hasattr(output, "get_full_text"):
+                    try:
+                        final_text = output.get_full_text()
+                    except Exception as e:
+                        logger.warning(f"Could not get full text natively: {e}")
+
+                if final_text:
+                    logger.info(f"Final Result Data (raw): {final_text}")
+                    raw_data = _repair_and_parse(final_text)
+
+                    if isinstance(raw_data, dict) and "selected_indices" in raw_data:
+                        # Parse as AISearchResponse and resolve citations via flow state
+                        try:
+                            ai_response = AISearchResponse(
+                                title=raw_data.get("title", ""),
+                                response=raw_data.get("response", ""),
+                                selected_indices=raw_data.get("selected_indices"),
+                            )
+                            citations = flow._resolve_citations(ai_response)
+                            final_response = SearchResponse(
+                                title=ai_response.title,
+                                response=ai_response.response,
+                                citations=citations,
+                            )
+                            result_data = final_response.model_dump()
+                            logger.info(
+                                f"Final Result Data (resolved): "
+                                f"{json.dumps(result_data, ensure_ascii=False, indent=2)}"
+                            )
+                            await queue.put({"type": "result", "content": result_data})
+                        except Exception as e:
+                            logger.error(f"[SERVICE] Citation resolution failed: {e}")
+                            # Fallback: send without citations, filter AI-only fields
+                            result_data = {k: v for k, v in raw_data.items() if k in SearchResponse.model_fields}
+                            await queue.put({"type": "result", "content": result_data})
+                    elif isinstance(raw_data, dict):
+                        # No selected_indices (e.g. chat mode via raw fallback) — filter fields
+                        result_data = {k: v for k, v in raw_data.items() if k in SearchResponse.model_fields}
+                        await queue.put({"type": "result", "content": result_data})
+                    else:
+                        await queue.put({"type": "result", "content": raw_data})
+                else:
+                    await queue.put(
+                        {"type": "error", "content": "No response generated."}
+                    )
 
         except Exception as e:
             logger.error(f"Async Flow Error: {e}")
@@ -323,5 +397,5 @@ class SearchFlowService:
             if event is None:
                 logger.debug("[SSE] Stream closed (None event received)")
                 break
-            logger.debug(f"[SSE Event]: {event}")
+            # logger.debug(f"[SSE Event]: {event}")
             yield json.dumps(event, ensure_ascii=False) + "\n"

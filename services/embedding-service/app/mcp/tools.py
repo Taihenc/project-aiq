@@ -31,7 +31,8 @@ async def search_documents(
         query=query, top_k=top_k, top_n=top_n, filter=filter
     )
     response = await service_tools.search_documents(search_request)
-    return formatter_service.format_search_response(response)
+    # Return structured JSON — the search-flow proxy handles formatting with index numbers
+    return response.model_dump_json()
 
 
 @mcp.tool()
