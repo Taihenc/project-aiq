@@ -10,16 +10,18 @@ from pydantic import ValidationError
 from langfuse import observe
 
 from src.dtos.request import SearchChatRequest
-from src.models.state import FlowResponse
+from src.models.state import SearchResponse
 from src.services.crew.callbacks import AgentStepCallback
 from src.services.crew.flow import SearchCrewFlow
 
 
 # ── Stream token parsing state ──────────────────────────────────────
 
+
 @dataclass
 class _TokenParseState:
     """Tracks incremental JSON token parsing state for the 'response' field."""
+
     buf: str = ""
     in_response: bool = False
     done: bool = False
@@ -36,6 +38,7 @@ _ESCAPE_MAP = {
 
 # ── JSON repair helpers ─────────────────────────────────────────────
 
+
 def _repair_and_parse(raw: str) -> dict:
     """
     Parse a JSON string from LLM output, repairing it if malformed.
@@ -45,17 +48,21 @@ def _repair_and_parse(raw: str) -> dict:
         return json.loads(raw)
     except json.JSONDecodeError:
         repaired = repair_json(raw)
-        logger.warning(f"[json_repair] Repaired malformed JSON (original len={len(raw)})")
+        logger.warning(
+            f"[json_repair] Repaired malformed JSON (original len={len(raw)})"
+        )
         try:
             return json.loads(repaired)
         except Exception:
-            logger.error("[json_repair] Could not parse even after repair — using raw fallback")
+            logger.error(
+                "[json_repair] Could not parse even after repair — using raw fallback"
+            )
             return {"response": raw}
 
 
 def _try_recover_from_raw(raw: str) -> dict | None:
     """
-    Attempt to repair malformed LLM output and validate it as a FlowResponse-compatible dict.
+    Attempt to repair malformed LLM output and validate it as a SearchResponse-compatible dict.
     Returns a dict with at least 'response' and 'title' keys, or None if recovery fails.
     """
     try:
@@ -69,27 +76,31 @@ def _try_recover_from_raw(raw: str) -> dict | None:
     return None
 
 
-def _parse_raw_to_flow_response(raw: str, title: str | None) -> FlowResponse:
+def _parse_raw_to_flow_response(raw: str, title: str | None) -> SearchResponse:
     """
-    Convert a raw LLM string output into a FlowResponse,
+    Convert a raw LLM string output into a SearchResponse,
     using json_repair to handle malformed JSON.
     """
     data = _repair_and_parse(raw)
     if isinstance(data, dict) and "response" in data:
         try:
-            return FlowResponse(**{k: v for k, v in data.items() if k in FlowResponse.model_fields})
+            return SearchResponse(
+                **{k: v for k, v in data.items() if k in SearchResponse.model_fields}
+            )
         except Exception:
             pass
-    return FlowResponse(
+    return SearchResponse(
         response=data.get("response", raw) if isinstance(data, dict) else raw,
-        title=data.get("title", title or "Summary") if isinstance(data, dict) else title or "Summary",
+        title=data.get("title", title or "Summary")
+        if isinstance(data, dict)
+        else title or "Summary",
     )
 
 
 # ── Service ─────────────────────────────────────────────────────────
 
-class SearchFlowService:
 
+class SearchFlowService:
     # ── Input building ──────────────────────────────────────────────
 
     def _build_search_filter(self, request: SearchChatRequest) -> Optional[dict]:
@@ -143,7 +154,7 @@ class SearchFlowService:
     # ── Sync execution ──────────────────────────────────────────────
 
     @observe(name="search_flow", as_type="generation")
-    async def execute_workflow(self, request: SearchChatRequest) -> FlowResponse:
+    async def execute_workflow(self, request: SearchChatRequest) -> SearchResponse:
         flow = SearchCrewFlow(stream_llm=False)
         inputs = self._build_flow_inputs(request)
 
@@ -153,14 +164,14 @@ class SearchFlowService:
             if result and hasattr(result, "pydantic") and result.pydantic:
                 return result.pydantic
             elif result and hasattr(result, "json_dict") and result.json_dict:
-                return FlowResponse(**result.json_dict)
+                return SearchResponse(**result.json_dict)
             else:
                 # Last resort: try to repair and parse the raw string output
                 raw = str(result)
                 return _parse_raw_to_flow_response(raw, request.title)
         except Exception as e:
             logger.error(f"Error during flow execution: {e}")
-            return FlowResponse(
+            return SearchResponse(
                 response=f"Error executing search flow: {str(e)}", title="Error"
             )
 
@@ -205,7 +216,7 @@ class SearchFlowService:
             marker = '"response":'
             idx = buf.find(marker)
             if idx != -1:
-                after = buf[idx + len(marker):].lstrip()
+                after = buf[idx + len(marker) :].lstrip()
                 if after.startswith('"'):
                     state.in_response = True
                     state.buf = after[1:]
@@ -224,7 +235,7 @@ class SearchFlowService:
                 break  # incomplete escape — wait for more data
             elif c == '"':
                 state.done = True
-                state.buf = buf[i + 1:]
+                state.buf = buf[i + 1 :]
                 break
             else:
                 output.append(c)
@@ -290,13 +301,17 @@ class SearchFlowService:
                     # Attempt to repair and recover a valid response before giving up
                     recovered = _try_recover_from_raw(str(raw_input))
                     if recovered:
-                        logger.info("[json_repair] Successfully recovered response from malformed output")
+                        logger.info(
+                            "[json_repair] Successfully recovered response from malformed output"
+                        )
                         await queue.put({"type": "result", "content": recovered})
                     else:
-                        await queue.put({
-                            "type": "error",
-                            "content": f"Validation Error. Could not parse AI output.",
-                        })
+                        await queue.put(
+                            {
+                                "type": "error",
+                                "content": "Validation Error. Could not parse AI output.",
+                            }
+                        )
                     return
         await queue.put({"type": "error", "content": str(error)})
 

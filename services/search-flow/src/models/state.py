@@ -5,6 +5,7 @@ from .search import FileRef
 
 # ── Shared base ──────────────────────────────────────────────────────
 
+
 class BaseResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: str = Field(
@@ -19,13 +20,16 @@ class BaseResponse(BaseModel):
 
 # ── Concrete response types ─────────────────────────────────────────
 
+
 class ChatResponse(BaseResponse):
     """Response schema for chat mode — no citations."""
+
     pass
 
 
-class FlowResponse(BaseResponse):
+class SearchResponse(BaseResponse):
     """Response schema for search/lookup/auto modes — includes citations."""
+
     citations: Optional[List[FileRef]] = Field(
         None,
         description="List of ALL chunks referenced in your response (file_path, page_number, chunk_number). Ensure every piece of information in your response is backed by a citation if possible. Include citations even if they are redundant or translated versions of the same content. Set to null only if no relevant info is found. Constraint: Do NOT answer from 'Attachments' if the user's intent is to use tool to retrieve documents; you MUST trigger the tool. Constraint: Group chunks by file_path and sort by page_number and chunk_number ascending.",
@@ -58,4 +62,4 @@ class FlowState(BaseModel):
     tool_results_store: list = Field(default_factory=list)
 
     # Final Output Storage
-    final_response: Optional[FlowResponse] = None
+    final_response: Optional[SearchResponse] = None

@@ -1,6 +1,6 @@
 from crewai import Task, Agent
 from src.config.prompts import TaskPrompts, MODE_PROMPTS, HyDEPrompts
-from src.models.state import FlowResponse, ChatResponse, HyDEResponse
+from src.models.state import SearchResponse, ChatResponse, HyDEResponse
 
 
 def create_task(
@@ -36,11 +36,10 @@ def create_task(
     if mode == "chat":
         output_pydantic = ChatResponse
     else:
-        output_pydantic = FlowResponse
+        output_pydantic = SearchResponse
 
     expected_output = TaskPrompts.BASE_OUTPUT_TEMPLATE.format(
-        query=query, 
-        output_scenarios=prompt_config.output_scenarios
+        query=query, output_scenarios=prompt_config.output_scenarios
     )
 
     return Task(
