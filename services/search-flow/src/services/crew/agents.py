@@ -23,7 +23,7 @@ def create_search_agent(
         goal=AgentPrompts.SEARCH_AGENT_GOAL,
         backstory=AgentPrompts.SEARCH_AGENT_BACKSTORY,
         llm=search_llm,
-        verbose=settings.crew_verbose,
+        verbose=settings.verbose,
         allow_delegation=False,
         max_iter=settings.crew_max_iter,
         max_rpm=settings.crew_max_rpm,
@@ -48,5 +48,5 @@ def create_hyde_agent() -> Agent:
         goal=HyDEPrompts.AGENT_GOAL,
         backstory=HyDEPrompts.AGENT_BACKSTORY,
         llm=hyde_llm,
-        verbose=settings.crew_hyde_verbose,
+        verbose=settings.verbose,
     )

@@ -12,9 +12,11 @@ async def lifespan(app: FastAPI):
 
     # Langfuse Setup
     langfuse = LangfuseService().setup()
-    langfuse.flush()
 
     yield
+
+    # Flush all pending Langfuse traces on shutdown
+    langfuse.flush()
 
 
 def create_app() -> FastAPI:
