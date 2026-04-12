@@ -6,7 +6,7 @@ from pydantic_settings import SettingsConfigDict
 class Settings(BaseSettings):
     app_env: str = Field("development", validation_alias="ENVIRONMENT")
     debug: bool = Field(True, validation_alias="DEBUG")
-    verbose: bool = Field(False, validation_alias="VERBOSE")
+    verbose: bool = Field(True, validation_alias="VERBOSE")
 
     crew_max_iter: int = Field(5, validation_alias="CREW_MAX_ITER")
     crew_max_rpm: int = Field(100, validation_alias="CREW_MAX_RPM")
