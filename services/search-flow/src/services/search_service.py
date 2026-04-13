@@ -341,11 +341,19 @@ class SearchFlowService:
                         except Exception as e:
                             logger.error(f"[SERVICE] Citation resolution failed: {e}")
                             # Fallback: send without citations, filter AI-only fields
-                            result_data = {k: v for k, v in raw_data.items() if k in SearchResponse.model_fields}
+                            result_data = {
+                                k: v
+                                for k, v in raw_data.items()
+                                if k in SearchResponse.model_fields
+                            }
                             await queue.put({"type": "result", "content": result_data})
                     elif isinstance(raw_data, dict):
                         # No selected_indices (e.g. chat mode via raw fallback) — filter fields
-                        result_data = {k: v for k, v in raw_data.items() if k in SearchResponse.model_fields}
+                        result_data = {
+                            k: v
+                            for k, v in raw_data.items()
+                            if k in SearchResponse.model_fields
+                        }
                         await queue.put({"type": "result", "content": result_data})
                     else:
                         await queue.put({"type": "result", "content": raw_data})
@@ -391,11 +399,11 @@ class SearchFlowService:
 
     @staticmethod
     async def _yield_events(queue: asyncio.Queue):
-        """Drain the event queue and yield JSON-encoded SSE lines until sentinel (None)."""
         while True:
             event = await queue.get()
             if event is None:
                 logger.debug("[SSE] Stream closed (None event received)")
                 break
-            # logger.debug(f"[SSE Event]: {event}")
             yield json.dumps(event, ensure_ascii=False) + "\n"
+            if event.get("type") == "token":
+                await asyncio.sleep(0.01)
