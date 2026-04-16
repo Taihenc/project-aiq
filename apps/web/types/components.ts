@@ -43,6 +43,8 @@ export interface ChatMessageProps {
   onRegenerate?: (assistantMessageId: string) => void;
   /** True while waiting for the assistant response */
   isLoading?: boolean;
+  /** True when this assistant message is an error (shows retry button) */
+  isError?: boolean;
 }
 
 export interface ChatInputProps {

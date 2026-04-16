@@ -32,6 +32,8 @@ export interface UIMessage {
   isEmpty?: boolean; // True when the AI returned an empty response
   /** True while token events are still arriving (before the result event) */
   isStreaming?: boolean;
+  /** True when the message represents a failed AI response (shows retry button) */
+  isError?: boolean;
   /** Attachments (citation FileRefs) that were sent with this user message */
   sentAttachments?: FileRef[];
   /** Search filter that was active when the user sent this message */
