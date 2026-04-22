@@ -6,29 +6,44 @@ def init_ssl_bypass():
     """
     Conditionally initializes SSL bypass for corporate proxy environments.
     Strictly controlled by the VERIFY_SSL environment variable.
+    Effectively disables all certificate verification in Python.
     """
     verify_ssl = os.environ.get("VERIFY_SSL", "true").lower() == "false"
     
     if verify_ssl:
-        print(">>> AINGO: SSL Bypass detected (VERIFY_SSL=false). Initializing monkeypatching...", file=sys.stderr)
+        print(">>> AINGO: SSL Bypass detected (VERIFY_SSL=false). Initializing global monkeypatching...", file=sys.stderr)
         
+        # 1. Global SSL Module Bypass (The most aggressive level)
+        try:
+            ssl._create_default_https_context = ssl._create_unverified_context
+            print(">>> AINGO: Standard SSL context verification disabled.", file=sys.stderr)
+        except Exception as e:
+            print(f">>> AINGO: Warning - Failed to patch ssl module: {e}", file=sys.stderr)
+
+        # 2. Force Global Environment Tweaks for non-python binaries/libraries
+        os.environ["PYTHONHTTPSVERIFY"] = "0"
+        os.environ["HF_HUB_DISABLE_XET"] = "1"
+        os.environ["HF_HUB_VERIFY"] = "0"
+        os.environ["REQUESTS_CA_BUNDLE"] = ""
+        os.environ["CURL_CA_BUNDLE"] = ""
+
         try:
             import requests
             from requests.adapters import HTTPAdapter
             from urllib3.poolmanager import PoolManager
             import urllib3
             
-            # 1. Disable urllib3 insecure request warnings
+            # 3. Disable urllib3 insecure request warnings
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             
-            # 2. Force Global Environment Tweaks for non-python binaries/libraries
-            os.environ["PYTHONHTTPSVERIFY"] = "0"
-            os.environ["HF_HUB_DISABLE_XET"] = "1"
-            os.environ["HF_HUB_VERIFY"] = "0"
-            os.environ["REQUESTS_CA_BUNDLE"] = ""
-            os.environ["CURL_CA_BUNDLE"] = ""
-            
-            # 3. Create a No-Verify Adapter for Requests
+            # 4. Monkeypatch urllib3 PoolManager directly to catch libraries not using Requests
+            _original_init = PoolManager.__init__
+            def patched_init(self, *args, **kwargs):
+                kwargs['cert_reqs'] = ssl.CERT_NONE
+                _original_init(self, *args, **kwargs)
+            PoolManager.__init__ = patched_init
+
+            # 5. Create a No-Verify Adapter for Requests
             class NoVerifyAdapter(HTTPAdapter):
                 def init_poolmanager(self, connections, maxsize, block=False):
                     self.poolmanager = PoolManager(
@@ -38,7 +53,7 @@ def init_ssl_bypass():
                         cert_reqs=ssl.CERT_NONE
                     )
 
-            # 4. Monkeypatch Requests globally
+            # 6. Monkeypatch Requests globally
             _original_session = requests.Session
             
             class NoVerifySession(requests.Session):
@@ -59,7 +74,7 @@ def init_ssl_bypass():
             
             print(">>> AINGO: Global Requests/Urllib3 SSL bypass active.", file=sys.stderr)
         except ImportError:
-            print(">>> AINGO: Skipping requests bypass (library not installed).", file=sys.stderr)
+            print(">>> AINGO: Skipping requests/urllib3 bypass (libraries not installed).", file=sys.stderr)
     else:
         # Standard secure mode
         pass
