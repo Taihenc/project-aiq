@@ -51,19 +51,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "3001:3001"
 
   search-flow:
     build:
-      context: ./services/search-flow
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/search-flow/Dockerfile
     restart: unless-stopped
     env_file:
       - ./services/search-flow/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - MCP_SERVER_URL=http://embedding-service:8003/v1/mcp/sse
       - EMBEDDING_SERVICE_URL=http://embedding-service:8003
     networks:
@@ -78,19 +79,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "8000:8000"
 
   embedding-service:
     build:
-      context: ./services/embedding-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/embedding-service/Dockerfile
     restart: unless-stopped
     env_file:
       - ./services/embedding-service/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - QDRANT_URL=http://qdrant:6333
     networks:
       - aingo-net
@@ -104,19 +106,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "8003:8003"
 
   data-ingestion:
     build:
-      context: ./services/data-ingestion
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/data-ingestion/Dockerfile
     restart: unless-stopped
     env_file:
       - ./services/data-ingestion/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - API_URL=http://embedding-service:8003/v1/upload
       - RABBITMQ_HOST=rabbitmq
       - FILE_STORAGE_URL=http://file-storage-service:8004
@@ -137,7 +140,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     deploy:
       replicas: 1
     ports:
@@ -145,13 +148,14 @@ services:
 
   sharepoint-webhook:
     build:
-      context: ./services/sharepoint-webhook
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/sharepoint-webhook/Dockerfile
     restart: unless-stopped
     env_file:
       - ./services/sharepoint-webhook/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - SERVER_PORT=8004
       - FILE_STORAGE_URL=http://file-storage-service:8004
     networks:
@@ -169,19 +173,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "8004:8004"
 
   file-storage-service:
     build:
-      context: ./services/file-storage-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/file-storage-service/Dockerfile
     restart: unless-stopped
     env_file:
       - ./services/file-storage-service/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - S3_ENDPOINT=http://aingo-minio:9000
       - S3_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -207,7 +212,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "8007:8004"
 
@@ -273,20 +278,26 @@ services:
       - "6334:6334"
 
   # ==================== REVERSE PROXY ====================
-  nginx:
-    image: nginx:alpine
-    container_name: aingo-nginx
+  caddy:
+    image: caddy:2-alpine
+    container_name: aingo-caddy
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/logs:/var/log/nginx
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
     networks:
       - aingo-net
     depends_on:
-      - web
-      - backend
+      web:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      sharepoint-webhook:
+        condition: service_healthy
 
 networks:
   aingo-net:
@@ -314,4 +325,8 @@ volumes:
   sharepoint_sync:
     driver: local
   sharepoint_logs:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
     driver: local

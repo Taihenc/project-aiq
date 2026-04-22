@@ -6,16 +6,19 @@ ENV UV_PYTHON_DOWNLOADS=never
 ENV UV_HTTP_TIMEOUT=60
 
 # Copy dependency files
-COPY pyproject.toml uv.lock README.md ./
+COPY services/search-flow/pyproject.toml services/search-flow/uv.lock services/search-flow/README.md ./
 
 # Install dependencies before code to leverage Docker layer caching
-RUN uv sync --frozen --no-install-project --no-dev
+RUN uv sync --frozen --no-install-project --no-dev --python 3.12
+
+# Copy shared utilities
+COPY services/shared/python/aingo_utils /app/aingo_utils
 
 # Copy application code
-COPY . .
+COPY services/search-flow .
 
 # Install the project itself
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --python 3.12
 
 # Place executables at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"

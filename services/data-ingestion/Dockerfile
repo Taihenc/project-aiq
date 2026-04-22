@@ -20,16 +20,19 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
-COPY pyproject.toml uv.lock ./
+COPY services/data-ingestion/pyproject.toml services/data-ingestion/uv.lock ./
 
 # Install dependencies before code to leverage Docker layer caching
-RUN uv sync --frozen --no-install-project --no-dev
+RUN uv sync --frozen --no-install-project --no-dev --python 3.12
+
+# Copy shared utilities
+COPY services/shared/python/aingo_utils /app/aingo_utils
 
 # Copy application code
-COPY . .
+COPY services/data-ingestion .
 
 # Install the project itself
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --python 3.12
 
 # Place executables at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"

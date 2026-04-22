@@ -1,3 +1,6 @@
+from aingo_utils.ssl_bypass import init_ssl_bypass
+init_ssl_bypass()
+
 """Application bootstrap for the SharePoint webhook service."""
 
 from __future__ import annotations

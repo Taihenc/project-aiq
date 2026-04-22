@@ -1,3 +1,6 @@
+from aingo_utils.ssl_bypass import init_ssl_bypass
+init_ssl_bypass()
+
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, Optional

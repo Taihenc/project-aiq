@@ -1,3 +1,6 @@
+from aingo_utils.ssl_bypass import init_ssl_bypass
+init_ssl_bypass()
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from src.config.settings import settings
