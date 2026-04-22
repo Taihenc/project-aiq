@@ -27,7 +27,7 @@ jobs:
           # Path on the VM
           TARGET: "~/AINGO"
           # Files to exclude from rsync
-          EXCLUDE: "/.git/, /node_modules/, /**/node_modules/, .env, .DS_Store, .claude/, .gemini/"
+          EXCLUDE: "/.git/, /node_modules/, /**/node_modules/, .env, Caddyfile, .DS_Store, .claude/, .gemini/"
           # Correct input name is REMOTE_PORT
           REMOTE_PORT: ${{ vars.SSH_PORT || 22 }}
           # Clean old files on the VM that are not in the repo (careful with this!)
