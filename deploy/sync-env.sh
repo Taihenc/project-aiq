@@ -29,6 +29,9 @@ rsync -amv \
     --exclude='node_modules/' \
     --exclude='.venv/' \
     --exclude='.turbo/' \
+    --exclude='.next/' \
+    --exclude='.gemini/' \
+    --exclude='.claude/' \
     --include='*/' \
     --include='.env' \
     --include='Caddyfile' \
