@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 from app.config import settings
 from app.services.embedding.embedding_service import embedding_service
 from app.models.models import (
-    Filter as ModelFilter,
     FilterOptionsResponse,
+    FilterIn,
+    FilterOut,
     Page,
     Chunk,
 )
@@ -152,12 +153,13 @@ class QdrantService:
         query: str,
         limit: int = 10,
         score_threshold: Optional[float] = None,
-        query_filter: Optional[ModelFilter] = None
+        filter_in: Optional[FilterIn] = None,
+        filter_out: Optional[FilterOut] = None
     ) -> List[Dict[str, Any]]:
         self._ensure_collection()
 
         query_embedding = embedding_service.encode_single(query)
-        qdrant_filter = self.format_filter(query_filter)
+        qdrant_filter = self.format_filter(filter_in, filter_out)
 
         results = self.client.search(
             collection_name=self.collection_name,
@@ -372,55 +374,69 @@ class QdrantService:
             "vectors_count": info.vectors_count,
             "status": info.status
         }
-
-    def format_filter(self, filters: ModelFilter) -> Filter:
-        if filters is None:
+    def format_filter(self, filters_in: FilterIn, filters_out: FilterOut) -> Filter:
+        if filters_in is None and filters_out is None:
             return Filter()
 
         field_conditions = []
         must_not_conditions = []
 
-        # Exact Matches (MatchValue)
-        exact_match_fields = {
-            "file_name": filters.file_name,
-            "file_type": filters.file_type,
-            "department": filters.department,
-            "team": filters.team,
-            "project": filters.project,
-        }
+        if filters_in:
+            # Exact Matches (MatchValue)
+            exact_match_fields = {
+                "file_name": filters_in.file_name,
+                "file_type": filters_in.file_type,
+                "department": filters_in.department,
+                "team": filters_in.team,
+                "project": filters_in.project,
+            }
 
-        for key, value in exact_match_fields.items():
-            if value:  # Ensures we don't add empty strings or None
+            for key, value in exact_match_fields.items():
+                if value:  # Ensures we don't add empty strings or None
+                    field_conditions.append(
+                        FieldCondition(key=key, match=MatchValue(value=value))
+                    )
+
+            # Full-text Match (MatchText)
+            if filters_in.file_path:
                 field_conditions.append(
-                    FieldCondition(key=key, match=MatchValue(value=value))
+                    FieldCondition(key="file_path", match=MatchText(text=filters_in.file_path))
                 )
 
-        # Full-text Match (MatchText)
-        if filters.file_path:
-            field_conditions.append(
-                FieldCondition(key="file_path", match=MatchText(text=filters.file_path))
-            )
+            # List Matches (MatchAny)
+            if filters_in.pages:
+                field_conditions.append(
+                    FieldCondition(key="pages", match=MatchAny(any=filters_in.pages))
+                )
 
-        # List Matches (MatchAny)
-        if filters.pages:
-            field_conditions.append(
-                FieldCondition(key="pages", match=MatchAny(any=filters.pages))
-            )
+            if filters_in.tags:
+                field_conditions.append(
+                    FieldCondition(key="tags", match=MatchAny(any=filters_in.tags))
+                )
 
-        if filters.tags:
-            field_conditions.append(
-                FieldCondition(key="tags", match=MatchAny(any=filters.tags))
-            )
+        if filters_out:
+            if filters_out.exclude_file_ids:
+                must_not_conditions.append(
+                    FieldCondition(key="file_id", match=MatchAny(any=filters_out.exclude_file_ids))
+                )
 
-        if filters.exclude_file_ids:
-            must_not_conditions.append(
-                FieldCondition(key="file_id", match=MatchAny(any=filters.exclude_file_ids))
-            )
+            if filters_out.exclude:
+                must_not_conditions.append(
+                    FieldCondition(key="file_path", match=MatchAny(any=filters_out.exclude))
+                )
 
-        if filters.exclude:
-            must_not_conditions.append(
-                FieldCondition(key="file_path", match=MatchAny(any=filters.exclude))
-            )
+            if filters_out.files:
+                for file in filters_out.files:
+                    if file.chunks:
+                        for chunk in file.chunks:
+                            must_not_conditions.append(
+                                Filter(
+                                    must=[
+                                        FieldCondition(key="file_path", match=MatchValue(value=file.file_path)),
+                                        FieldCondition(key="order", match=MatchValue(value=chunk.chunk_number))
+                                    ]
+                                )
+                            )
 
         format_filter = Filter(
             must=field_conditions,

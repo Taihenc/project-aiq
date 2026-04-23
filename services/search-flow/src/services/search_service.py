@@ -107,39 +107,37 @@ class SearchFlowService:
 
     def _build_search_filter(self, request: SearchChatRequest) -> Optional[dict]:
         """Build search filter dict preferring file_id exclusions with file_path fallback."""
-        search_filter = (
-            request.filter.model_dump(exclude_none=True) if request.filter else {}
-        )
+        filter_in = request.filter.model_dump(exclude_none=True, exclude={'exclude_file_ids', 'exclude'}) if request.filter else {}
 
         exclude_file_ids = []
-        if isinstance(search_filter.get("exclude_file_ids"), list):
+        if request.filter and request.filter.exclude_file_ids:
             exclude_file_ids.extend(
-                file_id
-                for file_id in search_filter["exclude_file_ids"]
-                if isinstance(file_id, str) and file_id.strip()
+                file_id for file_id in request.filter.exclude_file_ids if file_id.strip()
             )
         exclude_file_ids.extend(
             ref.file_id for ref in request.exclude if getattr(ref, "file_id", None)
         )
 
         exclude_paths = []
-        if isinstance(search_filter.get("exclude"), list):
+        if request.filter and request.filter.exclude:
             exclude_paths.extend(
-                file_path
-                for file_path in search_filter["exclude"]
-                if isinstance(file_path, str) and file_path.strip()
+                file_path for file_path in request.filter.exclude if file_path.strip()
             )
         exclude_paths.extend(ref.file_path for ref in request.exclude if ref.file_path)
 
+        filter_out = {}
         if exclude_file_ids:
-            search_filter["exclude_file_ids"] = list(dict.fromkeys(exclude_file_ids))
-        else:
-            search_filter.pop("exclude_file_ids", None)
+            filter_out["exclude_file_ids"] = list(dict.fromkeys(exclude_file_ids))
         if exclude_paths:
-            search_filter["exclude"] = list(dict.fromkeys(exclude_paths))
-        else:
-            search_filter.pop("exclude", None)
-        return search_filter or None
+            filter_out["exclude"] = list(dict.fromkeys(exclude_paths))
+
+        result = {}
+        if filter_in:
+            result["filter_in"] = filter_in
+        if filter_out:
+            result["filter_out"] = filter_out
+
+        return result if result else None
 
     def _build_flow_inputs(self, request: SearchChatRequest) -> dict:
         """Build the inputs dict shared by both sync and streaming execution."""
