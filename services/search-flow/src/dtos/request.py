@@ -1,4 +1,4 @@
-from typing import List, Any, Optional, Literal
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 from src.models.search import FileRef
 
@@ -19,10 +19,10 @@ class SearchFilter(BaseModel):
 class SearchChatRequest(BaseModel):
     title: Optional[str] = Field(default=None)
     query: str
-    history: List[str] = []
+    history: List[str] = Field(default_factory=list)
     context: Optional[str] = Field(default="")
-    attachments: List[FileRef] = Field(default=[])
-    exclude: List[FileRef] = Field(default=[])
+    attachments: List[FileRef] = Field(default_factory=list)
+    exclude: List[FileRef] = Field(default_factory=list)
     filter: Optional[SearchFilter] = Field(default=None)
-    metadata: Optional[dict] = Field(default={})
+    metadata: dict = Field(default_factory=dict)
     mode: Literal["auto", "search", "lookup", "chat"] = Field(default="auto")

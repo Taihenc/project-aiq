@@ -120,6 +120,7 @@ export const ChatMessagesArea: React.FC<ChatMessagesAreaProps> = ({
             statusHistory={message.statusHistory}
             isEmpty={message.isEmpty}
             isStreaming={message.isStreaming}
+            isError={message.isError}
             sentAttachments={message.sentAttachments}
             searchFilter={message.searchFilter}
             onAddAttachment={onAddAttachment}

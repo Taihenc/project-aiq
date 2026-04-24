@@ -589,21 +589,30 @@ class QdrantService:
 
     def get_max_page_number(self, file_path:str):
         self._ensure_collection()
-
         points = self.get_file(file_path)
 
         if points:
-            return points[-1].payload.get("pages", [-1])[-1]
+            # Find the absolute maximum page number across all chunks
+            max_page = -1
+            for point in points:
+                pages = point.payload.get("pages", [])
+                if pages:
+                    max_page = max(max_page, max(pages))
+            return max_page
         else:
             raise ValueError(f"Chunk with file_path {file_path} not found")
 
     def get_max_chunk_number(self, file_path: str):
         self._ensure_collection()
-
         points = self.get_file(file_path)
 
         if points:
-            return points[-1].payload.get("order", 0)
+            # Find the absolute maximum order across all chunks
+            max_order = -1
+            for point in points:
+                order = point.payload.get("order", -1)
+                max_order = max(max_order, order)
+            return max_order
         else:
             raise ValueError(f"Chunk with file_path {file_path} not found")
 

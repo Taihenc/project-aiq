@@ -18,6 +18,8 @@ class MetaData(BaseModel):
     checksum: Optional[str] = Field(default="", description="checksum of byte", nullable=True)
     file_id: Optional[str] = Field(default=None, description="stable file id", nullable=True)
     source_id: Optional[str] = Field(default=None, description="stable upstream source id", nullable=True)
+    max_page: Optional[int] = Field(default=None, description="max page number in file", nullable=True)
+    max_order: Optional[int] = Field(default=None, description="max chunk order in file", nullable=True)
 
 class Chunk(BaseModel):
     chunk_number: int = Field(...)

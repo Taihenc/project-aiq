@@ -1,6 +1,6 @@
 from crewai import Task, Agent
 from src.config.prompts import TaskPrompts, MODE_PROMPTS, HyDEPrompts
-from src.models.state import FlowResponse, HyDEResponse
+from src.models.state import AISearchResponse, ChatResponse, HyDEResponse
 
 
 def create_task(
@@ -10,8 +10,9 @@ def create_task(
     context_block: str,
     current_time: str,
     metadata: str = "",
-    tools: list = [],
+    tools: list | None = None,
 ) -> Task:
+    tools = tools or []
     # Map the mode to the correct prompt constants
     prompt_config = MODE_PROMPTS.get(mode, MODE_PROMPTS["auto"])
 
@@ -31,6 +32,14 @@ def create_task(
         task_core=formatted_task_core,
     ).strip()
 
+    # Determine schema based on mode:
+    # - chat: ChatResponse (no citations, no indices)
+    # - search/lookup/auto: AISearchResponse (AI selects indices; system maps to citations post-processing)
+    if mode == "chat":
+        output_pydantic = ChatResponse
+    else:
+        output_pydantic = AISearchResponse
+
     expected_output = TaskPrompts.BASE_OUTPUT_TEMPLATE.format(
         query=query, output_scenarios=prompt_config.output_scenarios
     )
@@ -41,7 +50,7 @@ def create_task(
         expected_output=expected_output,
         agent=agent,
         tools=tools,
-        output_pydantic=FlowResponse,
+        output_pydantic=output_pydantic,
     )
 
 

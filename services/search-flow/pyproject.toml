@@ -30,6 +30,7 @@ dependencies = [
     "opentelemetry-instrumentation>=0.55b1",
     "langchain-core>=1.2.16",
     "litellm>=1.75.3",
+    "json-repair>=0.25.3",
 ]
 
 [build-system]
