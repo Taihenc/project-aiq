@@ -228,7 +228,10 @@ def get_proxy_tools(
             "top_n": settings.search_top_n,
         }
         if search_filter:
-            params["filter"] = search_filter
+            if "filter_in" in search_filter:
+                params["filter_in"] = search_filter["filter_in"]
+            if "filter_out" in search_filter:
+                params["filter_out"] = search_filter["filter_out"]
         raw_json_str = run_mcp_sync(
             execute_mcp_operation("search_documents", params, status_callback)
         )

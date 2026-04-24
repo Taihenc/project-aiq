@@ -34,7 +34,8 @@ class Page(BaseModel):
 
 class File(BaseModel):
     file_path: str = Field(..., description="Path or name of the source file.")
-    pages: List[Page] = Field(..., description="List of relevant pages in this file.")
+    pages: Optional[List[Page]] = Field(None, description="List of relevant pages in this file.")
+    chunks: Optional[List[Chunk]] = Field(None, description="List of relevant chunks in this file.")
     total_pages: Optional[int] = Field(None, description="Total number of pages in the file.")
 
 class DocumentUpload(BaseModel):
@@ -58,18 +59,20 @@ class DocumentUploadResponse(BaseModel):
     count: int = Field(..., description="Number of documents uploaded")
     message: str = Field(default="Documents uploaded successfully")
 
-class Filter(BaseModel):
+class FilterIn(BaseModel):
     file_name: Optional[str] = Field(default="",description="File name filter",nullable=True)
     file_path: Optional[str] = Field(default="",description="Path filter",nullable=True)
     file_type: Optional[str] = Field(default="",description="File type filter",nullable=True)
-    exclude_file_ids: Optional[List[str]] = Field(default=[],description="List of stable file ids to exclude",nullable=True)
-    exclude: Optional[List[str]] = Field(default=[],description="List of document path to exclude",nullable=True)
     pages: Optional[List[int]] = Field(default=[],description="Page filter",nullable=True)
     department: Optional[str] = Field(default="",description="Department filter",nullable=True)
     team: Optional[str] = Field(default="",description="Team filter",nullable=True)
     project: Optional[str] = Field(default="",description="Project filter",nullable=True)
     tags: Optional[List[str]] = Field(default=[],description="Tags filter",nullable=True)
 
+class FilterOut(BaseModel):
+    files: Optional[List[File]] = Field(None, description="List of files")
+    exclude_file_ids: Optional[List[str]] = Field(default=[],description="List of stable file ids to exclude",nullable=True)
+    exclude: Optional[List[str]] = Field(default=[],description="List of document path to exclude",nullable=True)
 
 class FilterOptionsResponse(BaseModel):
     """Unique metadata values present in the Qdrant collection — used to populate filter pickers."""
@@ -92,7 +95,8 @@ class SearchRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=100, description="Number of results from sematic search")
     top_n: Optional[int] = Field(default=5, ge=1, le=100, description="Number of results from rerank (Leave null for no reranking)")
     score_threshold: Optional[float] = Field(default=0, ge=0.0, le=1.0, description="Minimum similarity score")
-    filter: Optional[Filter] = Field(default=None, description="Metadata filter")
+    filter_in: Optional[FilterIn] = Field(default=None, description="Metadata filter (include)")
+    filter_out: Optional[FilterOut] = Field(default=None, description="Metadata filter (exclude)")
 
 class DocumentResponse(BaseModel):
     id: str = Field(..., description="Document ID")
