@@ -94,12 +94,17 @@ services:
       - PYTHONUNBUFFERED=1
       - VERIFY_SSL=${VERIFY_SSL:-true}
       - QDRANT_URL=http://qdrant:6333
+      - EMBEDDING_MODEL=/app/models/bge-m3
+      - RERANKING_MODEL=/app/models/bge-reranker-v2-m3
     networks:
       - aingo-net
     volumes:
       - embedding_cache:/data/embeddings
+      - ./models:/app/models
     depends_on:
       qdrant:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
@@ -124,10 +129,12 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - FILE_STORAGE_URL=http://file-storage-service:8004
       - EMBEDDING_SERVICE_URL=http://embedding-service:8003
+      - EMBED_MODEL_ID=/app/models/bge-m3
     networks:
       - aingo-net
     volumes:
       - data_ingestion_uploads:/data/uploaded-files
+      - ./models:/app/models
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -140,7 +147,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 300s
+      start_period: 40s
     deploy:
       replicas: 1
     ports:

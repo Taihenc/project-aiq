@@ -1,10 +1,12 @@
 import axios from 'axios';
 import { Cookies } from '@/lib/utils/cookies';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+const BACKEND_URL = (typeof window !== 'undefined' && !process.env.NEXT_PUBLIC_BACKEND_URL)
+  ? ''
+  : (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000');
 
 export const client = axios.create({
-  baseURL: '/api',
+  baseURL: '/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -119,8 +121,8 @@ client.interceptors.response.use(
 // and call the NestJS backend directly.
 const BACKEND_URL_DIRECT =
   (typeof window !== 'undefined'
-    ? process.env.NEXT_PUBLIC_BACKEND_URL
-    : process.env.INTERNAL_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL) || 'http://localhost:3000';
+    ? (process.env.NEXT_PUBLIC_BACKEND_URL || '')
+    : (process.env.INTERNAL_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'));
 
 export const streamFetch = async (endpoint: string, body: object): Promise<ReadableStream<Uint8Array> | null> => {
   const attemptFetch = async (token: string | undefined) => {

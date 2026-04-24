@@ -1,4 +1,5 @@
 from aingo_utils.ssl_bypass import init_ssl_bypass
+import os
 init_ssl_bypass()
 
 from fastapi import FastAPI, UploadFile, File

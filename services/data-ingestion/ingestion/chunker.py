@@ -12,9 +12,14 @@ from config import settings
 class Chunker:
     def __init__(self):
         self.max_tokens = settings.max_chunk_size
-        self.EMBED_MODEL_ID = "BAAI/bge-m3"
+        self.EMBED_MODEL_ID = os.environ.get("EMBED_MODEL_ID", "BAAI/bge-m3")
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(self.EMBED_MODEL_ID)
+        except Exception as e:
+            print(f"DEBUG: AutoTokenizer failed: {e}. Trying fallback to BAAI/bge-m3")
+            tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3")
         self.tokenizer = HuggingFaceTokenizer(
-            tokenizer=AutoTokenizer.from_pretrained(self.EMBED_MODEL_ID),
+            tokenizer=tokenizer,
             max_tokens=self.max_tokens,
         )
         self.chunker = HybridChunker(
