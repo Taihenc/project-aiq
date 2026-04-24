@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is the primary purpose of the Security Remediation and Patch Management Standard?",
+    "answer": "To provide guidance on vulnerability and patch management requirements to protect systems and help employees understand how to scan for, remediate vulnerabilities, and apply patches.",
+    "source": "The purpose of this standard is to provide guidance on vulnerability and patch management requirements to protect systems appropriately and provide guidance to help employees understand how to scan for and remediate vulnerabilities, and how to track and apply patches."
+  },
+  {
+    "question": "Which assets are included within the scope of this standard?",
+    "answer": "The scope includes all SCBX Group assets such as information, software, physical assets, and services, regardless of whether they are located on SCBX premises or at third-party locations.",
+    "source": "This standard shall cover all the assets belonging to SCBX Group, whether at SCBX Group's premises or at IT third party locations. It includes: ● Information assets ... ● Software assets ... ● Physical assets ... ● Services ..."
+  },
+  {
+    "question": "How frequently must vulnerability scans be performed for internet-facing and critical systems?",
+    "answer": "Internet-facing and critical systems must undergo vulnerability scans on a monthly basis.",
+    "source": "Monthly scan for Internet facing and critical systems."
+  },
+  {
+    "question": "What types of vulnerability scans are identified in the standard?",
+    "answer": "The standard identifies host-based, network, database, cloud, application, source code, internal, and external vulnerability scans.",
+    "source": "The table below shows different types of vulnerability scans which can be used: Host-based Vulnerability Scan ... Network Vulnerability Scan ... Database Vulnerability Scan ... Cloud Vulnerability Scan ... Application Vulnerability Scan ... Source Code Vulnerability Scan ... Internal Vulnerabilities ... External Vulnerabilities"
+  },
+  {
+    "question": "How are vulnerabilities prioritized for remediation according to the standard?",
+    "answer": "Vulnerabilities are prioritized based on exploitability, severity, and potential impact on confidentiality, integrity, and availability, using NIST CVSS scores.",
+    "source": "Prioritization of vulnerability remediation must be based on the exploitability, severity of the vulnerability and its potential impact on the confidentiality, integrity and availability of the vulnerable system or data. Vulnerability severity can be determined by the rating provided by the National Institute of Standards and Technology (NIST) Common Vulnerability Scoring System (CVSS)."
+  },
+  {
+    "question": "What is the required remediation timeline for critical vulnerabilities with a CVSS score of 9.0–10.0 on public-facing systems?",
+    "answer": "They must be remediated immediately, within 24 hours.",
+    "source": "Critical 9.0 - 10.0 10 Immediately (within 24 hours) Public-facing web servers, email servers, VPN servers, RDP servers, domain controllers"
+  },
+  {
+    "question": "Who is responsible for approving and overseeing the use of vulnerability scanning tools?",
+    "answer": "The Information and Cybersecurity function is responsible for approving and overseeing vulnerability scanning tools.",
+    "source": "Approve and oversee the use of an enterprise class vulnerability scanner to conduct scans."
+  },
+  {
+    "question": "What are the four risk response options available after a vulnerability is detected?",
+    "answer": "The four options are risk acceptance, risk transfer, risk mitigation, and risk avoidance.",
+    "source": "The risk response includes one (or more) of the following four options ... Risk Acceptance ... Risk Transfer ... Risk Mitigation ... Risk Avoidance"
+  },
+  {
+    "question": "What testing requirements must be met before deploying security patches to production?",
+    "answer": "Patches must be tested in a non-production environment, results recorded and signed off, and change management approval obtained before production deployment.",
+    "source": "Every new patch must be tested before it is introduced... Test results are recorded and appropriately signed off."
+  },
+  {
+    "question": "Under what circumstances is virtual patch management required?",
+    "answer": "Virtual patch management is required when compliance cannot be met due to system capabilities or application impact and a security exception has been approved.",
+    "source": "In rare cases, where compliance cannot be met or enforced due to system capabilities or application impact, a security exception request must be raised describing compensating security controls."
+  }
+]

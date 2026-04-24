@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is the main purpose of the IT Third Party Risk Management Standard?",
+    "answer": "The purpose is to provide technical security requirements to protect confidentiality, integrity, and availability of data, systems, applications, and networks, and to guide how IT third party risks are identified, assessed, and managed.",
+    "source": "The purpose of this standard is to provide a comprehensive set of technical security requirements to protect and maintain confidentiality of data, systems, applications, and networks owned or held by SCBX Group... and provide guidance on the steps that should be taken to identify, assess and manage those risks while complying with associated laws and regulations."
+  },
+  {
+    "question": "Which entities and assets are covered under the scope of this standard?",
+    "answer": "The standard applies to SCBX Group entities under management control and covers information, software, physical assets, and services, whether located at SCBX premises or IT third party locations.",
+    "source": "This standard applies to SCBX Group for which SCBX Group has management control... This standard shall cover all assets belonging to SCBX Group, whether at SCBX Group's premises or at IT third party locations."
+  },
+  {
+    "question": "How does SCBX Group classify IT third parties based on inherent risk rating?",
+    "answer": "IT third parties are classified as Critical IT Third Party if the inherent risk rating is high, and as Other IT Third Party if the inherent risk rating is moderate or low.",
+    "source": "• Inherent Risk Rating = High, IT third party is classified to be \"Critical IT Third Party\" • Inherent Risk Rating = Moderate or Low, IT third party is classified to be \"Other IT Third Party\""
+  },
+  {
+    "question": "What key areas must SCBX Group focus on when managing IT third party risks?",
+    "answer": "SCBX Group must focus on governance structure, threat and risk assessment processes, end-to-end IT third party risk management processes, and continuous risk management to keep risks at acceptable levels.",
+    "source": "SCBX Group must have structured processes and information on performing IT third party risk assessments and managing them in a systematic and consistent manner and must focus on below areas..."
+  },
+  {
+    "question": "What are the responsibilities of Business Units when engaging an IT third party?",
+    "answer": "Business Units must determine the scope of work, perform IT third party risk assessments, define data access requirements, report risks and incidents, monitor performance, and ensure business continuity and exit plans are in place.",
+    "source": "✔ Determine the scope and nature of work to be carried out and analyze necessity for using IT third party services specifying risks by performing IT third party risk assessment... ✔ Follow up and monitor IT third party services and oversee their performance..."
+  },
+  {
+    "question": "What due diligence factors must be considered before selecting an IT third party?",
+    "answer": "Due diligence must consider technical capability based on confidentiality, integrity, and availability, financial stability, reputation, corporate culture, adaptability, concentration risk, and potential conflicts of interest.",
+    "source": "Qualification and performance of IT third party shall consider at the following, but not limited to: • Technical capability, expertise, and track record according to international standards based on the CIA triad..."
+  },
+  {
+    "question": "What types of risks must be covered in an IT third party risk assessment?",
+    "answer": "The risk assessment must cover strategic, reputation, operational, legal and compliance, concentration, data and privacy, IT and cybersecurity, vendor lock-in, cross-border, business continuity, subcontractor, and contractual risks.",
+    "source": "Business Unit/Users must perform risk assessment... and record in writing the evidence that covers the following risks."
+  },
+  {
+    "question": "What information must be recorded in the IT Third Party Inventory?",
+    "answer": "The inventory must include vendor name, type, project name, scope of work, service risk level, data center locations, contract dates, certifications, and related asset details.",
+    "source": "The IT Third Party Management should record the IT Third Party Inventory including: • Name of IT third party (vendor). • IT Third Party Type. • Project Name..."
+  },
+  {
+    "question": "What monitoring frequency is required for Critical IT Third Parties versus Other IT Third Parties?",
+    "answer": "Critical IT Third Parties must be reviewed annually or upon significant change, while Other IT Third Parties must be reviewed biennially or upon significant change.",
+    "source": "• Critical IT third party: Annual Basis or significant change in SOW during years. • Other IT third party: Biennial Basis or significant change in SOW during years."
+  },
+  {
+    "question": "What actions must be taken when terminating an agreement with an IT third party?",
+    "answer": "An exit plan must be implemented, data must be returned or destroyed, access must be revoked, assets returned, services reviewed, and a termination checklist completed to ensure secure offboarding.",
+    "source": "When an agreement with IT third party has expired or is terminated... An Exit Plan must be in place to ensure that all data... are removed from the contractor's system and are returned to SCBX Group..."
+  }
+]

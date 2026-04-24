@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is the main purpose of the SCBX Group Logging and Auditing Standard?",
+    "answer": "The purpose is to provide technical security requirements to protect and maintain the confidentiality, integrity, availability, and non-repudiation of data, systems, applications, and networks owned or held by SCBX Group.",
+    "source": "The purpose of this standard is to provide a comprehensive set of technical security requirements to protect and maintain confidentiality, Integrity, availability and non-repudiation of data, systems, applications, and networks owned or held by SCX Group, and other IT third party information."
+  },
+  {
+    "question": "Who is responsible for monitoring and reviewing logged security events under the auditing section?",
+    "answer": "The Cyber Security Center / Security Operations Center (SOC) is primarily responsible for monitoring and reviewing logged information and events.",
+    "source": "Cyber Security Center/Security Operations Center (SOC) is primarily responsible for monitoring and reviewing logged information and events as per the following controls."
+  },
+  {
+    "question": "What are the minimum prerequisites that SCBX Group must document to implement effective logging?",
+    "answer": "SCBX Group must document privileges for accessing logs, the process for enabling and configuring logs, and the process for maintaining continuity of the logging system.",
+    "source": "SCBX Group must keep documentation and maintenance of the following: • Privileges for accessing logs • Process for enabling and configuring logs • Process for maintaining continuity of logging system"
+  },
+  {
+    "question": "What minimum information must be recorded for each audit log event?",
+    "answer": "Each audit log must include date and time, user identifier, host name, resources accessed, type of event, and success or failure of the event.",
+    "source": "For each recorded event, the audit log needs to accumulate, at a minimum, the following information: • Date and time of the event using local time • The user identifier or user's ID... • Host name... • Names of resources accessed... • Type of event... • Success or failure of the event"
+  },
+  {
+    "question": "What security events must be logged for operating systems and applications?",
+    "answer": "Successful and failed user logins and any application data exchanges must be logged for forensic investigations.",
+    "source": "The following events must cause a record to be written to the security audit log for forensic investigations: • Successful and failed user logins to the applications and servers operating system • Any application data exchanges."
+  },
+  {
+    "question": "What is the required minimum retention period for network traffic data logs?",
+    "answer": "Network traffic data logs must be retained for at least 90 days from the date the data entered the systems.",
+    "source": "Network traffic data logs must be retained for at least 90 days from the date such data entered systems (as per Computer-Related Crime Act B.E. 2550 (2007) and subsequent amendments)."
+  },
+  {
+    "question": "How often must audit log data reviews be performed under intermediate auditing requirements?",
+    "answer": "Audit log data reviews or automated log reviews must be performed daily.",
+    "source": "Audit log data reviews or automated log reviews must be performed daily."
+  },
+  {
+    "question": "What controls are required to protect audit logs from unauthorized modification or deletion?",
+    "answer": "Audit logs must be append-only, survive system restarts, and access must be limited to authorized users only.",
+    "source": "Audit log file attributes must be selected and set so that it enables only new information to be appended... Audit logs (security and operational logs) must survive system restarts... Access to security audit log(s) must be limited to authorized people"
+  },
+  {
+    "question": "What are the minimum elements that must be included in a legal notice displayed after authentication?",
+    "answer": "The legal notice must state system ownership, authorized use only, monitoring, consent to monitoring, and consequences of unauthorized use.",
+    "source": "The legal notice must include the following five elements, at a minimum: • The user is using systems belonging to SCBX Group... • Systems may be monitored for improper use... • Unauthorized use may result in reprimand, dismissal, financial penalties, and/or legal action."
+  },
+  {
+    "question": "What logging requirements apply to cloud environments at a minimum baseline level?",
+    "answer": "At a minimum, successful and failed user logons must be captured with timestamps, user ID, application name, and pass/fail indicators, and applications must be time synchronized.",
+    "source": "At a minimum, successful, and failed user logon must be captured (i.e., date & time stamp, user id, application name, pass/fail indicator) and recorded. Applications must be synchronized with the standard time source."
+  }
+]

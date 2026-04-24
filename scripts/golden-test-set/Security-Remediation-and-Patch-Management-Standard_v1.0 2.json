@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is the primary purpose of the Security Remediation and Patch Management Standard?",
+    "answer": "The purpose is to provide guidance on vulnerability and patch management requirements and help employees understand how to scan for, remediate vulnerabilities, and apply patches.",
+    "source": "The purpose of this standard is to provide guidance on vulnerability and patch management requirements to protect systems appropriately and provide guidance to help employees understand how to scan for and remediate vulnerabilities, and how to track and apply patches."
+  },
+  {
+    "question": "Which assets are covered under the scope of this standard?",
+    "answer": "The standard covers information assets, software assets, physical assets, and services belonging to SCBX Group, including assets at SCBX premises and third-party locations.",
+    "source": "This standard shall cover all the assets belonging to SCBX Group, whether at SCBX Group's premises or at IT third party locations. It includes: ● Information assets (data, database, documentation, etc.) ● Software assets (programs, code, etc.) ● Physical assets (premises, equipment, etc.) ● Services (power, communication, network, Cloud Computing etc.)"
+  },
+  {
+    "question": "How often must vulnerability scans be conducted for internet-facing and critical systems?",
+    "answer": "Internet-facing and critical systems must be scanned monthly.",
+    "source": "● Monthly scan for Internet facing and critical systems."
+  },
+  {
+    "question": "What are the main responsibilities of the Application / System / Asset Owner related to patch management?",
+    "answer": "They are responsible for issuing security alerts, coordinating vulnerability fixes, maintaining asset inventories, planning preventive maintenance, and authorizing device removal from the network.",
+    "source": "✓ Issue security alerts concerned units to identify, test and install security patches for security protection. ✓ Recommend and coordinate with the Information and Cybersecurity and Information Technology function to fix the vulnerabilities. ✓ Maintain inventory of software and assets of physical and virtual computing assets..."
+  },
+  {
+    "question": "What factors determine the prioritization of vulnerability remediation?",
+    "answer": "Prioritization is based on exploitability, severity, and potential impact on confidentiality, integrity, and availability, using CVSS ratings.",
+    "source": "Prioritization of vulnerability remediation must be based on the exploitability, severity of the vulnerability and its potential impact on the confidentiality, integrity and availability of the vulnerable system or data. Vulnerability severity can be determined by the rating provided by the National Institute of Standards and Technology (NIST) Common Vulnerability Scoring System (CVSS)."
+  },
+  {
+    "question": "What is the required remediation timeline for critical vulnerabilities with a CVSS score of 9.0–10.0 on public-facing systems?",
+    "answer": "They must be remediated immediately, within 24 hours.",
+    "source": "Critical 9.0 - 10.0 10 Immediately (within 24 hours) Public-facing web servers, email servers, VPN servers, RDP servers, domain controllers"
+  },
+  {
+    "question": "What risk response options are available after a vulnerability is detected?",
+    "answer": "The options are risk acceptance, risk transfer, risk mitigation, and risk avoidance.",
+    "source": "The risk response includes one (or more) of the following four options... ● Risk Acceptance ● Risk Transfer ● Risk Mitigation ● Risk Avoidance"
+  },
+  {
+    "question": "What testing requirements must be met before deploying security patches to production?",
+    "answer": "Patches must be tested in a non-production environment, results recorded and signed off, and change management approval obtained before deployment.",
+    "source": "Every new patch must be tested before it is introduced. Installing the patch on the actual service system must go through the SCBX Group defined Change Management Process."
+  },
+  {
+    "question": "When is penetration testing required and how frequently must it be performed for critical systems?",
+    "answer": "Penetration testing must be conducted at least annually and after significant changes for critical infrastructure and business-critical applications.",
+    "source": "Penetration Testing of the critical Infrastructure and business critical applications must be carried out at least annually and after any significant changes for applications and system components."
+  },
+  {
+    "question": "What is required when a system cannot be patched and a security exception is approved?",
+    "answer": "A virtual patching solution must be deployed, and the affected servers must be regularly scanned and updated with intrusion prevention rules for the duration of the exception.",
+    "source": "Servers on an approved patching exception must be on-boarded to the Virtual Patching solution for the duration of the exception, or until the server is remediated or decommissioned."
+  }
+]

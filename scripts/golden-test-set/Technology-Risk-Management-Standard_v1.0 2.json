@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is the primary purpose of the Technology Risk Management Standard?",
+    "answer": "The purpose is to provide guidance on technology risk management, business continuity, and project management to ensure risks are understood, managed, and aligned with laws, regulations, and business goals.",
+    "source": "The purpose of this standard is to serve as a guidance on \"TRM\", hereafter referred to Technology Risk Management, business continuity and project management of the SCBX Group for all executives and employees to have an understanding and awareness of the risks in their own business operations and ensure that an aligned and effective TRM is in place and comply with the related laws and regulations which lead to the achievement of SCBX Group's business goals."
+  },
+  {
+    "question": "Which entities and assets are covered under the scope of this standard?",
+    "answer": "The standard applies to all SCBX Group entities under management control and covers information, software, physical assets, and services, including those at third-party locations.",
+    "source": "This standard applies to SCBX Group for which SCBX Group has management control... This standard shall cover all the assets belonging to SCBX Group, whether at SCBX Group's premises or at IT third party locations."
+  },
+  {
+    "question": "How does the document define technology risk?",
+    "answer": "Technology risk is defined as the possibility that threats exploit vulnerabilities of digital assets and negatively affect business objectives and operations.",
+    "source": "Technology risk is defined as the possibility that a given threat will exploit vulnerabilities of a digital asset or digital assets of SCBX Group and could adversely affect the ability to meet business strategic goals and objectives, and operations."
+  },
+  {
+    "question": "What are the main elements of the Technology Risk Management (TRM) life cycle?",
+    "answer": "The TRM life cycle includes risk identification, risk assessment, risk response and mitigation, and monitoring and reporting.",
+    "source": "The TRM process consists of four basic elements: ● Risk identification ● Risk assessment ● Risk response and mitigation ● Monitoring and reporting"
+  },
+  {
+    "question": "What is the difference between risk appetite and risk tolerance according to the standard?",
+    "answer": "Risk appetite is the maximum level of risk the organization is willing to accept overall, while risk tolerance is the specific maximum risk allowed for each relevant risk.",
+    "source": "Risk Appetite is the maximum level of risk the SCBX Group can assume and is willing to accept... Risk Tolerance is the specific maximum risk that the SCBX Group is willing to take regarding each relevant risk."
+  },
+  {
+    "question": "What are the four possible risk response options described in the document?",
+    "answer": "The four risk response options are risk acceptance, risk transfer, risk mitigation, and risk avoidance.",
+    "source": "Risk response includes one (or more) of the following four options: • Risk Acceptance • Risk Transfer • Risk Mitigation • Risk Avoidance"
+  },
+  {
+    "question": "Who is responsible for defining and approving the Technology Risk Appetite Statement (RAS)?",
+    "answer": "Senior Management defines the Technology Risk Appetite Statement and submits it to the Board of Directors for review and approval.",
+    "source": "Senior Management ✓ Define Technology Risk Appetite Statement (RAS) and submit to Board of Directors to review and approve."
+  },
+  {
+    "question": "What criteria are used to identify a Critical Business Function (CBF)?",
+    "answer": "A Critical Business Function is identified based on its impact on customer service, operations, stakeholders, financial status, and reputation if disrupted.",
+    "source": "SCBX Group must identify the critical business function by considering that if the functions are interrupted, it will have a significant impact on the factors as follows: • Customer service • Business operation • Stakeholders • Financial Status • Performance or reputation of SCBX Group"
+  },
+  {
+    "question": "What information must be recorded in the Risk Register?",
+    "answer": "The Risk Register must record risk events, risk details, likelihood, impact, risk responses, and overall risk status.",
+    "source": "The risk register should cover below components but not limited to: • Risk IDs • Risk Category • Risk Scenarios • Risk Source • Risk Owner • Likelihood and Impact • Risk Response • Overall Status of the risk whether accepted, closed."
+  },
+  {
+    "question": "How often must the Technology Risk Management Standard be reviewed?",
+    "answer": "The standard must be reviewed annually and whenever there are major changes affecting its relevance or effectiveness.",
+    "source": "This standard must be reviewed annually and/or when there are major changes to maintain relevance and effectiveness."
+  }
+]

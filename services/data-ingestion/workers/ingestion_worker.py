@@ -2,8 +2,6 @@ import asyncio
 from typing import List, Dict, Any
 
 from ingestion import (
-    file_reader,
-    modality,
     context_builder,
     chunker,
     indexer,
@@ -20,9 +18,6 @@ import mimetypes
 
 class IngestionWorker:
     def __init__(self):
-        # self.file_reader = file_reader.FileReader()
-        # self.modality = modality.ModalityClassifier()
-        # self.extractor = extractor.Extractor()
         self.context_builder = context_builder.ContextBuilder()
         self.extractor = DoclingExtractor()
         self.chunker = chunker.Chunker()

@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is the main purpose of the Technology Risk Management Standard?",
+    "answer": "The purpose is to provide guidance on Technology Risk Management, business continuity, and project management so that executives and employees understand technology risks and ensure an aligned and effective TRM that complies with laws and regulations to achieve business goals.",
+    "source": "The purpose of this standard is to serve as a guidance on \"TRM\", hereafter referred to Technology Risk Management, business continuity and project management of the SCBX Group for all executives and employees to have an understanding and awareness of the risks in their own business operations and ensure that an aligned and effective TRM is in place and comply with the related laws and regulations which lead to the achievement of SCBX Group's business goals."
+  },
+  {
+    "question": "What types of assets are covered under the scope of this standard?",
+    "answer": "The standard covers information assets, software assets, physical assets, and services, regardless of whether they are located at SCBX Group premises or third-party locations.",
+    "source": "This standard shall cover all the assets belonging to SCBX Group, whether at SCBX Group's premises or at IT third party locations. It includes: ● Information assets (data, database, documentation, etc.) ● Software assets (programs, code, etc.) ● Physical assets (premises, equipment, etc.) ● Services (power, communication, network, Cloud Computing etc.)"
+  },
+  {
+    "question": "How does the document define technology risk?",
+    "answer": "Technology risk is defined as the possibility that threats exploit vulnerabilities of digital assets, adversely affecting the organization’s ability to meet business goals and operations.",
+    "source": "Technology risk is defined as the possibility that a given threat will exploit vulnerabilities of a digital asset or digital assets of SCBX Group and could adversely affect the ability to meet business strategic goals and objectives, and operations."
+  },
+  {
+    "question": "What are the key components that a Technology Risk Management (TRM) strategy should include?",
+    "answer": "The TRM strategy should include strategic-level decisions by senior leaders and a clear expression of risk tolerance, acceptable risk assessment methodologies, risk response strategies, and approaches for monitoring risk over time.",
+    "source": "The TRM strategy should include: ● Strategic-level decisions and considerations on how senior leaders/executives are to manage information security risk... ● An unambiguous expression of the risk tolerance for the organization, acceptable risk assessment methodologies, risk response strategies... and approaches for monitoring risk over time."
+  },
+  {
+    "question": "What are the main categories included in the technology risk taxonomy?",
+    "answer": "The taxonomy includes project delivery risk, IT service and infrastructure risk, application/software risk, emerging technology and AI risk, IT compliance risk, IT personnel and governance risk, cybersecurity and data protection risk, and IT third-party risk.",
+    "source": "● Project Delivery Management and Project Portfolio Risk... ● IT Service Delivery and IT Asset / Infrastructure Management Risk... ● Application / Software Management Risk... ● Emerging Technology Risk / AI Risk... ● IT Compliance Risk... ● IT Personnel and Governance Risk... ● Cybersecurity and Data Protection Risk... ● IT Third Party Risk..."
+  },
+  {
+    "question": "What responsibilities do Business Units and Risk Owners have in Technology Risk Management?",
+    "answer": "They are responsible for identifying, assessing, managing, mitigating, and monitoring owned technology risks, maintaining the risk register, reporting risks and KRIs, setting risk tolerance for systems, and supporting business continuity and change management.",
+    "source": "✓ Collaborate with and advised by Risk Management to identify, assess, manage, mitigate, and monitor owned technology risks... ✓ Record the Risk Register and report Technology Risk Assessment results... ✓ Responsible to collaborate with Technology Risk Management to set the risk tolerance for each specific system or application."
+  },
+  {
+    "question": "What are the main stages of the Technology Risk Management life cycle?",
+    "answer": "The TRM life cycle consists of risk identification, risk assessment (analysis and evaluation), risk response and mitigation, and monitoring and reporting.",
+    "source": "The TRM process consists of four basic elements: ● Risk identification ● Risk assessment o Risk analysis o Risk evaluation ● Risk response and mitigation ● Monitoring and reporting"
+  },
+  {
+    "question": "What factors must be considered when prioritizing technology risks for assessment?",
+    "answer": "Factors include regulatory requirements, business strategy, key risk history, inputs from other risk disciplines, external factors, emerging risks, and critical system impact.",
+    "source": "The risk prioritization must be considered for preparation and initiation of the risk assessment using the below factors, at a minimum: • Regulatory... • Business strategy... • Key risk history... • Input from other risk disciplines... • External factors... • Other input (deemed relevant)... • Critical systems..."
+  },
+  {
+    "question": "What risk response options are available for managing technology risks?",
+    "answer": "The available risk response options are risk acceptance, risk transfer, risk mitigation, and risk avoidance.",
+    "source": "Risk response includes one (or more) of the following four options: • Risk Acceptance... • Risk Transfer... • Risk Mitigation... • Risk Avoidance..."
+  },
+  {
+    "question": "What is the purpose of Business Impact Analysis (BIA) in the Business Continuity Management plan?",
+    "answer": "BIA is used to understand the relationship between critical business functions and the impact of disruptions, determine the maximum tolerable period of disruption, and prioritize business functions for resource allocation.",
+    "source": "Business Impact Analysis (BIA) must be conducted to know the relationship between the critical business transaction/function and the impact of the disruption of that critical business system. This could be used as the input to determine the maximum tolerable period of disruption (MTPD) of each system and prioritize the business function so that resources can be efficiently allocated."
+  }
+]
