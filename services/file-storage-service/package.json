@@ -6,9 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "install": "uv sync",
-    "dev": "source .venv/bin/activate && uvicorn main:app --reload --port 8007",
-    "start": "source .venv/bin/activate && uvicorn main:app --port 8007",
-    "migrate": "uv run alembic upgrade head",
+    "dev": "source .venv/bin/activate && PYTHONPATH=../shared/python uvicorn main:app --reload --port 8007",
+    "start": "source .venv/bin/activate && PYTHONPATH=../shared/python uvicorn main:app --port 8007",
+    "migrate": "PYTHONPATH=../shared/python uv run alembic upgrade head",
     "migrate:gen": "uv run alembic revision --autogenerate -m",
     "migrate:current": "uv run alembic current",
     "migrate:history": "uv run alembic history --verbose",

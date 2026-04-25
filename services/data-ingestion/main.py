@@ -15,7 +15,7 @@ app = FastAPI(title="Data Ingestion Service", version="1.0.0")
 UPLOAD_DIR = settings.upload_dir
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-ingestion_workder = IngestionWorker()
+ingestion_worker = IngestionWorker()
 
 @app.get("/")
 async def root():
@@ -24,7 +24,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "ai-engine"}
+    return {"status": "healthy", "service": "data-ingestion"}
 
 
 @app.post("/upload")
@@ -35,7 +35,7 @@ async def upload_document(file: UploadFile = File(...),chunking: bool = True,for
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
-    response = await ingestion_workder.ingest(file_path=file_path, chunking=chunking, format=format, qdrant_upload=qdrant_upload)
+    response = await ingestion_worker.ingest(file_path=file_path, chunking=chunking, format=format, qdrant_upload=qdrant_upload)
 
     return response
 

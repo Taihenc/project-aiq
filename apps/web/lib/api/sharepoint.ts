@@ -1,7 +1,7 @@
 import { client } from './client';
 import type { ChunkMetadata, FilterOptions, SourceFile } from '@/types/api';
 
-const BASE_PATH = '/sharepoint';
+const BASE_PATH = 'sharepoint';
 
 export const sharePointApi = {
   listFiles: async (path?: string) => {

@@ -61,7 +61,7 @@ export async function sendChatCompletions(
     stream: options?.stream,
   };
 
-  const response = await client.post<ChatCompletionsResponse>('/chat/completions', requestBody);
+  const response = await client.post<ChatCompletionsResponse>('chat/completions', requestBody);
   return response.data;
 }
 
@@ -80,7 +80,7 @@ export async function sendChatMessage(
     session_id: sessionId,
   };
 
-  const response = await client.post<ChatResponse>('/chat', requestBody);
+  const response = await client.post<ChatResponse>('chat', requestBody);
   return response.data;
 }
 
@@ -115,7 +115,7 @@ export async function streamChatCompletions(
     parent_message_id: options?.parentMessageId,
   };
 
-  const stream = await streamFetch('/chat/completions/stream', requestBody);
+  const stream = await streamFetch('chat/completions/stream', requestBody);
   if (!stream) {
     throw new Error('No stream returned');
   }

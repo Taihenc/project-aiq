@@ -2,11 +2,8 @@ import asyncio
 from typing import List, Dict, Any
 
 from ingestion import (
-    file_reader,
-    modality,
     context_builder,
     chunker,
-    indexer,
     upload,
 )
 from ingestion.extract_docling import DoclingExtractor
@@ -26,7 +23,6 @@ class IngestionWorker:
         self.context_builder = context_builder.ContextBuilder()
         self.extractor = DoclingExtractor()
         self.chunker = chunker.Chunker()
-        self.indexer = indexer.Indexer()
         self.upload = upload.Upload()
 
     async def ingest(

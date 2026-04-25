@@ -18,6 +18,8 @@ dependencies = [
     "langfuse>=3.14.1",
     "langchain-core>=1.2.16",
     "litellm>=1.75.3",
+    "openinference-instrumentation-crewai>=0.1.18",
+    "openinference-instrumentation>=0.1.44",
 ]
 
 [build-system]

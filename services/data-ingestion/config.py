@@ -17,9 +17,17 @@ class Settings(BaseSettings):
     # SSL Verification
     verify_ssl: bool = True
 
+    # RabbitMQ
+    rabbitmq_host: str = "localhost"
+
+    # Services
+    file_storage_url: str = "http://localhost:8007"
+    embedding_service_url: str = "http://localhost:8003"
+
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"
 
 
 settings = Settings()

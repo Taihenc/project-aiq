@@ -6,7 +6,7 @@ const BACKEND_URL = (typeof window !== 'undefined' && !process.env.NEXT_PUBLIC_B
   : (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000');
 
 export const client = axios.create({
-  baseURL: '/api/v1',
+  baseURL: '/api/v1/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -126,7 +126,7 @@ const BACKEND_URL_DIRECT =
 
 export const streamFetch = async (endpoint: string, body: object): Promise<ReadableStream<Uint8Array> | null> => {
   const attemptFetch = async (token: string | undefined) => {
-    const url = `${BACKEND_URL_DIRECT}/api/v1${endpoint}`;
+    const url = `${BACKEND_URL_DIRECT}/api/v1/${endpoint.startsWith('/') ? endpoint.slice(1) : endpoint}`;
     console.log('[streamFetch] Calling backend:', url);
     return await fetch(url, {
       method: 'POST',
