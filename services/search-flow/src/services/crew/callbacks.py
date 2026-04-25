@@ -1,4 +1,5 @@
 import json
+from loguru import logger
 from src.config.settings import settings
 import litellm
 from litellm.integrations.custom_logger import CustomLogger
@@ -52,7 +53,7 @@ def create_agent_step_callback(report_func):
             # Handle string messages (manual reports from Flow)
             if isinstance(step, str):
                 if settings.debug:
-                    print(f"DEBUG: Status Update -> {step}")
+                    logger.debug(f"Status Update -> {step}")
                 report_func(step)
                 return
 
@@ -103,13 +104,13 @@ def create_agent_step_callback(report_func):
                 message = "Thinking..."
 
             if settings.debug:
-                print(f"DEBUG: Agent Step -> {message}")
+                logger.debug(f"Agent Step -> {message}")
 
             report_func(message)
 
         except Exception as e:
             if settings.debug:
-                print(f"DEBUG: Error in agent_step_callback: {str(e)}")
+                logger.debug(f"Error in agent_step_callback: {str(e)}")
             report_func(f"{agent_name} is working...")
 
     return agent_step_callback

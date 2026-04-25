@@ -1,6 +1,7 @@
 import os
 import ssl
 import sys
+from loguru import logger
 
 def init_ssl_bypass():
     """
@@ -11,14 +12,14 @@ def init_ssl_bypass():
     verify_ssl = os.environ.get("VERIFY_SSL", "true").lower() == "false"
     
     if verify_ssl:
-        print(">>> AINGO: SSL Bypass detected (VERIFY_SSL=false). Initializing global monkeypatching...", file=sys.stderr)
+        logger.info(">>> AINGO: SSL Bypass detected (VERIFY_SSL=false). Initializing global monkeypatching...")
         
         # 1. Global SSL Module Bypass (The most aggressive level)
         try:
             ssl._create_default_https_context = ssl._create_unverified_context
-            print(">>> AINGO: Standard SSL context verification disabled.", file=sys.stderr)
+            logger.info(">>> AINGO: Standard SSL context verification disabled.")
         except Exception as e:
-            print(f">>> AINGO: Warning - Failed to patch ssl module: {e}", file=sys.stderr)
+            logger.warning(f">>> AINGO: Warning - Failed to patch ssl module: {e}")
 
         # 2. Force Global Environment Tweaks for non-python binaries/libraries
         os.environ["PYTHONHTTPSVERIFY"] = "0"
@@ -72,9 +73,9 @@ def init_ssl_bypass():
             requests.delete = lambda url, **kwargs: _original_session().delete(url, verify=False, **kwargs)
             requests.head = lambda url, **kwargs: _original_session().head(url, verify=False, **kwargs)
             
-            print(">>> AINGO: Global Requests/Urllib3 SSL bypass active.", file=sys.stderr)
+            logger.info(">>> AINGO: Global Requests/Urllib3 SSL bypass active.")
         except ImportError:
-            print(">>> AINGO: Skipping requests/urllib3 bypass (libraries not installed).", file=sys.stderr)
+            logger.debug(">>> AINGO: Skipping requests/urllib3 bypass (libraries not installed).")
     else:
         # Standard secure mode
         pass

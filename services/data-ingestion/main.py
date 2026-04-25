@@ -8,7 +8,10 @@ from typing import Optional
 
 from workers.ingestion_worker import IngestionWorker
 from config import settings
+from aingo_utils.logging import setup_logging
 
+# Configure logging early
+setup_logging(debug=settings.debug, app_env=settings.app_env)
 
 app = FastAPI(title="Data Ingestion Service", version="1.0.0")
 

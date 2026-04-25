@@ -2,6 +2,7 @@ from transformers import Blip2Processor, Blip2ForConditionalGeneration
 from PIL import Image
 import torch
 from io import BytesIO
+from loguru import logger
 
 class Vision:
     def __init__(self, cache_dir=None):
@@ -12,10 +13,10 @@ class Vision:
 
     def load_model(self):
         if self.model is None:
-            print("Loading BLIP-2 model...")
+            logger.info("Loading BLIP-2 model...")
             self.processor = Blip2Processor.from_pretrained(self.model_name, cache_dir=self.cache_dir)
             self.model = Blip2ForConditionalGeneration.from_pretrained(self.model_name, cache_dir=self.cache_dir)
-            print("Model loaded successfully!")
+            logger.info("Model loaded successfully!")
 
     def vision(self, content, prompt="", max_length=100):
         self.load_model()

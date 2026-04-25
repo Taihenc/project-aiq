@@ -1,4 +1,5 @@
 import sys, os
+from loguru import logger
 from typing import List, Dict, Any
 from docling.chunking import HybridChunker
 from docling_core.types.doc import DoclingDocument
@@ -16,7 +17,7 @@ class Chunker:
         try:
             tokenizer = AutoTokenizer.from_pretrained(self.EMBED_MODEL_ID)
         except Exception as e:
-            print(f"DEBUG: AutoTokenizer failed: {e}. Trying fallback to BAAI/bge-m3")
+            logger.debug(f"AutoTokenizer failed: {e}. Trying fallback to BAAI/bge-m3")
             tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3")
         self.tokenizer = HuggingFaceTokenizer(
             tokenizer=tokenizer,

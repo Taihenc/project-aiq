@@ -1,5 +1,8 @@
 from aingo_utils.ssl_bypass import init_ssl_bypass
+from aingo_utils.logging import setup_logging
+from loguru import logger
 init_ssl_bypass()
+setup_logging()
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel
@@ -98,7 +101,7 @@ def _normalize_metadata(file_name: str, metadata: dict, previous_file_name: Opti
 
 
 async def process_upload(file_id: str, upload_request: UploadRequest, previous_s3_key: Optional[str] = None):
-    print(f"Starting upload for {file_id}")
+    logger.info(f"Starting upload for {file_id}")
 
     update_status(file_id, "PROCESSING")
 
@@ -142,7 +145,7 @@ async def process_upload(file_id: str, upload_request: UploadRequest, previous_s
                     await message_publisher.publish_file_ready(
                         file_id, file_name, upload_request.metadata
                     )
-                    print(f"Upload completed for {file_id}")
+                    logger.info(f"Upload completed for {file_id}")
                 else:
                     update_file_record(
                         file_id,
@@ -152,10 +155,10 @@ async def process_upload(file_id: str, upload_request: UploadRequest, previous_s
                         metadata=upload_request.metadata or {},
                     )
                     _notify_webhook(file_id, source_id, "FAILED", file_name)
-                    print(f"Upload failed for {file_id}")
+                    logger.error(f"Upload failed for {file_id}")
 
     except Exception as e:
-        print(f"Error processing upload for {file_id}: {e}")
+        logger.error(f"Error processing upload for {file_id}: {e}")
         update_file_record(
             file_id,
             None,
@@ -454,7 +457,7 @@ async def get_by_source_id(source_id: str):
 @app.delete("/files/source/{source_id}")
 async def delete_by_source_id(source_id: str):
     """Delete all file records for the given source ID (e.g. SharePoint item ID)."""
-    print(f"Request to delete file with source_id: {source_id}")
+    logger.info(f"Request to delete file with source_id: {source_id}")
     records = find_files_by_source_id(source_id)
     if not records:
         raise HTTPException(status_code=404, detail="File not found")
@@ -462,7 +465,7 @@ async def delete_by_source_id(source_id: str):
     deleted_ids = []
     for record in records:
         file_id = record.id
-        print(f"Marking file_id: {file_id} as DELETED (source_id: {source_id})")
+        logger.info(f"Marking file_id: {file_id} as DELETED (source_id: {source_id})")
         update_status(file_id, "DELETED")
         _notify_webhook(file_id, source_id, "DELETED", record.file_name or "")
         await message_publisher.publish_file_deleted(file_id, source_id)

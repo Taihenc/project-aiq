@@ -10,9 +10,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.db.store import clear_delta_state, get_delta_state, set_delta_state
 from app.infrastructure.graph.ms_graph_client import GraphAPIClient
-from app.infrastructure.logging import get_logger
+from loguru import logger
 
-logger = get_logger(__name__)
+# logger is now imported from loguru
 
 
 class DeltaTracker:

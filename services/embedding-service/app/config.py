@@ -3,6 +3,9 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
+    app_env: str = "development"
+    debug: bool = True
+
     # Qdrant Settings
     use_local_qdrant: bool = True
     qdrant_url: str = "http://localhost:6333"

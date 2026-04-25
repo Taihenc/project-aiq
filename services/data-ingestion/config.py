@@ -2,6 +2,9 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
+    app_env: str = "development"
+    debug: bool = True
+
     # Chunking (char size)
     max_chunk_size: int = 512
 

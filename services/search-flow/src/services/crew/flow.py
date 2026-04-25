@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from crewai.flow.flow import Flow, start
 from crewai import Crew
+from loguru import logger
 
 from src.models.state import (
     FlowState,
@@ -70,7 +71,7 @@ class SearchCrewFlow(Flow[FlowState]):
             query_preview = query_preview[:57] + "..."
 
         self.reporter.report(f'Analyzing request "{query_preview}"')
-        print(f"\n🔹 [Search Agent] Processing Query: '{self.state.query}'")
+        logger.info(f"🔹 [Search Agent] Processing Query: '{self.state.query}'")
 
         self.reporter.report("Connecting to knowledge services...")
         from src.services.crew.tools.proxies import get_proxy_tools

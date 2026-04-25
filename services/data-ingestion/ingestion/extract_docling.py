@@ -9,6 +9,7 @@ from docling.pipeline.vlm_pipeline import VlmPipeline
 from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 from pathlib import Path
 from pprint import pprint
+from loguru import logger
 class DoclingExtractor:
     def __init__(self):
         # CSV, WebVTT: default
@@ -112,7 +113,7 @@ class DoclingExtractor:
             "stream": False
         }
 
-        print("Sending to LM Studio...")
+        logger.debug("Sending to LM Studio...")
         try:
             # 3. Send POST Request
             response = requests.post(url, headers=headers, data=json.dumps(payload))
@@ -161,9 +162,9 @@ class DoclingExtractor:
                     text = external_text
                 )
             except KeyError as e:
-                print(f"Error extracting base64: {e}")
+                logger.error(f"Error extracting base64: {e}")
             except Exception as e:
-                print(f"Error in external model processing: {e}")
+                logger.error(f"Error in external model processing: {e}")
 
         # PASS 2: If pictures detected, rerun with Smart Converter
         # if (len(result.pictures) > 0 and (not (is_image))):
@@ -200,7 +201,7 @@ class DoclingExtractor:
                     # Fallback if argument isn't supported: Export whole doc (risky) or skip
                     # forcing a specific filter if the API differs.
                     # But per your request, we use the direct call:
-                    print(f"Warning: export_to_markdown might not support page_no on this version.")
+                    logger.warning(f"Warning: export_to_markdown might not support page_no on this version.")
                     page_md = ""
 
                 if page_md:

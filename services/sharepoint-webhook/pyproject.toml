@@ -16,6 +16,7 @@ dependencies = [
     "sqlmodel>=0.0.37",
     "sqlalchemy>=2.0.48",
     "alembic>=1.18.4",
+    "loguru>=0.7.3",
 ]
 
 [build-system]

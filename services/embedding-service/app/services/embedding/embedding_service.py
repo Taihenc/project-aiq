@@ -1,5 +1,6 @@
 from FlagEmbedding import FlagModel
 from typing import List, Union
+from loguru import logger
 import numpy as np
 from app.config import settings
 
@@ -11,13 +12,13 @@ class EmbeddingService:
         
     def load_model(self):
         if self.model is None:
-            print(f"Loading embedding model: {self.model_name}")
+            logger.info(f"Loading embedding model: {self.model_name}")
             try:
                 self.model = FlagModel(self.model_name, use_fp16=True)
             except Exception as e:
-                print(f"DEBUG: FlagModel failed with {self.model_name}: {e}. Trying fallback to BAAI/bge-m3")
+                logger.debug(f"FlagModel failed with {self.model_name}: {e}. Trying fallback to BAAI/bge-m3")
                 self.model = FlagModel("BAAI/bge-m3", use_fp16=True)
-            print("Model loaded successfully")
+            logger.info("Model loaded successfully")
 
     def clean_text(self, text):
         if not isinstance(text, str):

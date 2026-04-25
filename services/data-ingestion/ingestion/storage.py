@@ -1,5 +1,6 @@
 # ingestion/storage.py
 from pathlib import Path
+from loguru import logger
 import io
 import base64
 from typing import Optional
@@ -34,7 +35,7 @@ class StorageManager:
         path = self.base_dir / filename
         with open(path, "wb") as f:
             f.write(img_bytes)
-        print(f"[StorageManager] Saved locally: {path}")
+        logger.info(f"[StorageManager] Saved locally: {path}")
         return str(path)
 
     # -------------------- CLOUD STORAGE (Placeholder) -------------------- #
@@ -46,5 +47,5 @@ class StorageManager:
         """
         # For now, emulate URL
         fake_url = f"https://bucket.example.com/{filename}"
-        print(f"[StorageManager] (Simulated) Uploaded to bucket: {fake_url}")
+        logger.info(f"[StorageManager] (Simulated) Uploaded to bucket: {fake_url}")
         return fake_url

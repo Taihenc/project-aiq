@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from app.infrastructure.logging import get_logger
+from loguru import logger
 from .base import BaseTunnel
 
-logger = get_logger(__name__)
+# logger is now imported from loguru
 
 
 class CloudflareTunnel(BaseTunnel):

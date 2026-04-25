@@ -1,5 +1,6 @@
 from pathlib import Path
 import shutil
+from loguru import logger
 from unstructured.partition.pdf import partition_pdf
 from ingestion.storage import StorageManager
 import base64
@@ -45,7 +46,7 @@ class ModalityClassifier:
             for img_file in figures_dir.glob("*"):
                 target_path = output_dir / img_file.name
                 shutil.move(str(img_file), str(target_path))
-                print(f"[Fix] Moved {img_file.name} → {target_path}")
+                logger.info(f"[Fix] Moved {img_file.name} → {target_path}")
             try:
                 figures_dir.rmdir()
             except OSError:
@@ -100,5 +101,5 @@ class ModalityClassifier:
 
             results.append(obj)
 
-        print(f"[ModalityClassifier] Extracted {len(results)} elements from {file_path.name}")
+        logger.info(f"[ModalityClassifier] Extracted {len(results)} elements from {file_path.name}")
         return results

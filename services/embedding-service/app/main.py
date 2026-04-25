@@ -11,32 +11,35 @@ from app.services.qdrant.qdrant_service import qdrant_service
 from app.services.reranking.reranking_service import reranking_service
 from app.mcp.tools import mcp
 import asyncio
+from aingo_utils.logging import setup_logging
+from loguru import logger
 
-
+# Configure logging early
+setup_logging(debug=settings.debug, app_env=settings.app_env)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Starting up...")
+    logger.info("Starting up...")
     
     try:
         embedding_service.load_model()
     except Exception as e:
-        print(f"Warning: Failed to load embedding model: {e}")
+        logger.warning(f"Failed to load embedding model: {e}")
 
     try:
         qdrant_service.connect()
     except Exception as e:
-        print(f"Warning: Failed to connect to Qdrant: {e}")
+        logger.warning(f"Failed to connect to Qdrant: {e}")
 
     try:
         reranking_service.load_model()
     except Exception as e:
-        print(f"Warning: Failed to load reranking model: {e}")
-    print("Application ready!")
+        logger.warning(f"Failed to load reranking model: {e}")
+    logger.info("Application ready!")
     
     yield
     
-    print("Shutting down...")
+    logger.info("Shutting down...")
 
 app = FastAPI(
     title=settings.api_title,

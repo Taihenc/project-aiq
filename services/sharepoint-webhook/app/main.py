@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from aingo_utils.ssl_bypass import init_ssl_bypass
+from aingo_utils.logging import setup_logging
+from loguru import logger
 init_ssl_bypass()
+setup_logging()
 
 import sys
 import threading
@@ -15,14 +18,13 @@ from app.services.notification_service import NotificationService
 from app.services.subscription_service import SubscriptionService
 from app.domain.models import SubscriptionContext
 from app.infrastructure.graph.ms_graph_client import GraphAPIClient
-from app.infrastructure.logging import get_logger, setup_logging
 from app.infrastructure.sharepoint.delta_tracker import DeltaTracker
 from app.infrastructure.sharepoint.file_sync_service import FileSyncService
 from app.infrastructure.tunnels.factory import TunnelFactory
 from app.interfaces.http.server import create_app
 from app.settings import get_settings
 
-logger = get_logger(__name__)
+# logger is now imported from loguru
 
 
 def _log_error_and_exit(title: str, messages: list[str]) -> None:
@@ -55,7 +57,7 @@ def main() -> None:
     if validation_errors:
         _log_error_and_exit("Configuration validation failed", validation_errors)
 
-    setup_logging(settings.log_level, settings.log_file, settings.log_dir)
+    # setup_logging() called at top-level early
     logger.info("Starting SharePoint webhook service...")
 
     graph_client = GraphAPIClient(

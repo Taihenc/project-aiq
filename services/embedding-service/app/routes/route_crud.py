@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import httpx
+from loguru import logger
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict, Any
 from qdrant_client.http import models as q_models
@@ -121,7 +122,7 @@ async def upload_documents(batch: DocumentUploadRequest):
                         # 409 = transition guard already moved past INDEXING
                         resp.raise_for_status()
             except Exception as cb_exc:
-                print(f"[upload] FSS callback failed for file_id={batch.file_id}: {cb_exc}")
+                logger.error(f"[upload] FSS callback failed for file_id={batch.file_id}: {cb_exc}")
 
         return DocumentUploadResponse(
             ids=doc_ids,
@@ -129,7 +130,7 @@ async def upload_documents(batch: DocumentUploadRequest):
             message="Documents uploaded successfully"
         )
     except Exception as e:
-        print(f"Upload Error: {str(e)}")
+        logger.error(f"Upload Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to upload documents: {str(e)}")
 
 

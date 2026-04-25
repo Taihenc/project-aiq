@@ -33,14 +33,9 @@ from app.services.service_tools import service_tools
 
 import logging
 import json
+from loguru import logger
 
 router = APIRouter()
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 
 @router.post("/query", response_model=QueryResponse)

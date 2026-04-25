@@ -1,4 +1,5 @@
 import asyncio
+from loguru import logger
 from typing import Optional
 from src.dtos.request import SearchChatRequest
 from src.models.state import FlowResponse
@@ -72,7 +73,7 @@ class SearchFlowService:
                     response=str(result), title=request.title or "Summary"
                 )
         except Exception as e:
-            print(f"❌ Error during flow execution: {e}")
+            logger.error(f"❌ Error during flow execution: {e}")
             return FlowResponse(
                 response=f"Error executing search flow: {str(e)}", title="Error"
             )
@@ -167,7 +168,7 @@ class SearchFlowService:
                     try:
                         final_text = output.get_full_text()
                     except Exception as e:
-                        print(f"⚠️ Could not get full text natively: {e}")
+                        logger.warning(f"⚠️ Could not get full text natively: {e}")
 
                 if final_text:
                     try:
@@ -186,7 +187,7 @@ class SearchFlowService:
                         {"type": "error", "content": "No response generated."}
                     )
             except Exception as e:
-                print(f"❌ Async Flow Error: {e}")
+                logger.error(f"❌ Async Flow Error: {e}")
                 await event_queue.put({"type": "error", "content": str(e)})
             finally:
                 # 3. Stream Closure Event

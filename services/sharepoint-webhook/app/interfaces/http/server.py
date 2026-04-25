@@ -3,10 +3,10 @@ from typing import Callable, Optional
 from fastapi import FastAPI, Request, Response, UploadFile, File, Query
 from fastapi.responses import PlainTextResponse
 
-from app.infrastructure.logging import get_logger
+from loguru import logger
 from app.infrastructure.graph.ms_graph_client import GraphAPIClient
 
-logger = get_logger(__name__)
+# logger is now imported from loguru
 
 def create_app(public_url: str | None, handler: Callable[[dict], None], graph_client: GraphAPIClient) -> FastAPI:
     """Create FastAPI application and register webhook route."""

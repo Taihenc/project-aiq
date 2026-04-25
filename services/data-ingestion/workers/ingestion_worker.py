@@ -13,6 +13,7 @@ import requests
 import tempfile
 import shutil
 import mimetypes
+from loguru import logger
 
 
 class IngestionWorker:
@@ -37,19 +38,19 @@ class IngestionWorker:
         source_path: str | None = None,
     ):
         display_label = display_name or source_path or file_path
-        print(f"Starting ingestion for file: {display_label}")
+        logger.info(f"Starting ingestion for file: {display_label}")
         try:
-            print(f"Extractor...")
+            logger.debug(f"Extractor...")
             result = self.extractor.convert(file_path)
             if not chunking:
                 return result.export_to_text()
 
-            print(f"Chunker...")
+            logger.debug(f"Chunker...")
             summarized_chunks = self.chunker.chunk(result)
             if not format:
                 return summarized_chunks
 
-            print(f"Context Builder...")
+            logger.debug(f"Context Builder...")
             contexts = self.context_builder.build(
                 summarized_chunks,
                 file_path,
@@ -61,12 +62,12 @@ class IngestionWorker:
                 return contexts
 
             res = await self.upload.upload(contexts, file_id=file_id, source_id=source_id)
-            print(f"Uploaded {len(contexts)} chunks for file: {display_label}")
+            logger.info(f"Uploaded {len(contexts)} chunks for file: {display_label}")
             # print(f"Upload response: {res}")
             return res
 
         except Exception as e:
-            print(f"Error during ingestion of {display_label}: {e}")
+            logger.error(f"Error during ingestion of {display_label}: {e}")
             raise e
 
     def ingest_from_fss(self, file_id: str):
@@ -75,21 +76,21 @@ class IngestionWorker:
         Updates FSS status: INDEXING → INDEXED on success, INDEX_FAILED on error.
         Handles idempotency: if file is already INDEXING, proceeds without error.
         """
-        print(f"Starting ingestion for file_id: {file_id}")
+        logger.info(f"Starting ingestion for file_id: {file_id}")
 
         # Ensure we are in INDEXING state (idempotent check)
         try:
             current_status = self._get_fss_status(file_id)
             if current_status == "INDEXING":
-                print(f"File {file_id} already in INDEXING state, proceeding")
+                logger.info(f"File {file_id} already in INDEXING state, proceeding")
             elif current_status == "COMPLETED":
                 self._update_fss_status(file_id, "INDEXING")
             else:
                 # Unexpected state; try to transition anyway
-                print(f"File {file_id} in state {current_status}, attempting to set INDEXING")
+                logger.info(f"File {file_id} in state {current_status}, attempting to set INDEXING")
                 self._update_fss_status(file_id, "INDEXING")
         except Exception as e:
-            print(f"Failed to get/update status to INDEXING for {file_id}: {e}")
+            logger.error(f"Failed to get/update status to INDEXING for {file_id}: {e}")
             # If we cannot determine or set status, we should fail
             self._update_fss_status(file_id, "INDEX_FAILED")
             return
@@ -98,7 +99,7 @@ class IngestionWorker:
             self._download_and_process(file_id)
             self._update_fss_status(file_id, "INDEXED")
         except Exception as e:
-            print(f"Ingestion failed for file_id {file_id}: {e}")
+            logger.error(f"Ingestion failed for file_id {file_id}: {e}")
             self._update_fss_status(file_id, "INDEX_FAILED")
 
     def delete_index(self, file_id: str):
@@ -106,14 +107,14 @@ class IngestionWorker:
         Remove file data from the vector index using stable identity, with
         file-name fallback for legacy vectors.
         """
-        print(f"Deleting index for file_id: {file_id}")
+        logger.info(f"Deleting index for file_id: {file_id}")
         fss_url = os.getenv("FILE_STORAGE_URL", "http://127.0.0.1:8007")
         embedding_url = os.getenv("EMBEDDING_SERVICE_URL", "http://127.0.0.1:8003")
         try:
             # Use /meta instead of /download — works regardless of file status
             resp = requests.get(f"{fss_url}/files/{file_id}/meta")
             if resp.status_code == 404:
-                print(f"File {file_id} not found in FSS, skipping vector deletion")
+                logger.info(f"File {file_id} not found in FSS, skipping vector deletion")
                 return
             resp.raise_for_status()
             payload = resp.json()
@@ -124,9 +125,9 @@ class IngestionWorker:
             del_resp = requests.delete(f"{embedding_url}/v1/delete-by-file", params=del_params)
             if del_resp.status_code not in (200, 404):
                 del_resp.raise_for_status()
-            print(f"Successfully deleted index for file: {file_name} (id={file_id})")
+            logger.info(f"Successfully deleted index for file: {file_name} (id={file_id})")
         except Exception as e:
-            print(f"Error deleting index for file {file_id}: {e}")
+            logger.error(f"Error deleting index for file {file_id}: {e}")
 
     def _delete_vectors(self, *, file_id: str, file_name: str | None = None, previous_file_name: str | None = None) -> None:
         """Best-effort delete using stable file_id plus filename fallback for legacy vectors."""
@@ -150,9 +151,9 @@ class IngestionWorker:
                 resp = requests.delete(f"{embedding_url}/v1/delete-by-file", params=params)
                 if resp.status_code not in (200, 404):
                     resp.raise_for_status()
-                print(f"Cleared existing vectors using {params}")
+                logger.info(f"Cleared existing vectors using {params}")
             except Exception as e:
-                print(f"Warning: could not delete existing vectors using {params}: {e}")
+                logger.warning(f"Warning: could not delete existing vectors using {params}: {e}")
 
     def _get_fss_status(self, file_id: str) -> str:
         """Get current file status from FSS."""
@@ -175,12 +176,12 @@ class IngestionWorker:
                     timeout=5,
                 )
                 resp.raise_for_status()
-                print(f"FSS status → {status} for file_id={file_id}")
+                logger.debug(f"FSS status → {status} for file_id={file_id}")
                 return
             except Exception as e:
                 last_exc = e
                 if attempt < len(delays):
-                    print(f"[fss-status] attempt {attempt} failed, retrying in {delay}s: {e}")
+                    logger.warning(f"[fss-status] attempt {attempt} failed, retrying in {delay}s: {e}")
                     time.sleep(delay)
         logging.error(
             "[fss-status] Exhausted retries updating %s for file_id=%s: %s",
@@ -226,7 +227,7 @@ class IngestionWorker:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
 
-            print(f"Downloaded file {file_id} to {tmp_path}")
+            logger.info(f"Downloaded file {file_id} to {tmp_path}")
 
             asyncio.run(
                 self.ingest(
@@ -237,7 +238,7 @@ class IngestionWorker:
                     source_path=source_path,
                 )
             )
-            print(f"Successfully ingested file {file_id}")
+            logger.info(f"Successfully ingested file {file_id}")
 
         finally:
             if os.path.exists(temp_dir):
