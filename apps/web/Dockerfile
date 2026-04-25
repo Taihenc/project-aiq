@@ -28,6 +28,18 @@ COPY . .
 RUN find . -name ".env" -type f -delete
 RUN pnpm --filter web build
 
+# Dev stage
+FROM base AS dev
+WORKDIR /app
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/
+RUN npm pkg delete scripts.prepare && pnpm install --filter web
+ENV NODE_ENV development
+# For Next.js dev mode, we need to provide the env vars
+ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
+ENV INTERNAL_BACKEND_URL=${INTERNAL_BACKEND_URL}
+CMD ["pnpm", "--filter", "web", "dev"]
+
 # Runner stage
 FROM base AS runner
 WORKDIR /app

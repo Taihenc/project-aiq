@@ -28,6 +28,15 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/backend/package.json ./apps/backend/
 RUN npm pkg delete scripts.prepare && pnpm install --filter backend --prod --frozen-lockfile
 
+# Dev stage
+FROM base AS dev
+WORKDIR /app
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/backend/package.json ./apps/backend/
+RUN npm pkg delete scripts.prepare && pnpm install --filter backend
+ENV NODE_ENV development
+CMD ["pnpm", "--filter", "backend", "dev"]
+
 # Runner stage
 FROM base AS runner
 WORKDIR /app

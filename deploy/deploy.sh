@@ -24,11 +24,11 @@ if [ ! -f "docker-compose.yml" ]; then
 fi
 echo "--- Sources verified ---"
 
-# 3. Rebuild and restart containers
-# Note: --build ensures that any changes to Dockerfiles or local code are incorporated.
+# 3. Pull and restart containers
+# Note: pull ensures we get the latest images from the registry.
 # -d runs in detached mode (background).
-echo "--- Rebuilding and restarting containers ---"
-$DOCKER_COMPOSE up -d --build || { echo "Error: Docker compose up failed"; exit 1; }
+echo "--- Pulling latest images and restarting containers ---"
+$DOCKER_COMPOSE pull && $DOCKER_COMPOSE up -d || { echo "Error: Docker compose up failed"; exit 1; }
 
 # 4. Optional: Clean up dangling images to save space on the VM
 # Azure VMs often have limited OS disk space.

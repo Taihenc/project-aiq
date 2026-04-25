@@ -9,8 +9,86 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-and-push:
+    name: Build and Push to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/aingo/backend:latest
+
+      - name: Build and push Web
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/aingo/web:latest
+          build-args: |
+            NEXT_PUBLIC_BACKEND_URL=${{ vars.NEXT_PUBLIC_BACKEND_URL }}
+            INTERNAL_BACKEND_URL=http://backend:3000
+
+      - name: Build and push Search Flow
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/search-flow/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/aingo/search-flow:latest
+
+      - name: Build and push Embedding Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/embedding-service/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/aingo/embedding-service:latest
+
+      - name: Build and push Data Ingestion
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/data-ingestion/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/aingo/data-ingestion:latest
+
+      - name: Build and push SharePoint Webhook
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/sharepoint-webhook/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/aingo/sharepoint-webhook:latest
+
+      - name: Build and push File Storage Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/file-storage-service/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/aingo/file-storage-service:latest
+
   deploy:
     name: Deploy to Azure VM
+    needs: build-and-push
     runs-on: ubuntu-latest
 
     steps:
@@ -21,17 +99,11 @@ jobs:
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
-          # Use vars. for GitHub Variables (non-secret)
           REMOTE_HOST: ${{ vars.SSH_HOST }}
           REMOTE_USER: ${{ vars.SSH_USER }}
-          # Path on the VM
           TARGET: "~/AINGO"
-          # Files to exclude from rsync
           EXCLUDE: "/.git/, /node_modules/, /**/node_modules/, .env, Caddyfile, .DS_Store, .claude/, .gemini/"
-          # Correct input name is REMOTE_PORT
           REMOTE_PORT: ${{ vars.SSH_PORT || 22 }}
-          # Clean old files on the VM that are not in the repo (careful with this!)
-          # ARGS: "-avz --delete" # Uncomment if you want to sync deletions
 
       - name: Execute Docker Compose Restart via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -43,5 +115,5 @@ jobs:
           script: |
             # 1. Ensure the deployment script on the VM is executable
             chmod +x ~/AINGO/deploy/deploy.sh
-            # 2. Run the deployment script (handles docker compose build & up)
+            # 2. Run the deployment script (handles docker compose pull & up)
             ~/AINGO/deploy/deploy.sh
