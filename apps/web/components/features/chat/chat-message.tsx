@@ -12,7 +12,6 @@ export function ChatMessage({
   statusHistory,
   isEmpty,
   isStreaming,
-  isError,
   sentAttachments,
   searchFilter,
   onAddAttachment,
@@ -54,7 +53,6 @@ export function ChatMessage({
       statusHistory={statusHistory}
       isEmpty={isEmpty}
       isStreaming={isStreaming}
-      isError={isError}
       citations={citations}
       onAddAttachment={onAddAttachment}
       onRemoveAttachment={onRemoveAttachment}

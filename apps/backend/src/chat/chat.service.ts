@@ -427,9 +427,6 @@ export class ChatService {
             next: (response) => {
               const stream = response.data;
               let fullResult: any = null;
-              // Track error content so we can persist the user prompt even when
-              // the AI engine returns an error instead of a result.
-              let errorContent: string | null = null;
 
               let buffer = '';
               let processingPromise: Promise<void> = Promise.resolve();
@@ -456,8 +453,6 @@ export class ChatService {
                         this.logger.error(
                           `AI Engine returned error: ${json.content}`,
                         );
-                        // Capture so the end handler can persist the user prompt
-                        errorContent = json.content ?? 'An unexpected error occurred.';
                       }
 
                       if (json.type === 'result') {
@@ -539,41 +534,6 @@ export class ChatService {
                       err,
                     ),
                   );
-                } else if (errorContent !== null && sessionId) {
-                  this.logger.warn(
-                    `AI error for session ${sessionId} — persisting user prompt and error response`,
-                  );
-                  try {
-                    const savedUserMsg =
-                      await this.chatHistoryService.addMessage(
-                        sessionId,
-                        userId,
-                        'user',
-                        aiEngineRequest.query,
-                        undefined,
-                        preparedRequest.persistedAttachments?.length > 0
-                          ? preparedRequest.persistedAttachments
-                          : null,
-                        parentMessageId,
-                        preparedRequest.persistedFilter ?? null,
-                      );
-                    await this.chatHistoryService.addMessage(
-                      sessionId,
-                      userId,
-                      'assistant',
-                      `[Error] ${errorContent}`,
-                      undefined,
-                      undefined,
-                      savedUserMsg?.id ?? null,
-                    );
-                    this.logger.debug(
-                      `Persisted user prompt and error response for session: ${sessionId}`,
-                    );
-                  } catch (err: any) {
-                    this.logger.error(
-                      `Failed to persist messages after AI error: ${err.message}`,
-                    );
-                  }
                 }
                 subscriber.complete();
               });
@@ -626,13 +586,9 @@ export class ChatService {
       .reverse()
       .find((m) => m.role === 'user');
 
-    const historyStrings = unsummarizedMessages
-      .filter(
-        (msg) => !(msg.role === 'assistant' && msg.content?.startsWith('[Error]')),
-      )
-      .map(
-        (msg) => `${msg.role === 'user' ? 'User' : 'Agent'}: ${msg.content}`,
-      );
+    const historyStrings = unsummarizedMessages.map(
+      (msg) => `${msg.role === 'user' ? 'User' : 'Agent'}: ${msg.content}`,
+    );
 
     const resolvedAttachments = await this.resolveFileRefs(
       chatRequest.attachments || [],

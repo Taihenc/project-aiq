@@ -1,7 +1,8 @@
-from loguru import logger
+from typing import Optional
 from langfuse._client.get_client import get_client
 from openinference.instrumentation.crewai import CrewAIInstrumentor
 from langfuse import Langfuse
+from loguru import logger
 
 
 class LangfuseService:

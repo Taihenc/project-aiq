@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List, Optional, TypedDict, Dict, Any, Union
 import os
+from loguru import logger
 import hashlib
 from datetime import datetime
 from urllib.parse import urlparse, unquote
@@ -141,7 +142,7 @@ class ContextBuilder:
                 })
                 return records
             except Exception as e:
-                print(f"CSV Error: {e}")
+                logger.error(f"CSV Error: {e}")
                 return []
 
         # =========================================================
@@ -189,7 +190,7 @@ class ContextBuilder:
                     })
                 return records
             except Exception as e:
-                print(f"XLSX Error: {e}")
+                logger.error(f"XLSX Error: {e}")
                 return []
 
         for i, chunk in enumerate(chunks):

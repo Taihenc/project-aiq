@@ -1,5 +1,6 @@
 from FlagEmbedding import FlagReranker
 from typing import List, Tuple, Dict
+from loguru import logger
 import json
 from app.config import settings
 from app.models.models import DocumentResponse
@@ -14,15 +15,15 @@ class RerankingService:
 
     def load_model(self, use_fp16: bool = True):
         if self.reranker is None:
-            print(f"Loading model: {self.model_name}")
-            print("This will download the model if not already cached locally...")
+            logger.info(f"Loading model: {self.model_name}")
+            logger.info("This will download the model if not already cached locally...")
             
             self.reranker = FlagReranker(
                 self.model_name,
                 use_fp16=use_fp16
             )
             
-            print(f"Model loaded successfully! Model saved at: {self.reranker.model.name_or_path}")
+            logger.info(f"Model loaded successfully! Model saved at: {self.reranker.model.name_or_path}")
     
     def rerank(
         self, 

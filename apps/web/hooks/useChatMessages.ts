@@ -400,7 +400,6 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
       let lineBuffer = '';
       const tokenGuard = new StreamingTextGuard();
       tokenGuard.reset();
-      let resultReceived = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -440,11 +439,10 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
               setMessageTree((prev) => {
                 const next = new Map(prev);
                 const m = next.get(assistantMessageId);
-                if (m) next.set(assistantMessageId, { ...m, content: errorContent, isError: true, status: undefined, isStreaming: false });
+                if (m) next.set(assistantMessageId, { ...m, content: `⚠️ **Failure**: ${errorContent}`, status: undefined });
                 return next;
               });
             } else if (event.type === 'result') {
-              resultReceived = true;
               let finalContent = '';
               let citations = event.sources_used;
 
@@ -524,50 +522,20 @@ export function useChatMessages(options: UseChatMessagesOptions = {}) {
           });
         }
       }
-
-      // If the stream ended without delivering a result event (e.g. abrupt close,
-      // empty body) and the assistant message is not already in an error/done state,
-      // mark it as an error so the user sees the Retry button.
-      if (!resultReceived) {
-        setMessageTree((prev) => {
-          const next = new Map(prev);
-          const m = next.get(assistantMessageId);
-          if (m && !m.isError && (!m.content || m.status !== undefined)) {
-            next.set(assistantMessageId, {
-              ...m,
-              content: m.content || 'The response stream ended unexpectedly. Please try again.',
-              isError: true,
-              status: undefined,
-              isStreaming: false,
-            });
-          }
-          return next;
-        });
-      }
     } catch (error) {
       console.error('Failed to send message:', error);
       if (sessionIdRef.current === currentSessionId) {
-        // Keep the user's message so the prompt is not lost; replace the
-        // temporary assistant placeholder with an error response instead.
-        const errorMsgId = `__error_${Date.now()}`;
-        const errorMsg: UIMessage = {
-          id: errorMsgId,
-          role: 'assistant',
-          content:
-            'Sorry, I encountered an error processing your request. Please make sure the backend server is running and try again.',
-          parentId: tempUserId,
-          branchIndex: 0,
-          isError: true,
-        };
+        const errorMessage = createErrorMessage();
         setMessageTree((prev) => {
           const next = new Map(prev);
+          next.delete(tempUserId);
           next.delete(tempAsstId);
-          next.set(errorMsgId, errorMsg);
+          next.set(errorMessage.id, errorMessage);
           return next;
         });
         setActivePath((prev) => {
-          const filtered = prev.filter((id) => id !== tempAsstId);
-          return [...filtered, errorMsgId];
+          const filtered = prev.filter((id) => id !== tempUserId && id !== tempAsstId);
+          return [...filtered, errorMessage.id];
         });
       }
     } finally {

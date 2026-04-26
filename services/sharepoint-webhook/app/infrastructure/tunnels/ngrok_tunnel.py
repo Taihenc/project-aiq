@@ -6,10 +6,10 @@ from typing import Optional
 
 from pyngrok import ngrok as pyngrok
 
-from app.infrastructure.logging import get_logger
+from loguru import logger
 from .base import BaseTunnel
 
-logger = get_logger(__name__)
+# logger is now imported from loguru
 
 
 class NgrokTunnel(BaseTunnel):

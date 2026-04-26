@@ -1,12 +1,13 @@
 import logging
 import sys
+import os
 from loguru import logger
-from src.config.settings import settings
+from typing import Optional
 
 
 class InterceptHandler(logging.Handler):
     """
-    Default handler from examples in loguru documentation.
+    Standard Python logging Interceptor for Loguru.
     See https://loguru.readthedocs.io/en/stable/overview.html#entirely-compatible-with-standard-logging
     """
 
@@ -28,39 +29,56 @@ class InterceptHandler(logging.Handler):
         )
 
 
-def setup_logging():
-    # Remove all existing handlers
+def setup_logging(
+    level: str = "INFO",
+    debug: bool = False,
+    app_env: str = "development"
+):
+    """
+    Replaces all standard logging handlers with Loguru and configures 
+    a consistent colorized format for the CLI.
+    """
+    
+    # 1. Clean up standard logging root
     logging.root.handlers = [InterceptHandler()]
-    logging.root.setLevel(logging.INFO)
+    logging.root.setLevel(getattr(logging, level.upper(), logging.INFO))
 
-    # Remove higher-level handlers for uvicorn/fastapi to avoid duplicates
-    # and let them be caught by root handler -> InterceptHandler
+    # 2. Force propagation for all existing loggers and clear their handlers
     for name in logging.root.manager.loggerDict.keys():
         logging.getLogger(name).handlers = []
         logging.getLogger(name).propagate = True
 
-    # Configure Loguru
+    # 3. Configure Loguru
     logger.remove()  # Remove default handler
 
-    # Custom colors for levels
+    # Custom colors for levels (Loguru built-in tags)
     logger.level("INFO", color="<cyan>")
-    logger.level("DEBUG", color="<blue>")
+    logger.level("DEBUG", color="<magenta>")
+    logger.level("WARNING", color="<yellow>")
+    logger.level("ERROR", color="<red>")
 
-    if settings.app_env == "production":
-        # JSON logs for production
+    if app_env == "production":
+        # Structured logs for production
         logger.add(
             sys.stderr,
             format="{time:YYYY-MM-DD at HH:mm:ss} | {level} | {message}",
             serialize=True,
-            level="INFO",
+            level=level,
         )
     else:
-        # Structured, colorful logs for development
+        # User defined pretty format for development
+        # Matches the aesthetic requested by the user
+        log_format = (
+            "<level><bold>{level:<5}</bold></level>: "
+            "<level><white><bold>{message}</bold></white></level> "
+            "<light-black>({name}:{function}:{line})</light-black>"
+        )
+        
         logger.add(
             sys.stderr,
-            format="<level><bold>{level:<5}</bold></level>: <level><white><bold>{message}</bold></white></level> <light-black>({name}:{function}:{line})</light-black>",
-            level="DEBUG" if settings.debug else "INFO",
+            format=log_format,
+            level="DEBUG" if debug else level,
             colorize=True,
         )
 
-    logger.info(f"Logging configured. Env: {settings.app_env}, Debug: {settings.debug}")
+    logger.info(f"Logging initialized. Env: {app_env}, Debug: {debug}")

@@ -9,7 +9,7 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 INFO='\033[1;34m'
 
-echo -e "${INFO}Starting .env synchronization to ${VM_ALIAS}...${NC}"
+echo -e "${INFO}Starting .env and Caddyfile synchronization to ${VM_ALIAS}...${NC}"
 
 # 1. Check if we can connect to the VM
 if ! ssh -q "$VM_ALIAS" exit; then
@@ -21,21 +21,26 @@ fi
 echo -e "${INFO}Verifying remote directory ${REMOTE_DIR}...${NC}"
 ssh "$VM_ALIAS" "mkdir -p $REMOTE_DIR"
 
-# 3. Find and sync all .env files
-# We use rsync to efficiently mirror only the .env files while maintaining directory structure.
-# --include='*/' includes all directories
-# --include='.env' includes all .env files
-# --exclude='*' excludes all other files
-echo -e "${INFO}Syncing .env files...${NC}"
+# 3. Find and sync all .env and Caddyfile files
+# We use exclusions to avoid scanning heavy directories like node_modules and .venv
+echo -e "${INFO}Syncing configurations...${NC}"
 rsync -amv \
+    --exclude='.git/' \
+    --exclude='node_modules/' \
+    --exclude='.venv/' \
+    --exclude='.turbo/' \
+    --exclude='.next/' \
+    --exclude='.gemini/' \
+    --exclude='.claude/' \
     --include='*/' \
     --include='.env' \
+    --include='Caddyfile' \
     --exclude='*' \
     . "$VM_ALIAS:$REMOTE_DIR/"
 
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Successfully synced all .env files to ${VM_ALIAS}!${NC}"
+    echo -e "${GREEN}Successfully synced configs to ${VM_ALIAS}!${NC}"
 else
-    echo "Error: Failed to sync .env files."
+    echo "Error: Failed to sync configuration files."
     exit 1
 fi

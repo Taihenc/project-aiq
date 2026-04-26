@@ -1,22 +1,23 @@
+from aingo_utils.ssl_bypass import init_ssl_bypass
+init_ssl_bypass()
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from src.config.settings import settings
-from src.config.logging import setup_logging
+from aingo_utils.logging import setup_logging
 from src.routers.search import router as search_router
 from src.services.langfuse_service import LangfuseService
 
+# Initialize logging early
+setup_logging(debug=settings.debug, app_env=settings.app_env)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_logging()
-
     # Langfuse Setup
     langfuse = LangfuseService().setup()
+    langfuse.flush()
 
     yield
-
-    # Flush all pending Langfuse traces on shutdown
-    langfuse.flush()
 
 
 def create_app() -> FastAPI:

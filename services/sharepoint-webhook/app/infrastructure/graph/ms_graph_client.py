@@ -10,9 +10,9 @@ from urllib.parse import quote
 import msal
 import requests
 
-from app.infrastructure.logging import get_logger
+from loguru import logger
 
-logger = get_logger(__name__)
+# logger is now imported from loguru
 
 # Refresh the token this many seconds before it actually expires to avoid
 # race conditions between the expiry check and the HTTP round-trip.

@@ -1,49 +1,24 @@
-from fastapi import FastAPI, UploadFile, File
+from aingo_utils.ssl_bypass import init_ssl_bypass
 import os
+init_ssl_bypass()
+
+from fastapi import FastAPI, UploadFile, File
 import uvicorn
 from typing import Optional
 
 from workers.ingestion_worker import IngestionWorker
 from config import settings
+from aingo_utils.logging import setup_logging
 
-# Conditional SSL Bypass for corporate proxy (only when VERIFY_SSL=false)
-if not settings.verify_ssl:
-    import requests
-    from requests.adapters import HTTPAdapter
-    from urllib3.poolmanager import PoolManager
-    import ssl
-
-    class NoVerifyAdapter(HTTPAdapter):
-        def init_poolmanager(self, connections, maxsize, block=False):
-            self.poolmanager = PoolManager(
-                num_pools=connections,
-                maxsize=maxsize,
-                block=block,
-                cert_reqs=ssl.CERT_NONE
-            )
-
-    # Monkeypatch requests to skip verification globally
-    _original_session = requests.Session
-    class NoVerifySession(requests.Session):
-        def __init__(self):
-            super().__init__()
-            self.verify = False
-            self.mount("https://", NoVerifyAdapter())
-            self.mount("http://", NoVerifyAdapter())
-
-    requests.Session = NoVerifySession
-    # Also patch the default verify for basic calls
-    requests.get = lambda url, **kwargs: _original_session().get(url, verify=False, **kwargs)
-    requests.post = lambda url, **kwargs: _original_session().post(url, verify=False, **kwargs)
-    requests.head = lambda url, **kwargs: _original_session().head(url, verify=False, **kwargs)
-
+# Configure logging early
+setup_logging(debug=settings.debug, app_env=settings.app_env)
 
 app = FastAPI(title="Data Ingestion Service", version="1.0.0")
 
 UPLOAD_DIR = settings.upload_dir
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-ingestion_workder = IngestionWorker()
+ingestion_worker = IngestionWorker()
 
 @app.get("/")
 async def root():
@@ -52,7 +27,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "ai-engine"}
+    return {"status": "healthy", "service": "data-ingestion"}
 
 
 @app.post("/upload")
@@ -63,7 +38,7 @@ async def upload_document(file: UploadFile = File(...),chunking: bool = True,for
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
-    response = await ingestion_workder.ingest(file_path=file_path, chunking=chunking, format=format, qdrant_upload=qdrant_upload)
+    response = await ingestion_worker.ingest(file_path=file_path, chunking=chunking, format=format, qdrant_upload=qdrant_upload)
 
     return response
 

@@ -1,0 +1,39 @@
+{
+    # Global options
+    email <YOUR_EMAIL_FOR_SSL_NOTIFICATIONS>
+}
+
+<YOUR_DOMAIN>, localhost, <YOUR_PUBLIC_IP> {
+    # SharePoint Webhook
+    reverse_proxy /webhook* sharepoint-webhook:8004 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+    }
+
+    # Backend API v1 (Direct)
+    reverse_proxy /api/v1* backend:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+    }
+
+    # Backend API Rewrite (/api/ -> /api/v1/)
+    handle_path /api/* {
+        rewrite * /api/v1{path}
+        reverse_proxy backend:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # Frontend (Next.js)
+    reverse_proxy * web:3001 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+    }
+
+    # Logging
+    log {
+        output stdout
+        format json
+    }
+}

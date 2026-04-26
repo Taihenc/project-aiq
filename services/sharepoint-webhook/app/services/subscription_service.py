@@ -6,9 +6,9 @@ from typing import Optional
 
 from app.domain.models import SubscriptionContext
 from app.infrastructure.graph.ms_graph_client import GraphAPIClient
-from app.infrastructure.logging import get_logger
+from loguru import logger
 
-logger = get_logger(__name__)
+# logger is now imported from loguru
 
 
 class SubscriptionService:

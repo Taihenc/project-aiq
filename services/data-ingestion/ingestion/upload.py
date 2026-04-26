@@ -1,5 +1,6 @@
 import requests
 from config import settings
+from loguru import logger
 from typing import Any, Dict, Mapping, Sequence
 
 class Upload:
@@ -55,7 +56,7 @@ class Upload:
         try:
             res.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            print(f"Upload failed. Status: {res.status_code}, Response: {res.text}")
+            logger.error(f"Upload failed. Status: {res.status_code}, Response: {res.text}")
             raise e
 
         return res.json()

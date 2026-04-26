@@ -1,9 +1,11 @@
 import { client } from './client';
 import type { ChunkMetadata, FilterOptions, SourceFile } from '@/types/api';
 
+const BASE_PATH = 'sharepoint';
+
 export const sharePointApi = {
   listFiles: async (path?: string) => {
-    const response = await client.get('/sharepoint/files', {
+    const response = await client.get(`${BASE_PATH}/files`, {
       params: { path },
     });
     return response.data;
@@ -11,13 +13,13 @@ export const sharePointApi = {
 
   /** Returns all unique files that have been indexed in the embedding service. */
   getIndexedFiles: async (): Promise<SourceFile[]> => {
-    const response = await client.get('/sharepoint/indexed-files');
+    const response = await client.get(`${BASE_PATH}/indexed-files`);
     return response.data as SourceFile[];
   },
   uploadFile: async (file: File, path?: string) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await client.post('/sharepoint/upload', formData, {
+    const response = await client.post(`${BASE_PATH}/upload`, formData, {
       params: { path },
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -26,20 +28,20 @@ export const sharePointApi = {
     return response.data;
   },
   getFileStatus: async (sourceId: string) => {
-    const response = await client.get(`/sharepoint/status/${sourceId}`);
+    const response = await client.get(`${BASE_PATH}/status/${sourceId}`);
     return response.data;
   },
   ingestFile: async (sourceId: string) => {
-    const response = await client.post(`/sharepoint/ingest/${sourceId}`);
+    const response = await client.post(`${BASE_PATH}/ingest/${sourceId}`);
     return response.data;
   },
   deleteFile: async (sourceId: string) => {
-    const response = await client.delete(`/sharepoint/${sourceId}`);
+    const response = await client.delete(`${BASE_PATH}/${sourceId}`);
     return response.data;
   },
   /** Fetch a short-lived SSE token from the authenticated NestJS endpoint. */
   getSSEToken: async () => {
-    const response = await client.get('/sharepoint/sse-token');
+    const response = await client.get(`${BASE_PATH}/sse-token`);
     return response.data as { token: string };
   },
 
@@ -48,7 +50,7 @@ export const sharePointApi = {
    * (proxied through NestJS).
    */
   getFileChunks: async (filePath: string): Promise<ChunkMetadata[]> => {
-    const response = await client.get('/sharepoint/file-chunks', {
+    const response = await client.get(`${BASE_PATH}/file-chunks`, {
       params: { file_path: filePath },
     });
     const raw: Record<string, unknown>[] = Array.isArray(response.data) ? (response.data as Record<string, unknown>[]) : [];
@@ -70,7 +72,7 @@ export const sharePointApi = {
   getFileChunkCount: async (
     filePath: string,
   ): Promise<{ chunk_count: number; indexed: boolean }> => {
-    const response = await client.get('/sharepoint/file-chunk-count', {
+    const response = await client.get(`${BASE_PATH}/file-chunk-count`, {
       params: { file_path: filePath },
     });
     return response.data;
@@ -83,7 +85,7 @@ export const sharePointApi = {
   getFileDownloadUrl: async (
     sourceId: string,
   ): Promise<{ url: string; file_name: string }> => {
-    const response = await client.get(`/sharepoint/download/${encodeURIComponent(sourceId)}`);
+    const response = await client.get(`${BASE_PATH}/download/${encodeURIComponent(sourceId)}`);
     return response.data as { url: string; file_name: string };
   },
 
@@ -93,7 +95,7 @@ export const sharePointApi = {
    */
   getFileBlob: async (sourceId: string): Promise<Blob> => {
     const response = await client.get(
-      `/sharepoint/stream/${encodeURIComponent(sourceId)}`,
+      `${BASE_PATH}/stream/${encodeURIComponent(sourceId)}`,
       { responseType: 'blob' },
     );
     return response.data as Blob;
@@ -104,7 +106,7 @@ export const sharePointApi = {
    * Backed by GET /api/v1/sharepoint/filter-options → embedding service /v1/filter-options.
    */
   getFilterOptions: async (): Promise<FilterOptions> => {
-    const response = await client.get('/sharepoint/filter-options');
+    const response = await client.get(`${BASE_PATH}/filter-options`);
     return response.data as FilterOptions;
   },
 };

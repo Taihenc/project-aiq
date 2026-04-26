@@ -2,9 +2,7 @@ services:
   # ==================== STATELESS SERVICES ====================
 
   backend:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
+    image: ghcr.io/techx-capstone-cu/aingo/backend:latest
     restart: unless-stopped
     env_file:
       - ./apps/backend/.env
@@ -28,12 +26,7 @@ services:
       - "3000:3000"
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL:-http://localhost:3000}
-        - INTERNAL_BACKEND_URL=http://backend:3000
+    image: ghcr.io/techx-capstone-cu/aingo/web:latest
     restart: unless-stopped
     env_file:
       - ./apps/web/.env
@@ -51,19 +44,18 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "3001:3001"
 
   search-flow:
-    build:
-      context: ./services/search-flow
-      dockerfile: Dockerfile
+    image: ghcr.io/techx-capstone-cu/aingo/search-flow:latest
     restart: unless-stopped
     env_file:
       - ./services/search-flow/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - MCP_SERVER_URL=http://embedding-service:8003/v1/mcp/sse
       - EMBEDDING_SERVICE_URL=http://embedding-service:8003
     networks:
@@ -78,53 +70,58 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "8000:8000"
 
   embedding-service:
-    build:
-      context: ./services/embedding-service
-      dockerfile: Dockerfile
+    image: ghcr.io/techx-capstone-cu/aingo/embedding-service:latest
     restart: unless-stopped
     env_file:
       - ./services/embedding-service/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - QDRANT_URL=http://qdrant:6333
+      - EMBEDDING_MODEL=/app/models/bge-m3
+      - RERANKING_MODEL=/app/models/bge-reranker-v2-m3
     networks:
       - aingo-net
     volumes:
       - embedding_cache:/data/embeddings
+      - ./models:/app/models
     depends_on:
       qdrant:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "8003:8003"
 
   data-ingestion:
-    build:
-      context: ./services/data-ingestion
-      dockerfile: Dockerfile
+    image: ghcr.io/techx-capstone-cu/aingo/data-ingestion:latest
     restart: unless-stopped
     env_file:
       - ./services/data-ingestion/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - API_URL=http://embedding-service:8003/v1/upload
       - RABBITMQ_HOST=rabbitmq
       - FILE_STORAGE_URL=http://file-storage-service:8004
       - EMBEDDING_SERVICE_URL=http://embedding-service:8003
+      - EMBED_MODEL_ID=/app/models/bge-m3
     networks:
       - aingo-net
     volumes:
       - data_ingestion_uploads:/data/uploaded-files
+      - ./models:/app/models
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -137,21 +134,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 40s
     deploy:
       replicas: 1
     ports:
       - "8002:8002"
 
   sharepoint-webhook:
-    build:
-      context: ./services/sharepoint-webhook
-      dockerfile: Dockerfile
+    image: ghcr.io/techx-capstone-cu/aingo/sharepoint-webhook:latest
     restart: unless-stopped
     env_file:
       - ./services/sharepoint-webhook/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - SERVER_PORT=8004
       - FILE_STORAGE_URL=http://file-storage-service:8004
     networks:
@@ -169,19 +165,18 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "8004:8004"
 
   file-storage-service:
-    build:
-      context: ./services/file-storage-service
-      dockerfile: Dockerfile
+    image: ghcr.io/techx-capstone-cu/aingo/file-storage-service:latest
     restart: unless-stopped
     env_file:
       - ./services/file-storage-service/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - VERIFY_SSL=${VERIFY_SSL:-true}
       - S3_ENDPOINT=http://aingo-minio:9000
       - S3_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -207,7 +202,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 300s
     ports:
       - "8007:8004"
 
@@ -272,24 +267,27 @@ services:
       - "6333:6333"
       - "6334:6334"
 
-  # ==================== REVERSE PROXY (Optional) ====================
-  # Uncomment below to use nginx as reverse proxy in production
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: aingo-nginx
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx/conf.d:/etc/nginx/conf.d:ro
-  #     - ./nginx/ssl:/etc/nginx/ssl:ro
-  #     - ./nginx/logs:/var/log/nginx
-  #   networks:
-  #     - aingo-net
-  #   depends_on:
-  #     - web
-  #     - backend
+  # ==================== REVERSE PROXY ====================
+  caddy:
+    image: caddy:2-alpine
+    container_name: aingo-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - aingo-net
+    depends_on:
+      web:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      sharepoint-webhook:
+        condition: service_healthy
 
 networks:
   aingo-net:
@@ -317,4 +315,8 @@ volumes:
   sharepoint_sync:
     driver: local
   sharepoint_logs:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
     driver: local

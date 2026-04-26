@@ -1,5 +1,5 @@
-from typing import Callable, List, Optional, Any
-from loguru import logger
+import json
+from typing import Callable, List, Optional
 
 
 class FlowStatusReporter:
@@ -12,12 +12,10 @@ class FlowStatusReporter:
     def __init__(self, callback: Optional[Callable[[str], None]] = None):
         self._callback = callback
 
-    def report(self, message: Any):
+    def report(self, message: str):
         """Emit a raw status message."""
         if self._callback:
-            # Ensure message is string for SSE callback
-            msg_str = str(message) if not isinstance(message, str) else message
-            self._callback(msg_str)
+            self._callback(message)
 
     def report_tools(self, tools: list):
         """Emit loaded tool names."""
@@ -54,5 +52,5 @@ class FlowStatusReporter:
         """Parse crew task output and emit a meaningful completion status."""
         try:
             self.report("Analysis complete — preparing response...")
-        except Exception as e:
-            logger.error(f"Error in task completion callback: {e}")
+        except Exception:
+            pass

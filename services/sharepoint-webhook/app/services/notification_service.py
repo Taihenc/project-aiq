@@ -13,11 +13,11 @@ from app.db.store import (
     update_notification,
 )
 from app.domain.models import ChangeNotification
-from app.infrastructure.logging import get_logger
+from loguru import logger
 from app.infrastructure.sharepoint.delta_tracker import DeltaTracker
 from app.infrastructure.sharepoint.file_sync_service import FileSyncResult, FileSyncService
 
-logger = get_logger(__name__)
+# logger is now imported from loguru
 
 class NotificationService:
     """Coordinates handling of webhook notifications and optional file sync."""

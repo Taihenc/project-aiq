@@ -4,7 +4,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 RUN npm config set strict-ssl false && npm install -g pnpm@8.15.6
-RUN apk add --no-cache python3 py3-setuptools make g++
+RUN apk add --no-cache python3 py3-setuptools make g++ curl
 ENV PYTHON=python3
 
 # Dependencies stage
@@ -28,8 +28,20 @@ COPY . .
 RUN find . -name ".env" -type f -delete
 RUN pnpm --filter web build
 
+# Dev stage
+FROM base AS dev
+WORKDIR /app
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/
+RUN npm pkg delete scripts.prepare && pnpm install --filter web
+ENV NODE_ENV development
+# For Next.js dev mode, we need to provide the env vars
+ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
+ENV INTERNAL_BACKEND_URL=${INTERNAL_BACKEND_URL}
+CMD ["pnpm", "--filter", "web", "dev"]
+
 # Runner stage
-FROM node:20.19.5-alpine AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV production
 ENV PORT 3001

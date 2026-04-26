@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 import json
 import logging
 from src.dtos.request import SearchChatRequest
-from src.models.state import SearchResponse
+from src.models.state import FlowResponse
 from src.dtos.response import APIResponse
 from src.services.search_service import SearchFlowService
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 service = SearchFlowService()
 
 
-@router.post("/completions", response_model=APIResponse[SearchResponse])
+@router.post("/completions", response_model=APIResponse[FlowResponse])
 async def completions_sync(request: SearchChatRequest):
     try:
         logger.info(

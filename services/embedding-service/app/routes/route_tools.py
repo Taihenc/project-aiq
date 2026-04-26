@@ -33,8 +33,10 @@ from app.services.service_tools import service_tools
 
 import logging
 import json
+from loguru import logger
 
 router = APIRouter()
+
 
 @router.post("/query", response_model=QueryResponse)
 async def get_embedding(query_request: QueryRequest):

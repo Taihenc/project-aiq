@@ -11,10 +11,10 @@ from typing import Any, Optional
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from app.infrastructure.logging import get_logger
+from loguru import logger
 from app.infrastructure.graph.ms_graph_client import GraphAPIClient
 
-logger = get_logger(__name__)
+# logger is now imported from loguru
 
 
 @dataclass

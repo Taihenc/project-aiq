@@ -30,8 +30,6 @@ from app.models.models import (
     EnrichedPage,
     EnrichedFile,
     StructuredFileReferenceResponse,
-    FilterIn,
-    FilterOut
 )
 
 from app.services.qdrant.qdrant_service import qdrant_service
@@ -41,12 +39,7 @@ from app.services.formatter import formatter_service
 
 import logging
 import json
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-)
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 class Tools:
     def __init__(self):
@@ -70,8 +63,7 @@ class Tools:
                 query=search_request.query,
                 limit=search_request.top_k,
                 score_threshold=search_request.score_threshold,
-                filter_in=search_request.filter_in,
-                filter_out=search_request.filter_out
+                query_filter=search_request.filter
             )
 
             document = [DocumentResponse(
@@ -119,29 +111,6 @@ class Tools:
                 }
 
                 logger.info("Reranking completed:\n%s", json.dumps(log_payload, indent=2, ensure_ascii=False))
-
-            # Enrich documents with document boundary metadata (max_page, max_order)
-            # This is required for the search-flow service to show "next content" indicators
-            unique_files = {doc.metadata.file_path for doc in document if doc.metadata.file_path}
-            file_boundaries = {}
-            for file_path in unique_files:
-                file_boundaries[file_path] = {
-                    "max_page": qdrant_service.get_max_page_number(file_path),
-                    "max_order": qdrant_service.get_max_chunk_number(file_path)
-                }
-
-            for doc in document:
-                file_path = doc.metadata.file_path
-                if file_path and file_path in file_boundaries:
-                    # In Pydantic models, we might need to use setattr or access the underlying dict if it's extra fields
-                    # But since we are returning this as a response, let's see if we can just set them
-                    # If MetaData model doesn't have these fields, we might need to add them or handle as dict
-                    try:
-                        doc.metadata.max_page = file_boundaries[file_path]["max_page"]
-                        doc.metadata.max_order = file_boundaries[file_path]["max_order"]
-                    except (AttributeError, ValueError):
-                        # Fallback if model doesn't support direct assignment of new fields
-                        pass
 
             return SearchResponse(documents=document, counts=len(document))
         except Exception as e:

@@ -3,6 +3,7 @@ import json
 import os
 import threading
 import time
+from loguru import logger
 from workers.ingestion_worker import IngestionWorker
 from config import settings
 
@@ -42,18 +43,18 @@ class EventConsumer:
                 self.channel.queue_bind(
                     exchange=self.exchange_name, queue=self.queue_name, routing_key='file.#')
                 self.channel.basic_qos(prefetch_count=1)
-                print("Connected to RabbitMQ (Topic Exchange)")
+                logger.info("Connected to RabbitMQ (Topic Exchange)")
                 return
             except pika.exceptions.AMQPConnectionError:
-                print(
+                logger.warning(
                     f"Failed to connect to RabbitMQ. Retrying in 5 seconds... ({retries} retries left)")
                 time.sleep(5)
                 retries -= 1
-        print("Could not connect to RabbitMQ after multiple retries.")
+        logger.error("Could not connect to RabbitMQ after multiple retries.")
 
     def start(self):
         if not self.enabled:
-            print("SharePoint integration is disabled - event consumer not started")
+            logger.info("SharePoint integration is disabled - event consumer not started")
             return
 
         if not self.connection or self.connection.is_closed:
@@ -62,38 +63,38 @@ class EventConsumer:
         if not self.channel:
             return
 
-        print("Waiting for messages...")
+        logger.info("Waiting for messages...")
         self.channel.basic_consume(
             queue=self.queue_name, on_message_callback=self.callback)
         try:
             self.channel.start_consuming()
         except Exception as e:
-            print(f"Consumer stopped: {e}")
+            logger.error(f"Consumer stopped: {e}")
 
     def callback(self, ch, method, properties, body):
         try:
             message = json.loads(body)
             routing_key = method.routing_key
-            print(f"Received event '{routing_key}': {message}")
+            logger.info(f"Received event '{routing_key}': {message}")
 
             file_id = message.get('file_id')
 
             if routing_key == 'file.ready' or message.get('event') == 'file.ready':
                 if file_id:
-                    print(f"Processing ingestion for file {file_id}")
+                    logger.info(f"Processing ingestion for file {file_id}")
                     self.ingestion_worker.ingest_from_fss(file_id)
 
             elif routing_key == 'file.deleted' or message.get('event') == 'file.deleted':
                 if file_id:
-                    print(f"Processing deletion for file {file_id}")
+                    logger.info(f"Processing deletion for file {file_id}")
                     self.ingestion_worker.delete_index(file_id)
 
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except json.JSONDecodeError as e:
-            print(f"[consumer] Malformed message body, discarding: {e}")
+            logger.error(f"[consumer] Malformed message body, discarding: {e}")
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
         except Exception as e:
-            print(f"[consumer] Error processing message, nacking with requeue: {e}")
+            logger.error(f"[consumer] Error processing message, nacking with requeue: {e}")
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
     def start_in_thread(self):

@@ -84,14 +84,6 @@ export class ChatController {
         res.write(`data: ${event.data}\n\n`);
       },
       error: (err) => {
-        const errorMsg =
-          err?.response?.data?.detail ||
-          err?.response?.data?.message ||
-          err?.message ||
-          'An unexpected error occurred';
-        res.write(
-          `data: ${JSON.stringify({ type: 'error', content: errorMsg })}\n\n`,
-        );
         res.end();
       },
       complete: () => {

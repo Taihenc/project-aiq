@@ -1,7 +1,3 @@
-## Data Ingestion Service
-
-This service handles the document ingestion pipeline, converting raw documents into structured, contextualized text chunks and uploading them to the vector database for RAG (Retrieval-Augmented Generation).
-
 ## Project Structure
 
 ```
@@ -10,92 +6,150 @@ data-ingestion/             # 📥 Ingestion pipeline (documents → vectors)
 ├── main.py                 # FastAPI entrypoint (upload / trigger ingestion)
 ├── ingestion/
 │   ├── __init__.py
-│   ├── extract_docling.py  # Main extractor using Docling (PDF, TXT, DOCX, etc.)
-│   ├── context_builder.py  # Formats chunks and adds consistent metadata
-│   ├── chunker.py          # Docling-based HybridChunker with contextualization
-│   ├── indexer.py          # Placeholder for direct indexing (currently via Upload)
-│   └── upload.py           # Sends formatted chunks to Embedding Service
-├── workers/                # background task runner
-│   ├── ingestion_worker.py # orchestrates the Docling pipeline
+│   ├── file_reader.py      # read file, detect mime type and split into pages
+│   ├── modality.py         # detect content types in each page (text/image/table)
+│   ├── extractor.py        # extract content from modality.content by modality.type
+│   ├── context_builder.py  # combine all modalities in a page into single text
+│   ├── chunker.py          # recursive text chunking and summarize each chunk
+│   ├── indexer.py          # create vector embeddings and save metadata to database for each chunk
+│   └── storage.py          # save artifacts to MinIO/S3
+├── workers/                # background task runner (RQ/Celery)
+│   ├── ingestion_worker.py # main worker that runs ingestion pipeline
 │   └── __init__.py
-├── db/                    # metadata DB access
+├── db/                    # owns write access to metadata DB
 │   ├── __init__.py
-│   └── ...
-├── embedding/             # client adapter
+│   ├── database.py         # database connection and session management
+│   ├── document.py         # document model and operations
+│   ├── page.py            # page model and operations
+│   └── job.py             # ingestion job model and operations
+├── embedding/             # client adapter (local or HTTP)
 │   ├── __init__.py
 │   └── client.py          # client for calling embedding service
-└── config.py             # configuration and env variables
+└── config.py             # configuration settings and environment variables
 ```
 
 ---
 
 ## Ingestion Flow
 
-The ingestion pipeline is powered by **Docling** for unified document processing:
+The ingestion pipeline processes documents through the following stages:
 
-1. **Extraction**: `DoclingExtractor.convert(file_path)` - Uses Docling to convert documents into a structured `DoclingDocument`. Supports PDF, DOCX, XLSX, CSV, HTML, and TXT (internally mapped to MD).
-2. **Chunking**: `Chunker.chunk(doc)` - Uses Docling's `HybridChunker` to create contextualized chunks, preserving document structure and hierarchy.
-3. **Context Building**: `ContextBuilder.build(chunks, file_path)` - Formats chunks into `ContextRecord`s and attaches consistent metadata (department, team, project, etc.). Specialized handling for structured data (1 record per sheet/CSV).
-4. **Uploading**: `Upload.upload(contexts)` - Batch uploads formatted records to the Embedding Service for vectorization and storage in Qdrant.
+1. **File Reading**: `file_reader.read(file_path)` - Reads file, detects MIME type, and splits into pages
+2. **For each page**:
+   - **Modality Detection**: `modality.detect(page, mime_type)` - Detects content types in the page (text/image/table)
+   - **For each modality**:
+     - **Content Extraction**: `extractor.extract(modality.content, modality.type)` - Extracts content from the modality (text/OCR/image caption/table parsing)
+   - **Context Building**: `context_builder.build(page_contents)` - Combines all modality contents in a page into a single text
+   - **Chunking**: `chunker.chunk(full_page_text)` - Recursively chunks the text and summarizes each chunk
+   - **For each chunk**:
+     - **Indexing**: `indexer.index(chunk)` - Creates vector embeddings and saves metadata to database
 
 ---
 
 ```mermaid
    flowchart LR
     %% ====== FILE INPUT ======
-    F[📄 File] --> EX[🦆 Docling Extractor]
-    
-    %% ====== DOCLING PROCESSING ======
-    EX --> CH[✂️ Hybrid Chunker]
-    CH --> CB[🧱 Context Builder]
-    
-    %% ====== UPLOAD ======
-    CB --> UP[🚀 Upload Client]
-    UP --> EM[🗄️ Embedding Service]
+    F[📄 File] --> FR[📂 File Reader]
+    FR --> CL[🔍 Classify Component]
+
+    %% ====== EXTRACTOR GROUP ======
+    subgraph EX[🧠 Extractor]
+        direction TB
+        V1[Vision]
+        O1[OCR]
+        O2[OCR / Vision]
+        T1[Text Extraction]
+        T2[Table Extraction]
+    end
+
+    %% ====== CLASSIFY CONNECTIONS ======
+    CL -->|Image| V1
+    CL -->|Scan| O1
+    CL -->|Presentation| O2
+    CL -->|Embedded Text| T1
+    CL -->|Table| T2
+
+    %% ====== CONTEXT BUILDER ======
+    V1 --> CB[🧱 Context Builder]
+    O1 --> CB
+    O2 --> CB
+    T1 --> CB
+    T2 --> CB
+
+    %% ====== CHUNKER, SUMMARIZER, EMBEDING ======
+    subgraph PROCESS[ ]
+        direction TB
+        SU[🤖 Summarizer]
+        CH[✂️ Chunker]
+
+    end
+
+    CB --> PROCESS
+    CH --> SU
+    PROCESS --> EM[🗄️ Embedding Service]
 ```
 
 ---
 
-### Ingestion Sequence
+### Document Upload Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
 
+    %% ==========================
+    box Client Layer
+        participant User as 🧑‍💻 User (Frontend)
+    end
+
     box API Layer
-        participant API as 🌐 Ingestion API
-        participant Worker as 👷 Ingestion Worker
+        participant API as 🌐 Ingestion API (FastAPI)
     end
 
-    box Docling Engine
-        participant Extractor as 🦆 Docling Extractor
-        participant Chunker as ✂️ Chunker
-    end
-
-    box Data Formatting
+    box Ingestion Pipeline
+        participant Reader as 📂 File Reader
+        participant Modality as 🔍 Modality Detector
+        participant Extractor as 🧠 Extractor
         participant Context as 🧱 Context Builder
-        participant Upload as 🚀 Upload Client
+        participant Chunker as ✂️ Chunker
+        participant Indexer as 🗂️ Indexer
     end
 
-    box Storage Layer
-        participant Embed as 🤖 Embedding Service
-        participant Qdrant as 🗄️ Vector DB
+    box Embedding Service
+        participant Embed as 🤖 Embedding Generator
+        participant DB as 🗄️ Vector DB
     end
+    %% ==========================
 
-    API->>Worker: ingest(file_path)
-    Worker->>Extractor: convert(file)
-    Extractor-->>Worker: DoclingDocument
-    
-    Worker->>Chunker: chunk(doc)
-    Chunker-->>Worker: List[Chunks]
-    
-    Worker->>Context: build(chunks)
-    Context-->>Worker: List[ContextRecords]
-    
-    Worker->>Upload: upload(records)
-    Upload->>Embed: POST /v1/batch-upload
-    Embed->>Qdrant: Store vectors & metadata
-    Embed-->>Upload: OK
-    Upload-->>Worker: Success
-    Worker-->>API: Ingestion Complete
+
+    %% ======= FILE UPLOAD =======
+    User->>API: POST /ingest {file, metadata}
+    API->>Reader: read(file_path)
+
+    %% ======= FILE READING & MODALITY DETECTION =======
+    Reader->>Modality: detect(page, mime_type)
+    Modality-->>Reader: modalities[]
+
+    %% ======= CONTENT EXTRACTION =======
+    Reader->>Extractor: extract(content, modality.type)
+    Extractor-->>Reader: extracted_content[]
+
+    %% ======= CONTEXT BUILDING =======
+    Reader->>Context: build(page_contents)
+    Context-->>Reader: combined_page_text
+
+    %% ======= CHUNKING & SUMMARIZATION =======
+    Reader->>Chunker: chunk(full_page_text)
+    Chunker-->>Reader: summarized_chunks[]
+
+    %% ======= INDEXING & EMBEDDING =======
+    Reader->>Indexer: index(summarized_chunks)
+    Indexer->>Embed: POST /embed {summarized_chunks}
+    Embed-->>Indexer: embeddings[]
+    Indexer->>DB: store(chunks, embeddings, metadata)
+    DB-->>Indexer: ok
+
+    %% ======= RESPONSE =======
+    Indexer-->>API: Success {document_id, chunks_count}
+    API-->>User: ✅ Upload & Ingestion Complete
 ```

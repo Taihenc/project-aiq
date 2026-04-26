@@ -1,4 +1,5 @@
 import boto3
+from loguru import logger
 from botocore.client import Config
 import os
 from botocore.exceptions import ClientError
@@ -25,14 +26,14 @@ class StorageService:
             try:
                 self.s3_client.create_bucket(Bucket=self.bucket_name)
             except ClientError as e:
-                print(f"Could not create bucket: {e}")
+                logger.error(f"Could not create bucket: {e}")
 
     def upload_stream(self, file_obj, object_name):
         try:
             self.s3_client.upload_fileobj(file_obj, self.bucket_name, object_name)
             return True
         except ClientError as e:
-            print(f"Error uploading stream: {e}")
+            logger.error(f"Error uploading stream: {e}")
             return False
 
     def generate_presigned_url(self, object_name, expiration=3600):
@@ -44,7 +45,7 @@ class StorageService:
             )
             return response
         except ClientError as e:
-            print(f"Error generating presigned URL: {e}")
+            logger.error(f"Error generating presigned URL: {e}")
             return None
 
     def delete_object(self, object_name):
@@ -52,5 +53,5 @@ class StorageService:
             self.s3_client.delete_object(Bucket=self.bucket_name, Key=object_name)
             return True
         except ClientError as e:
-            print(f"Error deleting object: {e}")
+            logger.error(f"Error deleting object: {e}")
             return False

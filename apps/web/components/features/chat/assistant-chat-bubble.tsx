@@ -22,7 +22,6 @@ export function AssistantChatBubble({
   statusHistory,
   isEmpty,
   isStreaming = false,
-  isError = false,
   citations: rawCitations = [],
   onAddAttachment,
   onRemoveAttachment,
@@ -39,7 +38,6 @@ export function AssistantChatBubble({
   statusHistory?: string[];
   isEmpty?: boolean;
   isStreaming?: boolean;
-  isError?: boolean;
   citations?: Citation[];
   onAddAttachment?: (attachment: FileRef) => void;
   onRemoveAttachment?: (index: number) => void;
@@ -108,28 +106,7 @@ export function AssistantChatBubble({
 
       <div className="flex max-w-[80%] flex-col items-start gap-3">
         <div className="flex flex-col gap-3">
-          {isError ? (
-            <div className="flex flex-col gap-3 rounded-bubble border border-destructive/30 bg-destructive/5 px-4 py-3">
-              <div className="flex items-start gap-2.5 text-sm text-destructive/80">
-                <AlertCircle className="size-4 shrink-0 mt-0.5 text-destructive/60" />
-                <span>
-                  {typeof content === 'string' && content
-                    ? content
-                    : 'An unexpected error occurred.'}
-                </span>
-              </div>
-              {messageId && onRegenerate && (
-                <button
-                  data-testid="retry-button"
-                  onClick={() => onRegenerate(messageId)}
-                  className="flex items-center gap-1.5 self-start rounded-md border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive/80 transition-colors hover:bg-destructive/20 hover:text-destructive"
-                >
-                  <RotateCcw className="size-3.5" />
-                  <span>Retry</span>
-                </button>
-              )}
-            </div>
-          ) : isThinking ? (
+          {isThinking ? (
             <ThinkingIndicator status={status} statusHistory={statusHistory} />
           ) : isEmpty ? (
             <div className="flex items-center gap-2.5 rounded-bubble border border-dashed border-muted-foreground/25 bg-muted/30 px-4 py-3 text-sm text-muted-foreground/60 italic">
@@ -197,8 +174,7 @@ export function AssistantChatBubble({
         </div>
 
         {/* Regenerate + branch nav row — only visible when fully settled */}
-        {!isError &&
-          !isStreaming &&
+        {!isStreaming &&
           !isThinking &&
           (content || isEmpty) &&
           (messageId || siblingCount > 1) && (

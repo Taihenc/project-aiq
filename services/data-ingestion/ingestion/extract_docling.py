@@ -9,14 +9,14 @@ from docling.pipeline.vlm_pipeline import VlmPipeline
 from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 from pathlib import Path
 from pprint import pprint
-
+from loguru import logger
 class DoclingExtractor:
     def __init__(self):
         # CSV, WebVTT: default
         # Configuration for BOTH converters
         self.supported_extensions = {
             ".pdf", ".docx", ".xlsx", ".pptx",  # Office & PDF
-            ".md", ".adoc", ".txt",             # Markdown & AsciiDoc & Text
+            ".md", ".adoc",                     # Markdown & AsciiDoc
             ".html", ".xhtml", ".csv", ".vtt",  # Web & Data
             ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".webp" # Images
         }
@@ -113,7 +113,7 @@ class DoclingExtractor:
             "stream": False
         }
 
-        print("Sending to LM Studio...")
+        logger.debug("Sending to LM Studio...")
         try:
             # 3. Send POST Request
             response = requests.post(url, headers=headers, data=json.dumps(payload))
@@ -142,19 +142,8 @@ class DoclingExtractor:
         is_image = file_path.suffix.lower() in self.image_extensions
         is_csv = (file_path.suffix.lower() == ".csv")
         is_xlsx = (file_path.suffix.lower() == ".xlsx")
-        is_txt = (file_path.suffix.lower() == ".txt")
-
         # PASS 1: Try with Fast Converter
-        if is_txt:
-            # Map .txt to .md using DocumentStream to avoid disk renames
-            from docling.datamodel.base_models import DocumentStream
-            import io
-            with open(file_path, "rb") as f:
-                source_stream = DocumentStream(name=file_path.name.rsplit(".", 1)[0] + ".md", stream=io.BytesIO(f.read()))
-                result = self.fast_converter.convert(source_stream).document
-        else:
-            result = self.fast_converter.convert(source).document
-
+        result = self.fast_converter.convert(source).document
         if is_image:
             try:
                 # 1. Get Dictionary to access URI
@@ -173,9 +162,9 @@ class DoclingExtractor:
                     text = external_text
                 )
             except KeyError as e:
-                print(f"Error extracting base64: {e}")
+                logger.error(f"Error extracting base64: {e}")
             except Exception as e:
-                print(f"Error in external model processing: {e}")
+                logger.error(f"Error in external model processing: {e}")
 
         # PASS 2: If pictures detected, rerun with Smart Converter
         # if (len(result.pictures) > 0 and (not (is_image))):
@@ -212,7 +201,7 @@ class DoclingExtractor:
                     # Fallback if argument isn't supported: Export whole doc (risky) or skip
                     # forcing a specific filter if the API differs.
                     # But per your request, we use the direct call:
-                    print(f"Warning: export_to_markdown might not support page_no on this version.")
+                    logger.warning(f"Warning: export_to_markdown might not support page_no on this version.")
                     page_md = ""
 
                 if page_md:
@@ -302,3 +291,23 @@ class DoclingExtractor:
             return result.export_to_doctags()
         else:
             raise ValueError(f"Unsupported export format: {export}")
+
+# # --------------------------------------------------------
+# # Example usage
+# # --------------------------------------------------------
+# if __name__ == "__main__":
+#     extractor = DoclingExtractor()
+#     source = "services/data-ingestion/ingestion/Books.xlsx"
+#     result = extractor.convert(source)
+#     # pprint(result,width=120)
+#     pprint(extractor.convert(source,'dict'))
+#     # n = extractor.convert(source,'markdown')
+#     # n = n['pages']['1']['image']['uri'].split(",")[1]
+#     # pprint(n)
+#     # a = Chunker().chunk(result)
+#     # builder = ContextBuilder() 
+#     # b = builder.build(a,source)
+#     # pprint(a)
+#     # pprint(b,width=120)
+#     # for i in result:
+#     #      pprint(i)
