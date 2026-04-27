@@ -83,3 +83,17 @@ deploy/langfuse/postgres_data/
 
 # Caddy
 Caddyfile
+
+# Fonts
+fonts
+
+# LaTeX temporary files
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
