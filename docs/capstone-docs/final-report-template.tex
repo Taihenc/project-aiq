@@ -1,0 +1,301 @@
+% !TEX program = xelatex
+\documentclass[12pt]{article}
+
+\usepackage{fontspec}
+\usepackage{ifxetex}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\setstretch{1.15}
+
+% Thai font settings (XeLaTeX)
+\IfFontExistsTF{Laksaman}{
+  \setsansfont{Laksaman}[
+    BoldFont       = Laksaman Bold,
+    ItalicFont     = Laksaman Italic,
+    BoldItalicFont = Laksaman Bold Italic
+  ]
+  \setmainfont{Laksaman}[
+    BoldFont       = Laksaman Bold,
+    ItalicFont     = Laksaman Italic,
+    BoldItalicFont = Laksaman Bold Italic
+  ]
+}{
+  \setsansfont[
+    Path           = ./fonts/,
+    UprightFont    = Laksaman.ttf,
+    BoldFont       = Laksaman-Bold.ttf,
+    ItalicFont     = Laksaman-Italic.ttf,
+    BoldItalicFont = Laksaman-BoldItalic.ttf
+  ]{Laksaman.ttf}
+  \setmainfont[
+    Path           = ./fonts/,
+    UprightFont    = Laksaman.ttf,
+    BoldFont       = Laksaman-Bold.ttf,
+    ItalicFont     = Laksaman-Italic.ttf,
+    BoldItalicFont = Laksaman-BoldItalic.ttf
+  ]{Laksaman.ttf}
+}
+
+% Thai line breaking (XeLaTeX only)
+\ifxetex
+  \XeTeXlinebreaklocale "th"
+  \XeTeXlinebreakskip = 0pt plus 1pt
+\fi
+
+% ========== HEADER ============
+\fancyhf{}
+\fancyfoot[R]{\thepage}
+
+% ================= DOCUMENT BEGINS =================
+\begin{document}
+
+% ================= TITLE PAGE =================
+\begin{center}
+    {\Large\bfseries รายงานฉบับสมบูรณ์โครงงานรวบยอดวิศวกรรมคอมพิวเตอร์ 2}\\[0.5pc]
+    {\Large\bfseries CEDT Capstone Project Final Report}\\[2pc]
+    
+    {\large\bfseries เรื่อง}\\[0.5pc]
+    {\large ชื่อโครงงานภาษาไทย} \\[0.3pc]
+    {\large Title in English} \\[2pc]
+    
+    {\large\bfseries โดย}\\[0.5pc]
+    ชื่อ-นามสกุล รหัสนิสิต xxxxxxxxxx\\
+    ชื่อ-นามสกุล รหัสนิสิต xxxxxxxxxx\\
+    ชื่อ-นามสกุล รหัสนิสิต xxxxxxxxxx\\
+    ชื่อ-นามสกุล รหัสนิสิต xxxxxxxxxx\\[2pc]
+    
+    {\large\bfseries อาจารย์ที่ปรึกษา}\\[0.5pc]
+    ชื่ออาจารย์ที่ปรึกษาหลักจากภาควิชาวิศวกรรมคอมพิวเตอร์\\
+    ชื่ออาจารย์ที่ปรึกษาหลักจาก Project Owner\\
+    ชื่ออาจารย์ที่ปรึกษาร่วม (ถ้ามี)\\[2pc]
+    
+    รายงานนี้เป็นส่วนหนึ่งของวิชา 2110489 โครงงานรวบยอดวิศวกรรมคอมพิวเตอร์ 2\\
+    ภาควิชาวิศวกรรมคอมพิวเตอร์ คณะวิศวกรรมศาสตร์ จุฬาลงกรณ์มหาวิทยาลัย\\
+    ประจำปีการศึกษา 2568
+\end{center}
+
+\newpage
+
+% =============== ABSTRACT (THAI) ===========
+\section*{บทคัดย่อ}
+โครงงานนี้มีชื่อว่า \textit{[ชื่อโครงงานภาษาไทย]} มุ่งเน้นการแก้ปัญหา \textit{[ระบุปัญหาหลัก]} ซึ่งมีความสำคัญเนื่องจาก \textit{[แรงจูงใจ/ความสำคัญในโลกจริง]} วัตถุประสงค์ของโครงงานคือ \textit{[ระบุวัตถุประสงค์หลัก 2--3 ข้อ]}
+
+แนวทางการแก้ปัญหาประกอบด้วย \textit{[สรุปวิธีการ/แนวคิดการออกแบบ]} โดยผสาน \textit{[องค์ประกอบฮาร์ดแวร์/ซอฟต์แวร์/ฐานข้อมูล/เครือข่าย]} ระบบถูกพัฒนาโดยใช้ \textit{[เครื่องมือหรือแพลตฟอร์มหลัก]} และผ่านการทดสอบด้วย \textit{[ประเภทของการทดลองหรือการประเมินผล]}
+
+ผลการดำเนินงานแสดงให้เห็นว่า \textit{[สรุปผลลัพธ์สำคัญ]} โดยบรรลุ \textit{[เน้นค่าประสิทธิภาพ/ความถูกต้อง/ประโยชน์ที่สำคัญ]} โครงงานนี้มีส่วนช่วยต่อ \textit{[ผลกระทบเชิงวิชาการ/อุตสาหกรรม/สังคม]} ผ่าน \textit{[สรุปการมีส่วนร่วม]}
+
+\textbf{คำสำคัญ:} [คำสำคัญ 1], [คำสำคัญ 2], [คำสำคัญ 3], [คำสำคัญ 4], [คำสำคัญ 5]
+
+% =============== ABSTRACT (ENGLISH) ===========
+\section*{Abstract}
+This project, titled \textit{[Project Title]}, addresses the problem of \textit{[state the main problem]}, which is significant due to \textit{[motivation/real-world importance]}. The objectives of this project are \textit{[list 2--3 main objectives]}.
+
+The proposed solution involves \textit{[summarize the methodology/design concept]}, integrating \textit{[hardware/software/database/networking elements]}. The system was implemented using \textit{[main tools, frameworks, or platforms]} and evaluated through \textit{[type of experiments/tests]}.
+
+Results indicate that the system \textit{[summarize major findings]}, achieving \textit{[highlight key performance/accuracy/benefits]}. The project contributes to \textit{[academic/industrial/societal impact]} by \textit{[state contributions]}.
+
+\textbf{Keywords:} [Keyword 1], [Keyword 2], [Keyword 3], [Keyword 4], [Keyword 5]
+
+\newpage
+
+% =============== TABLE OF CONTENTS ===========
+\tableofcontents
+\newpage
+
+% =============== MAIN SECTIONS ===========
+
+\section{Introduction \& Stakeholder Context}
+
+\subsection{Background \& Motivation}
+Why this problem matters in professional/real-world settings.
+
+\subsection{Problem Statement}
+What problem was addressed, and why is it complex?
+
+\subsection{Objectives}
+Final goals pursued.
+
+\subsection{Scope \& Limitations}
+Boundaries of the project.
+
+\subsection{Stakeholders}
+Who benefits (end-users, organizations, community).
+
+\subsection{Expected Benefits}
+Technical, societal, industrial, or academic impact.
+
+% =============== SECTION 2 ===========
+\section{Related Theory and Research}
+
+\subsection{Review of Existing Knowledge}
+Prior work, models, or systems related to the project.
+
+\subsection{Comparison with Existing Systems}
+Identify strengths/weaknesses.
+
+\subsection{Gap Linkage to Project}
+Identify research/technology gaps filled by this project.
+
+% =============== SECTION 3 ===========
+\section{System Design}
+
+\subsection{System Architecture}
+Block diagrams, workflows, UML diagrams.
+
+\subsection{Components}
+Hardware, software, databases, networking.
+
+\subsection{Design Considerations}
+Performance, scalability, usability, sustainability, environment.
+
+\subsection{Proposed vs. Final Design}
+Adjustments from proposal to implementation.
+
+% =============== SECTION 4 ===========
+\section{Implementation}
+
+\subsection{Development Process}
+Modules, algorithms, prototypes built.
+
+\subsection{Tools, Frameworks, or Environments}
+Programming languages, libraries, development platforms, testing environments.
+
+\subsection{Challenges Encountered and Resolutions}
+Technical, design, or integration difficulties and how the team overcame them.
+
+\subsection{Evidence of Functional Prototype/System}
+Screenshots, architecture logs, photos, demo references.
+
+% =============== SECTION 5 ===========
+\section{Testing and Experimentation}
+
+\subsection{Experiment/Test Plan}
+What was tested and why.
+
+\subsection{Setup}
+Hardware/software environment, datasets, conditions.
+
+\subsection{Metrics}
+Accuracy, efficiency, usability, sustainability, etc.
+
+\subsection{Test Cases}
+Key scenarios for validation.
+
+% =============== SECTION 6 ===========
+\section{Results and Analysis}
+
+\subsection{Results Presentation}
+Summarize findings clearly with tables, charts, and graphs. Evaluate outcomes against stated objectives, benchmarks, or standards.
+
+\subsection{Analysis \& Interpretation}
+Explain patterns, significance, and implications of results.
+
+\subsection{Limitations \& Lessons}
+Discuss unexpected issues, anomalies, and what was learned.
+
+% =============== SECTION 7 ===========
+\section{Project Management and Teamwork}
+
+\subsection{Timeline \& Milestones}
+Show progress made and key deliverables completed.
+
+\subsection{Work Division}
+Describe task allocation and balance among members.
+
+\subsection{Communication}
+Explain tools, meetings, and methods for collaboration.
+
+\subsection{Reflection}
+Assess strengths, weaknesses, and improvements in teamwork.
+
+% =============== SECTION 8 ===========
+\section{Ethics, Privacy, and Professional Considerations}
+
+\subsection{Ethical Issues}
+Describe how privacy, fairness, safety, and inclusivity are handled.
+
+\subsection{Standards \& Laws}
+Identify codes of conduct, legal requirements, or regulations applied.
+
+\subsection{Environmental Impact}
+Note measures for efficiency, sustainability, or reduced footprint.
+
+\subsection{Intellectual Property}
+Clarify ownership, licensing, or agreements with partners.
+
+% =============== SECTION 9 ===========
+\section{Risk and Resource Management}
+
+\subsection{Risks}
+Identified risks and mitigation strategies.
+
+\subsection{Adaptations}
+Adjustments during project development.
+
+\subsection{Resources}
+Hardware, software, datasets, financial usage.
+
+\subsection{Cost Considerations}
+Rough budgeting or cost estimation.
+
+% =============== SECTION 10 ===========
+\section{Conclusion and Future Work}
+
+\subsection{Achievements}
+Summarize main results, system features, and contributions.
+
+\subsection{Objectives Met}
+Evaluate how well the project goals were fulfilled.
+
+\subsection{Applications}
+Point out technical, industrial, or societal uses.
+
+\subsection{Future Work}
+Suggest next steps, enhancements, or research directions.
+
+% =============== REFERENCES ===========
+\newpage
+\section*{References}
+\addcontentsline{toc}{section}{References}
+
+% Option 1: IEEE Style
+\begin{enumerate}
+    \item A. Author, B. Author, and C. Author, ``Title of the article,'' \textit{Journal Name}, vol. 10, no. 2, pp. 123--135, Feb. 2021.
+    \item D. Author, \textit{Book Title}. 2nd ed. New York, NY, USA: Publisher, 2020.
+    \item E. Author, ``Title of Conference Paper,'' in \textit{Proc. IEEE Int. Conf. on Computer Vision (ICCV)}, Seoul, Korea, 2019, pp. 456--462.
+    \item F. Author, ``Title of Webpage,'' Website Name, 2022. [Online]. Available: https://www.example.com [Accessed: Sep. 9, 2025].
+\end{enumerate}
+
+% Option 2: APA Style (uncomment if needed)
+% \begin{itemize}
+%     \item Author, A., Author, B., \& Author, C. (2021). Title of the article. \textit{Journal Name, 10}(2), 123--135. https://doi.org/xxxxx
+%     \item Author, D. (2020). \textit{Book title} (2nd ed.). Publisher.
+%     \item Author, E. (2019). Title of conference paper. In \textit{Proceedings of the IEEE International Conference on Computer Vision (ICCV)} (pp. 456--462). IEEE.
+%     \item Author, F. (2022). Title of webpage. Website Name. https://www.example.com
+% \end{itemize}
+
+% =============== APPENDICES ===========
+\newpage
+\appendix
+
+\section{Source Code Excerpts}
+Provide relevant code snippets (not the entire codebase). Highlight key functions or algorithms. Add comments/explanations where necessary.
+
+\section{Circuit Diagrams / Schematics}
+Include electronic or hardware diagrams. Label all components clearly. Provide captions and references.
+
+\section{User Interface Mockups / Screenshots}
+Show UI designs, mockups, or final application screenshots. Include captions and references to sections in the main report.
+
+\section{Extended Test Data}
+Detailed logs, datasets, or evaluation results. Tables or charts that support the analysis in the main body. Notes on data collection methods (if applicable).
+
+\section{Additional Documentation}
+User manuals or setup instructions. Consent forms (if user study is involved). Contracts or agreements with collaborators/companies.
+
+\end{document}
